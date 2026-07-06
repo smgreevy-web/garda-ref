@@ -270,6 +270,8 @@ function openCase(name){
   let h='';
   if(c.why)h+='<div class="rbox note"><b>Why it matters:</b> '+esc(c.why)+'</div>';
   else if(c.d)h+='<div class="rbox note">'+esc(c.d)+'</div>';
+  if(c.f){if(c.f.facts)h+='<div class="rsub">Facts</div><p>'+esc(c.f.facts)+'</p>';
+    if(c.f.held)h+='<div class="rbox warn" style="background:#f7efd7;border-left-color:var(--gold)"><b>Held:</b> '+esc(c.f.held)+'</div>';}
   h+='<div class="rsub">In your manual</div>';
   h+=(c.s||[]).map(sn=>'<p><span class="xref" data-a="'+sn.a+'">'+esc(pageLabel(sn.a))+'</span> — '+esc(sn.t)+'</p>').join('')||'<p>Open the pages below for full context.</p>';
   h+='<div class="rsub">Every page it appears on</div><p>'+c.p.map(p=>'<span class="xref" data-a="'+p+'">'+esc(pageLabel(p))+'</span>').join(' · ')+'</p>';
@@ -816,7 +818,14 @@ async function askAI(){
     const d=await r.json();
     if(d.error)throw new Error(d.error.message||'API error');
     let txt=(d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
-    let h=esc(txt).replace(/\(p\.(\d{1,4})\)/g,(m,n)=>'<span class="xref" data-a="'+n+'">(p.'+n+')</span>');
+    let h=esc(txt)
+      .replace(/^#{1,4}\s*(.+)$/gm,'<b class="aih">$1</b>')
+      .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>')
+      .replace(/^\s*[-•]\s+(.+)$/gm,'<span class="aib">▸ $1</span>')
+      .replace(/\n{2,}/g,'<br>')
+      .replace(/\n/g,'<br>')
+      .replace(/(<br>)+(<b class="aih">)/g,'<br>$2')
+      .replace(/\(p\.(\d{1,4})\)/g,(m,n)=>'<span class="xref" data-a="'+n+'">(p.'+n+')</span>');
     panel.innerHTML='<div class="aians">'+h+'<div class="aisrc">Sources: '+top.map(t=>'<span class="xref" data-a="'+t.abs+'">'+esc(pageLabel(t.abs))+'</span>').join(' · ')+'</div></div>';
     panel.querySelectorAll('.xref').forEach(x=>x.addEventListener('click',()=>openPage(+x.dataset.a)));
   }catch(e){
