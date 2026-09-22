@@ -118,6 +118,14 @@ function homeQuick(){
     <button class="qbtn" id="hScene">🚔 First at scene<small>golden hour</small></button>
   </div>
 
+  <h2 class="sec">🔎 In-depth investigation guides</h2><div class="quick">
+    <button class="qbtn" id="hAssault">👊 Assault<small>scene · evidence · trial · case law</small></button>
+    <button class="qbtn" id="hRobbery">🔪 Robbery from person<small>force · ID · continuing act</small></button>
+    <button class="qbtn" id="hBurglary">🏠 Burglary<small>entry forensics · recent possession</small></button>
+    <button class="qbtn" id="hTheft">💰 Theft & handling<small>dishonesty · claim of right</small></button>
+    <button class="qbtn" id="hDrugs2">💊 Drugs prosecutions<small>MDA · s.23 · s.26 warrants</small></button>
+  </div>
+
   <h2 class="sec">⚖️ Law & authority</h2><div class="quick">
     <button class="qbtn" id="qbEss">★ Essential case law<small>the ones that changed everything</small></button>
     <button class="qbtn" id="qbCases">📚 Full case library<small>383 cases, categorised</small></button>
@@ -169,6 +177,11 @@ function homeQuick(){
   go('hOcall',()=>openGuide3('ocall'));
   go('hBailpack',()=>openTemplate(TPL.findIndex(t=>t.id==='bailpack')));
   go('hDrugs',()=>openGuide3('drugs'));
+  go('hAssault',()=>openGuide3('assault_inv'));
+  go('hRobbery',()=>openGuide3('robbery_inv'));
+  go('hBurglary',()=>openGuide3('burglary_inv'));
+  go('hTheft',()=>openGuide3('theft_inv'));
+  go('hDrugs2',()=>openGuide3('drugs'));
   go('hRare',()=>openGuide3('rare'));
   go('hPrecis',()=>openGuide3('precis2'));
   go('hPO',()=>openGuide3('po'));
