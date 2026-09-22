@@ -19,29 +19,43 @@ function build(){
   if(built)return;
   const o=document.createElement('div'); o.id='osint'; o.className='hidden';
   o.innerHTML=`
-   <div class="os-top">
-     <button id="osBack" class="iconbtn" aria-label="Back">‹</button>
-     <input id="osSearch" type="search" placeholder="Search address or place in Dublin…" autocomplete="off">
-     <button id="osLinks" class="iconbtn" title="OSINT links">☰</button>
+   <div class="os-header">
+     <div class="os-brand"><span class="oseye">◎</span><div><b>GARDA · OSINT</b><small>FIELD INTELLIGENCE</small></div></div>
+     <div class="os-statusline" id="osStatus">INITIALISING…</div>
+     <div class="os-hact">
+       <input id="osSearch" type="search" placeholder="SEARCH LOCATION…" autocomplete="off">
+       <button id="osLinks" class="os-ic" title="OSINT links">☰</button>
+       <button id="osBack" class="os-ic" title="Close" aria-label="Close">✕</button>
+     </div>
    </div>
-   <div id="osmap"></div>
-   <div class="os-bar">
-     <button class="osbtn" id="osBase">🛰️ Satellite</button>
-     <button class="osbtn" id="osCam">📷 Add camera</button>
-     <button class="osbtn" id="osFlights">✈️ Flights</button>
-     <button class="osbtn" id="osLoc">📍 Me</button>
-     <button class="osbtn" id="osGarda">🛡️ Garda</button>
-     <button class="osbtn" id="osCams">📹 Cams</button>
-     <button class="osbtn" id="osTransport">🚌 Transport</button>
-     <button class="osbtn" id="osList">📷 Log (${cctv.length})</button>
+   <div id="osmap">
+     <div class="os-rail">
+       <button class="os-r on" id="osGarda"><span>🛡️</span><em>GARDA</em><i class="rbadge" id="bGarda">96</i></button>
+       <button class="os-r" id="osCams"><span>📹</span><em>CAMS</em><i class="rbadge" id="bCams">7</i></button>
+       <button class="os-r" id="osFlights"><span>✈️</span><em>AIR</em></button>
+       <button class="os-r" id="osTransport"><span>🚌</span><em>TRANSIT</em></button>
+       <button class="os-r" id="osList"><span>📷</span><em>LOG</em><i class="rbadge" id="bLog">${cctv.length}</i></button>
+       <button class="os-r" id="osCam"><span>➕</span><em>PIN</em></button>
+       <button class="os-r" id="osLoc"><span>📍</span><em>ME</em></button>
+     </div>
+     <div class="os-mode">
+       <button id="osModeMap" class="on">◐ TACTICAL</button>
+       <button id="osModeSat">✦ SAT</button>
+     </div>
+     <div class="os-statusbar">
+       <span id="osCursor">CURSOR ——</span><span class="sep">·</span>
+       <span id="osZoom">ZOOM ——</span><span class="sep">·</span>
+       <span class="dim">DUBLIN · IRELAND</span>
+     </div>
    </div>
    <div id="osPanel" class="os-panel hidden"></div>
-   <div class="os-caution">⚠️ Public-source intelligence only. Sustained monitoring of an identifiable person can become directed surveillance under GDPR / the Law Enforcement Directive — get the required authorisation or it may be inadmissible.</div>`;
+   <div class="os-caution">⚠️ PUBLIC-SOURCE INTELLIGENCE ONLY — sustained monitoring of an identifiable person can become directed surveillance under GDPR / the LED. Obtain authorisation or it may be inadmissible.</div>`;
   document.body.appendChild(o);
   $('#osBack').addEventListener('click',close);
   $('#osLinks').addEventListener('click',showLinks);
   $('#osSearch').addEventListener('keydown',e=>{if(e.key==='Enter')geocode(e.target.value);});
-  $('#osBase').addEventListener('click',toggleBase);
+  $('#osModeMap').addEventListener('click',()=>setBase(false));
+  $('#osModeSat').addEventListener('click',()=>setBase(true));
   $('#osCam').addEventListener('click',togglePlace);
   $('#osFlights').addEventListener('click',toggleFlights);
   $('#osLoc').addEventListener('click',locate);
@@ -49,14 +63,28 @@ function build(){
   $('#osGarda').addEventListener('click',toggleGarda);
   $('#osCams').addEventListener('click',toggleCams);
   $('#osTransport').addEventListener('click',showTransport);
+  startClock();
   built=true;
 }
-
+let _clk=null;
+function startClock(){
+  if(_clk)clearInterval(_clk);
+  const upd=()=>{
+    const d=new Date();
+    const z=d.toISOString().substr(11,8);
+    const on=navigator.onLine;
+    const st=$('#osStatus');
+    if(st)st.innerHTML='ZULU <b>'+z+'Z</b> <span class="sdot '+(on?'live':'off')+'"></span>'+(on?'LIVE':'OFFLINE')+
+      ' · <b>96</b> STN · <b>7</b> CAM · <b>'+(gardaOn+camsOn+flightsOn+ (typeof cctv!=='undefined'?1:0))+'</b> LYR';
+  };
+  upd(); _clk=setInterval(upd,1000);
+}
 let baseStreets,baseSat,baseLabels,onSat=false;
 let gardaLayer=null,camsLayer=null,STATIONS=[],LIVECAMS=[],gardaOn=false,camsOn=false;
 function initMap(){
   if(map)return;
-  map=L.map('osmap',{zoomControl:true,attributionControl:true}).setView(DUB,14);
+  map=L.map('osmap',{zoomControl:false,attributionControl:true}).setView(DUB,14);
+  L.control.zoom({position:'bottomright'}).addTo(map);
   baseStreets=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     {maxZoom:20,subdomains:'abcd',attribution:'© OpenStreetMap © CARTO'});
   baseSat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -67,7 +95,7 @@ function initMap(){
   // tactical grid overlay
   const grid=document.createElement('div'); grid.className='os-grid'; 
   const mc=document.querySelector('#osmap'); if(mc)mc.appendChild(grid);
-  L.control.scale({imperial:false}).addTo(map);
+  L.control.scale({imperial:false,position:'bottomright'}).addTo(map);
   cctvLayer=L.layerGroup().addTo(map);
   flightLayer=L.layerGroup();
   gardaLayer=L.layerGroup();
@@ -77,7 +105,7 @@ function initMap(){
   drawCameras();
   // drawing / measuring tools
   try{
-    map.pm.addControls({position:'topleft',drawCircleMarker:false,rotateMode:false,
+    map.pm.addControls({position:'topright',drawCircleMarker:false,rotateMode:false,
       drawText:false,cutPolygon:false});
     map.pm.setLang('en');
     map.on('pm:create',e=>{
@@ -92,6 +120,12 @@ function initMap(){
     if(map.pm && map.pm.globalDrawModeEnabled && map.pm.globalDrawModeEnabled())return;
     pointPopup(e.latlng);
   });
+  // cursor + zoom readout
+  map.on('mousemove',e=>{const c=$('#osCursor');if(c)c.textContent='CURSOR '+e.latlng.lat.toFixed(4)+', '+e.latlng.lng.toFixed(4);});
+  const zu=()=>{const z=$('#osZoom');if(z)z.textContent='ZOOM '+map.getZoom().toFixed(1);};
+  map.on('zoomend',zu); zu();
+  // auto-show Garda stations as default context
+  setTimeout(()=>{ if(STATIONS.length){ if(!gardaOn)toggleGarda(); } },700);
   // night layer
   try{buildNight();}catch(e){}
 }
@@ -112,10 +146,11 @@ function measureArea(layer){
   return a>10000?(a/10000).toFixed(2)+' ha ('+Math.round(a)+' m²)':Math.round(a)+' m²';
 }
 
-function toggleBase(){
-  onSat=!onSat;
-  if(onSat){map.removeLayer(baseStreets);baseSat.addTo(map);baseLabels.addTo(map);$('#osBase').textContent='🌒 Tactical';document.querySelector('#osmap').classList.add('sat');}
-  else{map.removeLayer(baseSat);map.removeLayer(baseLabels);baseStreets.addTo(map);$('#osBase').textContent='🛰️ Satellite';document.querySelector('#osmap').classList.remove('sat');}
+function setBase(sat){
+  onSat=sat;
+  const mm=$('#osModeMap'),ms=$('#osModeSat');
+  if(sat){map.removeLayer(baseStreets);baseSat.addTo(map);baseLabels.addTo(map);document.querySelector('#osmap').classList.add('sat');mm&&mm.classList.remove('on');ms&&ms.classList.add('on');}
+  else{map.removeLayer(baseSat);map.removeLayer(baseLabels);baseStreets.addTo(map);document.querySelector('#osmap').classList.remove('sat');ms&&ms.classList.remove('on');mm&&mm.classList.add('on');}
 }
 
 // ---- point actions popup ----
@@ -153,7 +188,7 @@ function drawCameras(){
   cctv.forEach((c,i)=>{
     L.marker([c.lat,c.lon],{icon:camIcon()}).addTo(cctvLayer).on('click',()=>editCamera(i));
   });
-  const lb=$('#osList');if(lb)lb.textContent='📷 Log ('+cctv.length+')';
+  const lb=$('#bLog');if(lb)lb.textContent=cctv.length;
 }
 function togglePlace(){
   placing=!placing;
