@@ -30,6 +30,9 @@ function build(){
      <button class="osbtn" id="osCam">📷 Add camera</button>
      <button class="osbtn" id="osFlights">✈️ Flights</button>
      <button class="osbtn" id="osLoc">📍 Me</button>
+     <button class="osbtn" id="osGarda">🛡️ Garda</button>
+     <button class="osbtn" id="osCams">📹 Cams</button>
+     <button class="osbtn" id="osTransport">🚌 Transport</button>
      <button class="osbtn" id="osList">📷 Log (${cctv.length})</button>
    </div>
    <div id="osPanel" class="os-panel hidden"></div>
@@ -43,21 +46,34 @@ function build(){
   $('#osFlights').addEventListener('click',toggleFlights);
   $('#osLoc').addEventListener('click',locate);
   $('#osList').addEventListener('click',showList);
+  $('#osGarda').addEventListener('click',toggleGarda);
+  $('#osCams').addEventListener('click',toggleCams);
+  $('#osTransport').addEventListener('click',showTransport);
   built=true;
 }
 
-let baseStreets,baseSat,onSat=false;
+let baseStreets,baseSat,baseLabels,onSat=false;
+let gardaLayer=null,camsLayer=null,STATIONS=[],LIVECAMS=[],gardaOn=false,camsOn=false;
 function initMap(){
   if(map)return;
   map=L.map('osmap',{zoomControl:true,attributionControl:true}).setView(DUB,14);
-  baseStreets=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    {maxZoom:19,attribution:'© OpenStreetMap'});
+  baseStreets=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    {maxZoom:20,subdomains:'abcd',attribution:'© OpenStreetMap © CARTO'});
   baseSat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     {maxZoom:19,attribution:'Imagery © Esri'});
+  baseLabels=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',
+    {maxZoom:20,subdomains:'abcd',pane:'markerPane',opacity:0.9});
   baseStreets.addTo(map);
+  // tactical grid overlay
+  const grid=document.createElement('div'); grid.className='os-grid'; 
+  const mc=document.querySelector('#osmap'); if(mc)mc.appendChild(grid);
   L.control.scale({imperial:false}).addTo(map);
   cctvLayer=L.layerGroup().addTo(map);
   flightLayer=L.layerGroup();
+  gardaLayer=L.layerGroup();
+  camsLayer=L.layerGroup();
+  fetch('data/garda_stations.json').then(r=>r.json()).then(d=>{STATIONS=d;}).catch(()=>{});
+  fetch('data/livecams.json').then(r=>r.json()).then(d=>{LIVECAMS=d;}).catch(()=>{});
   drawCameras();
   // drawing / measuring tools
   try{
@@ -98,8 +114,8 @@ function measureArea(layer){
 
 function toggleBase(){
   onSat=!onSat;
-  if(onSat){map.removeLayer(baseStreets);baseSat.addTo(map);$('#osBase').textContent='🗺️ Streets';}
-  else{map.removeLayer(baseSat);baseStreets.addTo(map);$('#osBase').textContent='🛰️ Satellite';}
+  if(onSat){map.removeLayer(baseStreets);baseSat.addTo(map);baseLabels.addTo(map);$('#osBase').textContent='🌒 Tactical';document.querySelector('#osmap').classList.add('sat');}
+  else{map.removeLayer(baseSat);map.removeLayer(baseLabels);baseStreets.addTo(map);$('#osBase').textContent='🛰️ Satellite';document.querySelector('#osmap').classList.remove('sat');}
 }
 
 // ---- point actions popup ----
@@ -119,6 +135,8 @@ function pointPopup(ll){
    <a href="${bing}" target="_blank">🦅 Bing Bird's-eye</a>
    <a href="${fr}" target="_blank">✈️ FlightRadar here</a>
    <a href="${mt}" target="_blank">🚢 MarineTraffic here</a>
+   <a href="https://www.windy.com/-Webcams/webcams/add?${la},${lo},15" target="_blank">📹 Public webcams near here</a>
+   <a href="https://www.youtube.com/results?search_query=${la.slice(0,6)}+${lo.slice(0,6)}+live+dublin" target="_blank">▶️ YouTube live search</a>
    <button class="oscam2" data-la="${ll.lat}" data-lo="${ll.lng}">📷 Log a camera here</button></div>`;
   const p=L.popup({maxWidth:250}).setLatLng(ll).setContent(html).openOn(map);
   setTimeout(()=>{
@@ -310,6 +328,55 @@ function close(){
   $('#osint').classList.add('hidden');
   document.body.classList.remove('os-open');
   if(flightsOn){clearInterval(flightTimer);}
+}
+function gardaIcon(hq){return L.divIcon({className:'gdaIcon'+(hq?' hq':''),html:'🛡️',iconSize:[26,26],iconAnchor:[13,13]});}
+function toggleGarda(){
+  gardaOn=!gardaOn; $('#osGarda').classList.toggle('on',gardaOn);
+  if(!gardaOn){map.removeLayer(gardaLayer);return;}
+  gardaLayer.clearLayers();
+  STATIONS.forEach(st=>{
+    const hq=/HQ/i.test(st.ty);
+    const m=L.marker([st.lat,st.lon],{icon:gardaIcon(hq)}).addTo(gardaLayer);
+    const dir='https://www.google.com/maps/dir/?api=1&destination='+st.lat+','+st.lon;
+    m.bindPopup('<div class="ospop"><b>🛡️ '+esc(st.n)+' Garda Station</b>'+
+      '<div style="color:#20180a;font-size:11px;margin:2px 0 6px">'+esc(st.dv)+' · '+esc(st.ty)+(st.ft?' · 24hr':'')+'</div>'+
+      '<div style="color:#20180a;font-size:12px;margin-bottom:6px">'+esc(st.a)+'</div>'+
+      (st.ph?'<a href="tel:0'+esc(st.ph.replace(/^0/,""))+'">📞 Call 0'+esc(st.ph.replace(/^0/,""))+'</a>':'')+
+      '<a href="'+dir+'" target="_blank">🧭 Directions</a>'+
+      '<a href="'+esc(st.u)+'" target="_blank">🔗 Station page</a></div>');
+  });
+  gardaLayer.addTo(map);
+  toast(STATIONS.length+' Garda stations shown');
+}
+function camsIcon(){return L.divIcon({className:'liveCamIcon',html:'📹',iconSize:[26,26],iconAnchor:[13,13]});}
+function toggleCams(){
+  camsOn=!camsOn; $('#osCams').classList.toggle('on',camsOn);
+  if(!camsOn){map.removeLayer(camsLayer);return;}
+  camsLayer.clearLayers();
+  LIVECAMS.forEach(c=>{
+    const m=L.marker([c.lat,c.lon],{icon:camsIcon()}).addTo(camsLayer);
+    m.bindPopup('<div class="ospop"><b>📹 '+esc(c.n)+'</b>'+
+      '<div style="color:#20180a;font-size:11px;margin:2px 0 6px">Public webcam · '+esc(c.s)+'</div>'+
+      '<a href="'+esc(c.u)+'" target="_blank">▶️ View live feed</a>'+
+      '<a href="https://www.windy.com/-Webcams/webcams/'+c.lat+','+c.lon+',15" target="_blank">📹 More public cams near here</a></div>');
+  });
+  camsLayer.addTo(map);
+  toast(LIVECAMS.length+' public webcams · tap to view');
+}
+function showTransport(){
+  const c=map?map.getCenter():{lat:53.3498,lng:-6.2603};
+  const p=$('#osPanel');p.classList.remove('hidden');
+  p.innerHTML='<div class="os-panel-in"><div class="osp-head"><b>🚌 Transport — live times</b><button class="osx" id="ospClose">✕</button></div>'+
+   '<div class="oslgrp"><div class="oslh">Live departures</div>'+
+   '<a class="oslink" href="https://www.transportforireland.ie/plan-a-journey/" target="_blank">🚏 TFI Journey Planner & live times ↗</a>'+
+   '<a class="oslink" href="https://luasforecasts.rpa.ie/" target="_blank">🚊 Luas live forecasts ↗</a>'+
+   '<a class="oslink" href="https://www.irishrail.ie/en-ie/train-timetables/live-departure-times" target="_blank">🚆 Irish Rail live departures ↗</a>'+
+   '<a class="oslink" href="https://www.dublinbus.ie/RTPI/" target="_blank">🚌 Dublin Bus real-time ↗</a></div>'+
+   '<div class="oslgrp"><div class="oslh">Maps</div>'+
+   '<a class="oslink" href="https://www.transportforireland.ie/" target="_blank">TFI network & stops ↗</a>'+
+   '<a class="oslink" href="https://www.google.com/maps/@'+c.lat.toFixed(4)+','+c.lng.toFixed(4)+',15z/data=!5m1!1e2" target="_blank">Google Maps transit here ↗</a></div>'+
+   '<p class="osp-empty">Live vehicle positions aren\'t embeddable without a paid transit API, so these open the official real-time pages. Luas has a browser API and may be added in-app later.</p></div>';
+  $('#ospClose').addEventListener('click',()=>p.classList.add('hidden'));
 }
 window.openOSINT=open;
 })();

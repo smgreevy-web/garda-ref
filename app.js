@@ -62,8 +62,18 @@ function isDated(abs){ return abs>=993; } // 2007 manual
 
 /* ---------- tabs ---------- */
 function applyFS(){document.documentElement.dataset.fs=localStorage.getItem('gr_fs')||'m';}
+function updateDlBtn(){const d=$('#rdDl');if(d)d.style.display=curDoc?'':'none';}
 function bindUI(){
   applyFS();
+  const top=document.querySelector('.rd-top');
+  if(top){
+    top.insertAdjacentHTML('beforeend','<div id="rdProg"></div>');
+    const star=$('#rdStar');
+    star.insertAdjacentHTML('beforebegin','<button id="rdDl" class="iconbtn" title="Download as Word" aria-label="Download Word document" style="display:none">⬇</button>');
+    $('#rdDl').addEventListener('click',()=>{if(curDoc)downloadDoc(curDoc.title,curDoc.text);});
+    rdBody.addEventListener('scroll',()=>{const el=rdBody;const max=el.scrollHeight-el.clientHeight;
+      const p=max>0?(el.scrollTop/max*100):0;const bar=$('#rdProg');if(bar)bar.style.width=p+'%';},{passive:true});
+  }
   $('#loadState').insertAdjacentHTML('beforebegin','<button id="fsBtn" title="Text size">Aa</button>');
   $('#fsBtn').addEventListener('click',()=>{const o=['s','m','l'],c=localStorage.getItem('gr_fs')||'m';
     localStorage.setItem('gr_fs',o[(o.indexOf(c)+1)%3]);applyFS();});
@@ -139,6 +149,7 @@ function homeQuick(){
     <button class="qbtn" id="hBurglary">🏠 Burglary<small>entry forensics · recent possession</small></button>
     <button class="qbtn" id="hTheft">💰 Theft & handling<small>dishonesty · claim of right</small></button>
     <button class="qbtn" id="hDrugs2">💊 Drugs prosecutions<small>MDA · s.23 · s.26 warrants</small></button>
+    <button class="qbtn" id="hImm">🛂 Immigration<small>status · smuggling · trafficking</small></button>
   </div>
 
   <h2 class="sec">⚖️ Law & authority</h2><div class="quick">
@@ -147,6 +158,7 @@ function homeQuick(){
     <button class="qbtn" id="hBail">🔒 Objecting to bail<small>O'Callaghan · s.2 · burglary presumption</small></button>
     <button class="qbtn" id="hOcall">📋 O'Callaghan worksheet<small>systematic objection</small></button>
     <button class="qbtn" id="hBailpack">⚖️ Bail pack<small>case-manager worksheet</small></button>
+    <button class="qbtn" id="hAmend">🆕 Recent amendments<small>new laws by area — verify</small></button>
     <button class="qbtn" id="hJudg">◉ Latest judgments<small>BAILII — Supreme · Appeal · High</small></button>
     <button class="qbtn" id="hCourtLists">🗓️ Court lists<small>CCJ & all Dublin courts — today</small></button>
   </div>
@@ -201,11 +213,13 @@ function homeQuick(){
   go('hBurglary',()=>openGuide3('burglary_inv'));
   go('hTheft',()=>openGuide3('theft_inv'));
   go('hDrugs2',()=>openGuide3('drugs'));
+  go('hImm',()=>openGuide3('immigration_inv'));
   go('hRare',()=>openGuide3('rare'));
   go('hPrecis',()=>openGuide3('precis2'));
   go('hPO',()=>openGuide3('po'));
   go('hAffray',()=>openGuide3('affray'));
   go('hIplan',()=>openGuide3('iplan'));
+  go('hAmend',()=>openGuide3('amendments'));
   go('hJudg',renderJudgments);
   go('hCourtLists',renderCourtLists);
   go('hGuides',()=>renderGuides());
@@ -236,7 +250,7 @@ function openGuide3(id){
   $('#rdTitle').textContent=g.icon+' '+g.t; $('#rdPage').textContent='Guide';
   $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
-  rdBody.innerHTML=formatPage(g.b); applyRdScale(); rdBody.scrollTop=0;
+  curDoc={title:g.t,text:g.b}; rdBody.innerHTML=formatPage(g.b); applyRdScale(); rdBody.scrollTop=0; updateDlBtn();
 }
 function doSearch(q,filter,keep){
   lastQuery=q;
@@ -372,7 +386,7 @@ function openCase(name){
   h+=(c.s||[]).map(sn=>'<p><span class="xref" data-a="'+sn.a+'">'+esc(pageLabel(sn.a))+'</span> — '+esc(sn.t)+'</p>').join('')||'<p>Open the pages below for full context.</p>';
   h+='<div class="rsub">Every page it appears on</div><p>'+c.p.map(p=>'<span class="xref" data-a="'+p+'">'+esc(pageLabel(p))+'</span>').join(' · ')+'</p>';
   h+='<div class="rsub">Full judgment (needs signal)</div><p><span class="extj" data-u="bailii">BAILII</span> · <span class="extj" data-u="courts">Courts.ie</span> · <span class="extj" data-u="westlaw">Westlaw (your login)</span></p>';
-  rdBody.innerHTML=h;
+  rdBody.innerHTML=h; curDoc={title:c.n,text:(c.why||c.d||"")+"\n\n"+((c.f&&(("Facts: "+(c.f.facts||""))+"\nHeld: "+(c.f.held||"")))||"")+"\n\n"+(c.s||[]).map(x=>pageLabel(x.a)+" — "+x.t).join("\n\n")}; updateDlBtn();
   rdBody.querySelectorAll('.xref').forEach(x=>x.addEventListener('click',()=>openPage(+x.dataset.a)));
   rdBody.querySelectorAll('.extj').forEach(x=>x.addEventListener('click',()=>{
     const q=encodeURIComponent(c.n);
@@ -427,7 +441,7 @@ function openStencil(i){
   let h=esc(st.b);
   h=h.replace(/(\[[^\]\n]{1,60}\]|_{3,}|\bXXXX?\b|\bTIME\b|\bDATE\b|\bLOCATION\b|\bNAME\b|\bSTATION\b|\bOFFENCE\b)/g,'<mark class="ph">$1</mark>');
   h=h.split(/\n/).map(l=>l.trim()?('<p>'+l+'</p>'):'').join('');
-  rdBody.innerHTML=h; rdBody.scrollTop=0;
+  curDoc={title:st.t,text:st.b}; rdBody.innerHTML=h; rdBody.scrollTop=0; updateDlBtn();
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
 }
 function renderLive(){
@@ -851,9 +865,11 @@ function openTemplate(i){
   ${t.sub?`<div class="tool"><h3>Subject</h3><div class="gtxt">${esc(t.sub)}</div><button class="csall" id="cs">⧉ Copy subject</button></div>`:''}
   <div class="tool"><div class="gtxt tplbody">${esc(t.b).replace(/\n/g,'<br>')}</div></div>
   <button class="csall" id="cb">⧉ Copy full text</button>
+  <button class="csall" id="dlw">⬇ Download as Word</button>
   ${t.sub?'<button class="csall" id="mb">✉️ Open in email app</button>':''}`;
   $('#backT2').addEventListener('click',renderTemplates);
   copyBtn('cb',t.b); if(t.sub)copyBtn('cs',t.sub);
+  $('#dlw').addEventListener('click',()=>downloadDoc(t.t,t.b));
   const mb=$('#mb'); if(mb)mb.addEventListener('click',()=>{window.location.href='mailto:?subject='+encodeURIComponent(t.sub)+'&body='+encodeURIComponent(t.b);});
   view.scrollTop=0;
 }
@@ -1081,9 +1097,9 @@ function openPage(abs){ if(!window._pz){window._pz=1;setTimeout(pinchZoom,0);}
   if(isDated(curPage)){flag.textContent='⚠ 2007 manual — law and procedure may be superseded. Verify before relying.';flag.classList.remove('hidden');}
   else flag.classList.add('hidden');
   if(txt===null){rdBody.textContent='This part is still downloading — one moment (or reconnect once to finish caching).';return;}
+  curDoc={title:titleFor(curPage).split(' › ').pop()+' — '+pageLabel(curPage),text:stripMd(txt)};
   rdBody.innerHTML=formatPage(stripMd(txt));
-  applyRdScale();
-  applyRdScale();
+  applyRdScale(); updateDlBtn();
   rdBody.querySelectorAll('.xref').forEach(x=>x.addEventListener('click',()=>openPage(+x.dataset.a)));
   rdBody.scrollTop=0;
 }
@@ -1110,6 +1126,47 @@ function printedToAbs(p){
   // labels map holds 'Pg N' -> find
   for(const[a,l]of Object.entries(META.labels))if(l==='Pg '+p)return +a;
   return Math.min(14+p,META.pages);
+}
+let curDoc=null;
+function _wordEsc(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function textToWordHtml(text){
+  const lines=String(text||'').split('\n');let out='',inList=false;
+  const isHead=t=>t.length>2&&t.length<110&&t===t.toUpperCase()&&/[A-Z]{3}/.test(t)&&!/[.;]$/.test(t);
+  const isSub=t=>/^\d+(\.\d+)*\s+\S/.test(t)&&!/[.;,]$/.test(t)&&t.length<90;
+  for(let raw of lines){
+    const t=raw.replace(/\*+/g,'').trim();
+    if(!t){if(inList){out+='</ul>';inList=false;}continue;}
+    if(isHead(t)){if(inList){out+='</ul>';inList=false;}out+='<h2>'+_wordEsc(t)+'</h2>';continue;}
+    if(isSub(t)){if(inList){out+='</ul>';inList=false;}out+='<h3>'+_wordEsc(t)+'</h3>';continue;}
+    const b=t.match(/^[•▪◦·–\-\*]\s+(.*)/);
+    if(b){if(!inList){out+='<ul>';inList=true;}out+='<li>'+_wordEsc(b[1])+'</li>';continue;}
+    const lm=t.match(/^([A-Z][\w\s\/()'’&,–-]{1,42}):\s+(\S.*)/);
+    if(inList){out+='</ul>';inList=false;}
+    if(lm&&lm[1].split(' ').length<=6){out+='<p><b>'+_wordEsc(lm[1])+':</b> '+_wordEsc(lm[2])+'</p>';continue;}
+    out+='<p>'+_wordEsc(t)+'</p>';
+  }
+  if(inList)out+='</ul>';
+  return out;
+}
+function downloadDoc(title,text){
+  const body=textToWordHtml(text);
+  const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'+
+   '<head><meta charset="utf-8"><title>'+_wordEsc(title)+'</title><style>'+
+   'body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#111;line-height:1.42}'+
+   'h1{font-size:19pt;color:#0a1930;margin:0 0 4pt}h2{font-size:13pt;color:#8a6d1d;border-bottom:1px solid #d8cba4;padding-bottom:2pt;margin:16pt 0 6pt}'+
+   'h3{font-size:11.5pt;color:#334;margin:11pt 0 4pt}ul{margin:6pt 0 6pt 0}li{margin:2pt 0}p{margin:6pt 0}'+
+   '.sub{color:#666;font-size:9.5pt;margin:0 0 12pt}.disc{color:#888;font-size:9pt;margin-top:18pt;border-top:1px solid #ccc;padding-top:6pt}'+
+   '</style></head><body><h1>'+_wordEsc(title)+'</h1>'+
+   '<p class="sub">Garda Reference — Mountjoy Garda Station, DMR North Central</p>'+body+
+   '<p class="disc">Working reference — not legal advice — verify current wording before relying. Generated '+new Date().toLocaleDateString('en-IE')+'.</p></body></html>';
+  try{
+    const blob=new Blob(['\ufeff'+html],{type:'application/msword'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=(String(title).replace(/[^\w\s-]/g,'').trim().slice(0,60)||'garda-reference')+'.doc';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1200);
+    if(typeof toast==='function')toast('Downloading Word document…');
+  }catch(e){alert('Download not supported on this browser.');}
 }
 function formatPage(txt){
   txt=txt.replace(/\*{1,}/g,'');

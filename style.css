@@ -490,3 +490,110 @@ h2.sec{animation:riseIn .3s ease both}
   .stat b{font-size:20px}
 }
 @media (prefers-reduced-motion: reduce){ .recentrow:hover{transform:none} }
+
+/* ============================================================
+   PREMIUM READER — "briefing" reading surface (overrides light theme)
+   ============================================================ */
+.reader{background:#070d18;color:#e8eef7}
+.reader::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(1000px 460px at 50% -8%,rgba(30,64,112,.5),transparent 62%),
+    radial-gradient(760px 420px at 100% 0,rgba(29,107,120,.14),transparent 60%),
+    linear-gradient(180deg,#0a1424,#070d18)}
+.rd-top{position:relative;z-index:3;background:linear-gradient(180deg,#0c1a30,#0a1526);
+  border-bottom:1px solid rgba(212,175,55,.3);padding:13px 12px;box-shadow:0 6px 20px -10px rgba(0,0,0,.7)}
+.rd-title{font-size:16px;font-weight:800;letter-spacing:.2px;color:#fff;white-space:normal;line-height:1.25}
+.rd-page{font-size:10.5px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;margin-top:2px}
+#rdProg{position:absolute;left:0;bottom:-1px;height:2.5px;width:0;z-index:4;
+  background:linear-gradient(90deg,var(--gold),var(--cyan));box-shadow:0 0 10px rgba(212,175,55,.6)}
+.iconbtn{background:rgba(18,37,68,.7);border:1px solid rgba(120,150,200,.2)}
+
+.rd-body{background:transparent;color:#d3ddec;position:relative;z-index:1;counter-reset:sec;
+  font:16.5px/1.75 -apple-system,"Segoe UI",Roboto,sans-serif;padding:22px 18px calc(30px + var(--safe-b))}
+.rd-body>p:first-of-type{font-size:1.05em;color:#e9eff8}
+.rd-body p{margin:0 0 15px;color:#cdd7e6}
+
+/* section cards, numbered like an intelligence briefing */
+.rsec{counter-increment:sec;margin:16px 0;border:1px solid rgba(120,150,200,.16);border-radius:16px;
+  background:linear-gradient(180deg,rgba(18,37,68,.55),rgba(11,22,40,.5));
+  overflow:hidden;box-shadow:0 12px 34px -20px rgba(0,0,0,.85);
+  animation:riseIn .4s cubic-bezier(.22,.61,.36,1) both}
+.rsec summary{cursor:pointer;list-style:none;padding:15px 16px;display:flex;align-items:center;gap:12px;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;font-weight:700;font-size:13px;letter-spacing:1.1px;
+  text-transform:uppercase;color:var(--gold)}
+.rsec summary::-webkit-details-marker{display:none}
+.rsec summary::before{content:counter(sec,decimal-leading-zero);flex:0 0 auto;font-size:12px;color:var(--gold);
+  background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.32);border-radius:8px;
+  padding:4px 7px;min-width:30px;text-align:center;transition:.2s}
+.rsec[open] summary::before{background:var(--gold);color:#20180a;box-shadow:0 0 14px rgba(212,175,55,.5)}
+.rsec summary .rs-txt{flex:1}
+.rsec summary::after{content:'⌄';margin-left:auto;font-size:16px;color:var(--ink-dim);transition:transform .25s}
+.rsec[open] summary::after{transform:rotate(180deg);color:var(--gold)}
+.rsec[open] summary{border-bottom:1px solid rgba(120,150,200,.12)}
+.rsecb{padding:16px 18px 6px;animation:fadeSec .32s ease}
+@keyframes fadeSec{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* subheads */
+.rsub{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:800;font-size:15.5px;color:#fff;
+  margin:20px 0 9px;padding-left:12px;border-left:3px solid var(--gold);letter-spacing:.2px}
+
+/* lists with gold markers */
+.rlist{list-style:none;margin:2px 0 15px;padding:0}
+.rlist li{position:relative;padding:5px 0 5px 24px;color:#cdd7e6;line-height:1.6}
+.rlist li::before{content:'▸';position:absolute;left:3px;top:5px;color:var(--gold-dim)}
+
+/* callouts */
+.rbox{border-radius:13px;padding:13px 15px 13px 46px;margin:15px 0;position:relative;font-size:15px;line-height:1.6}
+.rbox::before{position:absolute;left:15px;top:12px;font-size:18px}
+.rbox.note{background:rgba(46,139,87,.13);border:1px solid rgba(46,139,87,.38);color:#d9f0e3}
+.rbox.note::before{content:'✅'}
+.rbox.warn{background:rgba(210,70,55,.15);border:1px solid rgba(210,70,55,.42);color:#ffd9d2}
+.rbox.warn::before{content:'⚠️'}
+
+/* definition / label rows */
+.ddef{margin:9px 0;padding:11px 14px;background:rgba(18,37,68,.42);border-radius:11px;
+  border-left:3px solid var(--gold);color:#cdd7e6;line-height:1.6}
+.ddef b{color:var(--gold);font-family:ui-monospace,Menlo,monospace;font-size:.8em;text-transform:uppercase;
+  letter-spacing:1px;margin-right:6px}
+
+/* inline references */
+.rd-body .xref{color:var(--cyan);font-weight:600;text-decoration:none;border-bottom:1px dotted var(--cyan-dim);cursor:pointer}
+.caseref{color:#8fbdec;font-weight:600;font-style:italic}
+.statref{color:var(--gold);background:rgba(212,175,55,.12);border-radius:4px;padding:0 5px;font-size:.94em}
+.rd-flag{background:linear-gradient(90deg,#7a2018,#5a1712);color:#ffe0da;border:none}
+
+/* desktop reader stays dark + centred */
+@media (min-width:1000px){
+  .rd-body{background:transparent;border-radius:0}
+  .rd-top{border-radius:16px 16px 0 0;margin-top:24px;max-width:860px}
+  .rd-body{max-width:860px;padding-left:34px;padding-right:34px}
+  .rd-nav{max-width:860px}
+  .rd-title{font-size:18px}
+}
+html[data-fs="l"] .rd-body{font-size:18px}
+html[data-fs="s"] .rd-body{font-size:15px}
+@media (prefers-reduced-motion:reduce){.rsec,.rsecb{animation:none!important}}
+
+/* ===== covert-ops map upgrades ===== */
+.os-bar{padding:10px 12px;gap:8px}
+.osbtn{padding:12px 16px;font-size:15px;border-radius:12px;font-weight:700}
+.os-top input{padding:13px 14px;font-size:16px}
+.iconbtn{width:46px;height:46px;font-size:22px}
+#osmap{background:#05070d}
+.os-grid{position:absolute;inset:0;pointer-events:none;z-index:400;
+  background-image:linear-gradient(rgba(62,200,221,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(62,200,221,.06) 1px,transparent 1px);
+  background-size:44px 44px;
+  -webkit-mask-image:radial-gradient(circle at 50% 50%,#000,transparent 92%);mask-image:radial-gradient(circle at 50% 50%,#000,transparent 92%)}
+#osmap.sat .os-grid{opacity:.4}
+.camIcon{font-size:22px;filter:drop-shadow(0 0 6px rgba(212,175,55,.9))}
+.planeIcon{filter:drop-shadow(0 0 6px rgba(62,200,221,.9))}
+.leaflet-container{background:#05070d}
+/* corner brackets for the covert frame */
+#osmap::before,#osmap::after{content:'';position:absolute;width:26px;height:26px;z-index:401;pointer-events:none;border-color:rgba(212,175,55,.6);border-style:solid}
+#osmap::before{top:8px;left:8px;border-width:2px 0 0 2px}
+#osmap::after{bottom:8px;right:8px;border-width:0 2px 2px 0}
+@media (min-width:1000px){ .osbtn{font-size:15.5px;padding:13px 18px} }
+.gdaIcon{font-size:20px;filter:drop-shadow(0 0 5px rgba(80,140,255,.9))}
+.gdaIcon.hq{font-size:24px;filter:drop-shadow(0 0 8px rgba(212,175,55,.95))}
+.liveCamIcon{font-size:20px;filter:drop-shadow(0 0 6px rgba(255,60,60,.85))}
