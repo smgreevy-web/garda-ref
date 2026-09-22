@@ -109,6 +109,8 @@ function homeQuick(){
   $('#results').innerHTML=`
   ${lp?`<button class="hit ixhit" id="contBtn"><div class="h-title">▶ Continue reading</div><div class="h-loc">${esc(titleFor(lp))} — ${esc(pageLabel(lp))}</div></button>`:''}
 
+  <button class="qbtn osintHero" id="hOsint">🛰️ OSINT field map<small>satellite · live flights · CCTV canvass log · draw & measure · links launcher</small></button>
+
   <h2 class="sec">⚡ On the job</h2><div class="quick">
     <button class="qbtn" id="qbOff">📕 Offences<small>elements · arrest · statement</small></button>
     <button class="qbtn" id="hClock">⏱ Detention clock<small>live deadlines</small></button>
@@ -120,7 +122,10 @@ function homeQuick(){
     <button class="qbtn" id="qbEss">★ Essential case law<small>the ones that changed everything</small></button>
     <button class="qbtn" id="qbCases">📚 Full case library<small>383 cases, categorised</small></button>
     <button class="qbtn" id="hBail">🔒 Objecting to bail<small>O'Callaghan · s.2 · burglary presumption</small></button>
-    <button class="qbtn" id="hJudg">◉ Latest judgments<small>Supreme · Appeal · High</small></button>
+    <button class="qbtn" id="hOcall">📋 O'Callaghan worksheet<small>systematic objection</small></button>
+    <button class="qbtn" id="hBailpack">⚖️ Bail pack<small>case-manager worksheet</small></button>
+    <button class="qbtn" id="hJudg">◉ Latest judgments<small>BAILII — Supreme · Appeal · High</small></button>
+    <button class="qbtn" id="hCourtLists">🗓️ Court lists<small>CCJ & all Dublin courts — today</small></button>
   </div>
 
   <h2 class="sec">📝 Files & paperwork</h2><div class="quick">
@@ -134,6 +139,8 @@ function homeQuick(){
     <button class="qbtn" id="hPO">🚨 Public order<small>s.6 & s.8</small></button>
     <button class="qbtn" id="hAffray">⚔️ Affray<small>investigation guide</small></button>
     <button class="qbtn" id="hIplan">🎙️ Interview plan<small>stencil</small></button>
+    <button class="qbtn" id="hDrugs">💊 Drugs prosecutions<small>MDA · s.23 · s.26 warrants</small></button>
+    <button class="qbtn" id="hRare">📜 Rare offences<small>niche statutes</small></button>
     <button class="qbtn" id="hDeep">📚 All deep guides<small>search · weapons · RTC · MP</small></button>
   </div>
 
@@ -157,12 +164,18 @@ function homeQuick(){
   go('hClock',renderClock);
   go('hCaution',renderCautions);
   go('hScene',renderMajor);
+  go('hOsint',()=>{ if(window.openOSINT) window.openOSINT(); });
   go('hBail',()=>openGuide3('bail'));
+  go('hOcall',()=>openGuide3('ocall'));
+  go('hBailpack',()=>openTemplate(TPL.findIndex(t=>t.id==='bailpack')));
+  go('hDrugs',()=>openGuide3('drugs'));
+  go('hRare',()=>openGuide3('rare'));
   go('hPrecis',()=>openGuide3('precis2'));
   go('hPO',()=>openGuide3('po'));
   go('hAffray',()=>openGuide3('affray'));
   go('hIplan',()=>openGuide3('iplan'));
   go('hJudg',renderJudgments);
+  go('hCourtLists',renderCourtLists);
   go('hGuides',()=>renderGuides());
   go('hSten',renderStencils);
   go('hTpl',renderTemplates);
@@ -663,7 +676,8 @@ function renderTools(){
     <button class="tmenu" data-v="tpl"><b>📧 Templates & forms</b><small>CCTV preservation · s.41 DP · passport · welfare · blank forms</small></button>
     <button class="tmenu" data-v="lang"><b>⚖️ Latin & acronyms</b><small>legal terms · ABC · MMO · ADVOKATE · PEACE</small></button>
     <button class="tmenu" data-v="guides2"><b>📚 Deep guides</b><small>searches · weapons · RTC & e-scooters · précis · missing person</small></button>
-    <button class="tmenu" data-v="judg"><b>◉ Latest judgments</b><small>Supreme · Appeal · High Court — live</small></button>
+    <button class="tmenu" data-v="judg"><b>◉ Latest judgments</b><small>Supreme · Appeal · High Court — live from BAILII</small></button>
+    <button class="tmenu" data-v="courtlists"><b>🗓️ Court lists — who's on</b><small>CCJ & all Dublin courts — official Legal Diary</small></button>
   </div>`;
   $$('.tmenu').forEach(b=>b.addEventListener('click',()=>{
     const v=b.dataset.v;
@@ -683,6 +697,7 @@ function renderTools(){
     else if(v==='tpl')renderTemplates();
     else if(v==='lang')renderLang();
     else if(v==='guides2')renderDeep();
+    else if(v==='courtlists')renderCourtLists();
     else renderJudgments();
   }));
   view.scrollTop=0;
@@ -917,14 +932,22 @@ function renderChecklists(){
   draw();let tm;$('#tq').addEventListener('input',e=>{clearTimeout(tm);tm=setTimeout(()=>draw(e.target.value),150);});
 }
 async function renderJudgments(court){
-  court=court||'IESC';
+  court=court||'ALL';
+  const TABS=[['ALL','All'],['IESC','Supreme'],['IECA','Appeal'],['IEHC','High Court']];
   view.innerHTML=`<button class="chip" id="backT" style="margin-bottom:8px">‹ Tools</button>
   <h2 class="sec">◉ Latest judgments — live from BAILII</h2>
-  <div class="chips">${[['IESC','Supreme'],['IECA','Appeal'],['IEHC','High Court']].map(([k,l])=>`<button class="chip ${k===court?'on':''}" data-c="${k}">${l}</button>`).join('')}</div>
+  <div class="chips">${TABS.map(([k,l])=>`<button class="chip ${k===court?'on':''}" data-c="${k}">${l}</button>`).join('')}</div>
   <div id="jout" class="empty">Loading from bailii.org…</div>`;
   wireBack();
   $$('#view .chip[data-c]').forEach(c=>c.addEventListener('click',()=>renderJudgments(c.dataset.c)));
   const out=$('#jout');
+  const parseJ=t=>{
+    const cite=(t.match(/\[(?:19|20)\d{2}\]\s+IE[A-Z]{2,4}\s+\d+/)||[])[0]||'';
+    const dm=t.match(/\((\d{1,2}\s+[A-Za-z]+\s+(?:19|20)\d{2})\)\s*$/);
+    const date=dm?dm[1]:'';
+    const name=t.replace(/\s*\(\d{1,2}\s+[A-Za-z]+\s+(?:19|20)\d{2}\)\s*$/,'').replace(/\s*\[(?:19|20)\d{2}\]\s+IE[A-Z]{2,4}\s+\d+.*$/,'').replace(/\s*\(Approved\)\s*(\(Rev\d*\))?/i,'').trim();
+    return {name,cite,date,ts:(Date.parse(date)||0)};
+  };
   try{
     if(!window._bailii){
       const target='https://www.bailii.org/recent-accessions-ie.html';
@@ -935,17 +958,46 @@ async function renderJudgments(court){
       if(!window._bailii)throw new Error('feed unavailable');
     }
     const re=/<a href="(\/ie\/cases\/([A-Z]+)\/[^"]+)">([^<]+)<\/a>/g;
-    const items=[];let m;
-    while((m=re.exec(window._bailii))!==null){if(m[2]===court)items.push({u:'https://www.bailii.org'+m[1],t:m[3]});if(items.length>60)break;}
+    const want=court==='ALL'?['IESC','IECA','IEHC']:[court];
+    const items=[];let m;const seen=new Set();
+    while((m=re.exec(window._bailii))!==null){
+      if(!want.includes(m[2]))continue;
+      if(seen.has(m[1]))continue; seen.add(m[1]);
+      const p=parseJ(m[3]); p.u='https://www.bailii.org'+m[1]; p.court=m[2];
+      items.push(p);
+      if(items.length>200)break;
+    }
     if(!items.length)throw new Error('none found');
+    items.sort((a,b)=>b.ts-a.ts);
+    const CN={IESC:'Supreme',IECA:'Appeal',IEHC:'High Court'};
     out.className='';
-    out.innerHTML=items.slice(0,25).map(it=>`<button class="hit jlink" data-u="${it.u}"><div class="h-title" style="font-weight:400"><i>${esc(it.t)}</i></div></button>`).join('')
-      +'<div class="toolnote">Needs signal — fetched via a public relay (allorigins.win). Tap to open the full judgment on bailii.org.</div>';
+    out.innerHTML=items.slice(0,40).map(it=>`<button class="hit jlink" data-u="${it.u}">
+       <div class="h-title" style="font-weight:600"><i>${esc(it.name)}</i></div>
+       <div class="h-loc">${court==='ALL'?'<b style="color:var(--gold)">'+CN[it.court]+'</b> · ':''}${esc(it.cite||'')}${it.date?' · '+esc(it.date):''}</div></button>`).join('')
+      +'<div class="toolnote">Newest first, fetched live via a public relay — needs signal. Tap to open the full judgment on bailii.org.</div>';
     $$('.jlink').forEach(b=>b.addEventListener('click',()=>window.open(b.dataset.u,'_blank')));
   }catch(e){
     out.innerHTML='Feed unavailable (signal or relay down). <button class="csall" id="jopen">Open BAILII recent Irish decisions</button>';
     $('#jopen').addEventListener('click',()=>window.open('https://www.bailii.org/recent-accessions-ie.html','_blank'));
   }
+}
+function renderCourtLists(){
+  const C=[
+   ['⚖️ Supreme Court','https://legaldiary.courts.ie/supreme-court'],
+   ['🏛️ Court of Appeal','https://legaldiary.courts.ie/court-of-appeal'],
+   ['🏛️ High Court','https://legaldiary.courts.ie/high-court'],
+   ['⚖️ Central Criminal Court (CCJ)','https://legaldiary.courts.ie/central-criminal-court'],
+   ['🏛️ Circuit Court (Civil & Criminal)','https://legaldiary.courts.ie/circuit-court'],
+   ['🏛️ District Court','https://legaldiary.courts.ie/district-court'],
+   ['📋 General notices','https://legaldiary.courts.ie/general-notices'],
+  ];
+  view.innerHTML=`<button class="chip" id="backT" style="margin-bottom:8px">‹ Tools</button>
+   <h2 class="sec">🗓️ Court lists — who's on today</h2>
+   <div class="tool"><div class="gtxt">The official Legal Diary — every Dublin court's daily list, parties and judges. Updated <b>5.00pm daily, Mon–Fri</b> for the next sitting day. Opens in your browser (the live lists load there).</div></div>
+   ${C.map(([n,u])=>`<a class="oslink" href="${u}" target="_blank" rel="noopener">${n} ↗</a>`).join('')}
+   <a class="oslink" href="https://legaldiary.courts.ie/download" target="_blank" rel="noopener" style="border-color:var(--gold);color:var(--gold)">⬇️ Download today's diary (PDF / Word) ↗</a>
+   <div class="toolnote">CCJ (Parkgate St) houses the Central Criminal Court and the Circuit Criminal Court — check both. Live scraping isn't reliable here, so these open the authoritative source directly.</div>`;
+  wireBack();
 }
 
 /* ---------- SAVED ---------- */
