@@ -457,3 +457,36 @@ h2.sec{animation:riseIn .3s ease both}
   .quick .qbtn,.osintHero::after,.reader:not(.hidden),.rd-body,#osint:not(.hidden),h2.sec{animation:none!important}
   .qbtn:hover,.hit:hover,.tmenu:hover{transform:none}
 }
+
+/* ===== system status strip + stat tiles ===== */
+.statstrip{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;margin-bottom:6px;scrollbar-width:none}
+.statstrip::-webkit-scrollbar{display:none}
+.stat{flex:0 0 auto;min-width:74px;background:linear-gradient(180deg,var(--card),var(--navy2));
+  border:1px solid var(--navy3);border-radius:10px;padding:8px 12px;text-align:left;position:relative}
+.stat b{display:block;font-size:16px;color:var(--gold);font-family:ui-monospace,"SF Mono",Menlo,monospace;line-height:1}
+.stat small{display:block;font-size:10px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:1px;margin-top:3px}
+.stat .dot{position:absolute;top:9px;right:9px;width:8px;height:8px;border-radius:50%}
+.stat .dot.off{background:var(--gold);box-shadow:0 0 8px rgba(212,175,55,.7)}
+.stat .dot.on{background:var(--cyan);box-shadow:0 0 8px rgba(62,200,221,.7)}
+
+/* ===== recent references ===== */
+.recentwrap{display:flex;flex-direction:column;gap:4px}
+.recentrow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  background:var(--navy2);border:1px solid var(--navy3);border-radius:10px;padding:10px 12px;color:var(--ink);cursor:pointer}
+.recentrow:hover{border-color:var(--gold-dim);transform:translateY(-1px)}
+.recentrow .rr-t{flex:1;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recentrow .rr-s{color:var(--ink-dim);font-size:12px;white-space:nowrap}
+.recentrow .rr-time{color:var(--gold-dim);font-size:11px;font-family:ui-monospace,Menlo,monospace;min-width:28px;text-align:right}
+.contbtn{border-left:3px solid var(--gold)}
+
+/* ===== search hero ===== */
+.searchbox input{font-size:17px;padding:15px 18px;border-radius:14px;
+  background:linear-gradient(180deg,var(--card),var(--navy2));border:1.5px solid var(--navy3)}
+.searchbox input::before{content:'🔎'}
+@media (min-width:1000px){
+  .searchbox input{font-size:19px;padding:18px 22px}
+  .statstrip{gap:10px}
+  .stat{min-width:96px}
+  .stat b{font-size:20px}
+}
+@media (prefers-reduced-motion: reduce){ .recentrow:hover{transform:none} }

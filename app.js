@@ -93,7 +93,7 @@ const FILTERS=[['all','Everything'],['vols','Vols 1–11'],['v12','Vol 12'],['st
 const FRANGE={vols:[15,937],v12:[938,968],st:[969,992],pb:[986,992],man:[993,1478]};
 function renderSearch(){
   view.innerHTML=`
-  <div class="searchbox"><input id="q" type="search" placeholder="Search everything — topic, case, statute, section…" value="${esc(lastQuery)}" autocomplete="off"></div>
+  <div class="searchbox"><input id="q" type="search" placeholder="Ask Garda Reference — topic, case, statute…" value="${esc(lastQuery)}" autocomplete="off"></div>
   <div class="chips">${FILTERS.map(([k,l])=>`<button class="chip ${k===lastFilter?'on':''}" data-f="${k}">${l}</button>`).join('')}</div>
   <button id="askAI" class="askbtn">✦ Ask AI — plain-language answer from the manual</button>
   <div id="aiPanel"></div><div id="results"></div>`;
@@ -106,8 +106,23 @@ function renderSearch(){
 }
 function homeQuick(){
   const lp=+localStorage.getItem('gr_lastpage')||0;
+  const nCases=(CASES&&CASES.length)||0;
+  const nGuides=(G3&&G3.length)||0;
+  const online=navigator.onLine;
+  let recent=[]; try{recent=JSON.parse(localStorage.getItem('gr_recent')||'[]');}catch(e){}
+  const recentHtml = recent.length? `<h2 class="sec">↺ Recent</h2><div class="recentwrap">`+
+    recent.slice(0,5).map(r=>`<button class="recentrow" data-k="${r.k}" data-id="${esc(String(r.id))}"><div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${relTime(r.ts)}</div></button>`).join('')+`</div>` : '';
   $('#results').innerHTML=`
-  ${lp?`<button class="hit ixhit" id="contBtn"><div class="h-title">▶ Continue reading</div><div class="h-loc">${esc(titleFor(lp))} — ${esc(pageLabel(lp))}</div></button>`:''}
+  <div class="statstrip" role="group" aria-label="System status">
+    <div class="stat"><span class="dot ${online?'on':'off'}"></span><b>${online?'ONLINE':'OFFLINE'}</b><small>${online?'links live':'local content'}</small></div>
+    <div class="stat"><b>1,478</b><small>pages</small></div>
+    <div class="stat"><b>12</b><small>volumes</small></div>
+    <div class="stat"><b>${nCases}</b><small>cases</small></div>
+    <div class="stat"><b>${nGuides}</b><small>guides</small></div>
+    <div class="stat"><b>✓</b><small>offline-ready</small></div>
+  </div>
+  ${lp?`<button class="hit ixhit contbtn" id="contBtn"><div class="h-title">▶ Continue reading</div><div class="h-loc">${esc(titleFor(lp))} — ${esc(pageLabel(lp))}</div></button>`:''}
+  ${recentHtml}
 
   <button class="qbtn osintHero" id="hOsint">🛰️ OSINT field map<small>satellite · live flights · CCTV canvass log · draw & measure · links launcher</small></button>
 
@@ -165,6 +180,10 @@ function homeQuick(){
   <div class="empty">Or type anything above — all 1,478 pages are searchable.</div>`;
 
   const cb=$('#contBtn'); if(cb)cb.addEventListener('click',()=>openPage(lp));
+  $$('#results .recentrow').forEach(b=>b.addEventListener('click',()=>{
+    const k=b.dataset.k, id=b.dataset.id;
+    if(k==='guide')openGuide3(id); else openPage(+id);
+  }));
   const go=(id,fn)=>{const b=$('#'+id); if(b)b.addEventListener('click',fn);};
   go('qbOff',()=>renderOffences());
   go('qbEss',renderEssentials);
@@ -197,8 +216,22 @@ function homeQuick(){
   go('hCourt',renderCourtDay);
   $$('#results .qbtn[data-go]').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
 }
+function pushRecent(item){
+  try{
+    let r=JSON.parse(localStorage.getItem('gr_recent')||'[]');
+    r=r.filter(x=>!(x.k===item.k&&String(x.id)===String(item.id)));
+    item.ts=Date.now(); r.unshift(item); r=r.slice(0,8);
+    localStorage.setItem('gr_recent',JSON.stringify(r));
+  }catch(e){}
+}
+function relTime(ts){
+  const m=Math.round((Date.now()-ts)/60000);
+  if(m<1)return 'now'; if(m<60)return m+'m'; const h=Math.round(m/60);
+  if(h<24)return h+'h'; return Math.round(h/24)+'d';
+}
 function openGuide3(id){
   const g=G3.find(x=>x.id===id); if(!g)return;
+  pushRecent({k:'guide',id:id,t:g.t,s:'Investigation guide'});
   reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
   $('#rdTitle').textContent=g.icon+' '+g.t; $('#rdPage').textContent='Guide';
   $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
@@ -1035,6 +1068,7 @@ function toggleFav(){
 /* ---------- READER ---------- */
 function openPage(abs){ if(!window._pz){window._pz=1;setTimeout(pinchZoom,0);} 
   try{localStorage.setItem('gr_lastpage',String(abs));}catch(e){}
+  try{pushRecent({k:'page',id:abs,t:titleFor(abs).split(' › ').pop(),s:pageLabel(abs)});}catch(e){}
   $('#rdPrev').style.visibility='';$('#rdNext').style.visibility='';$('#rdJump').style.visibility='';
   const star0=$('#rdStar'); star0.onclick=null; star0.textContent=favs.some(f=>f.a===curPage)?'★':'☆';
   curPage=Math.min(Math.max(1,abs),META.pages);
