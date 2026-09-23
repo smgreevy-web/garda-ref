@@ -755,7 +755,7 @@ body.reel-open{overflow:hidden}
 .gdaCrest.hq{filter:drop-shadow(0 0 6px rgba(231,194,80,.55)) drop-shadow(0 2px 3px rgba(0,0,0,.6))}
 
 /* ---- camera markers: two icons (home patch vs everything else) ---- */
-.osCam{position:relative;display:flex;align-items:center;justify-content:center}
+.osCam{position:absolute;display:flex;align-items:center;justify-content:center}
 .osCam .cvi{width:26px;height:26px;fill:none;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
 .osCamHome .cvi{stroke:#ffd24d}
 .osCamOther .cvi{stroke:#4fd0e6}
@@ -803,7 +803,7 @@ body.reel-open{overflow:hidden}
 @media (min-width:1000px){ .os-drawtoggle{width:46px;height:46px} }
 
 /* DCC traffic CCTV location markers — solid + pulsing */
-.dccCam{position:relative;display:flex;align-items:center;justify-content:center}
+.dccCam{position:absolute;display:flex;align-items:center;justify-content:center}
 .dccCam svg{width:24px;height:20px;fill:#14b39a;stroke:#052b25;stroke-width:1;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.65))}
 .dccCam svg circle{fill:#eafff9;stroke:none}
 .dccCam .dccdot{position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#39f0ce;box-shadow:0 0 0 2px #06231e;animation:campulse 1.25s ease-in-out infinite;z-index:2}
