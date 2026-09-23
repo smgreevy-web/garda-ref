@@ -138,7 +138,7 @@ function initMap(){
   fetch('data/livecams.json').then(r=>r.json()).then(d=>{LIVECAMS=d;mergeTii();autoDefaults();}).catch(()=>{});
   fetch('data/tii_cams.json').then(r=>r.json()).then(d=>{TIICAMS=d;mergeTii();}).catch(()=>{});
   drawCameras();
-  // drawing / measuring tools
+  // drawing / measuring tools — collapsed into a single drop-down toggle
   try{
     map.pm.addControls({position:'topright',drawCircleMarker:false,rotateMode:false,
       drawText:false,cutPolygon:false});
@@ -148,6 +148,12 @@ function initMap(){
       if(t==='Line'){const m=measureLine(l);l.bindPopup('Distance: '+m).openPopup();}
       if(t==='Polygon'){const a=measureArea(l);l.bindPopup('Area: '+a).openPopup();}
     });
+    // drop-down toggle button that shows/hides the draw tools
+    const mc=document.querySelector('#osmap');
+    const dt=document.createElement('button'); dt.className='os-drawtoggle'; dt.title='Draw & measure';
+    dt.innerHTML='<svg viewBox="0 0 24 24" class="ri"><path d="M4 20l4-1L18.5 8.5a2 2 0 0 0 0-2.8l-.2-.2a2 2 0 0 0-2.8 0L4 16l-1 4Z"/><path d="M14 7l3 3"/></svg><em>DRAW</em>';
+    if(mc)mc.appendChild(dt);
+    dt.addEventListener('click',ev=>{ev.stopPropagation(); const open=mc.classList.toggle('draw-open'); dt.classList.toggle('on',open);});
   }catch(e){}
   // single tap = just pan/dismiss (Leaflet closes popups on click). Options come from a HOLD.
   map.on('click',e=>{ if(placing){addCameraAt(e.latlng);return;} });
@@ -451,15 +457,19 @@ function close(){
 }
 
 // ---- Garda district boundaries (default layer) ----
-const DIV_PAL=['#d4af37','#39c2d7','#c084fc','#6ee7a8','#ffb066','#ff7a7a','#69b7ff','#ffd34d','#a3e05b','#e879c9','#4fd1c5','#f6a24b','#9aa8ff','#f491b6','#8fb4d9','#ecc94b','#7fd1c2','#b794f4','#f6a1a1','#8bd17a'];
+// distinct qualitative palette (Tableau/d3) — reads well on the light OR dark basemap
+const DIV_PAL=['#4e79a7','#f28e2b','#e15759','#59a14f','#b07aa1','#edc948','#76b7b2','#ff9da7','#9c6b4f','#1f9e89',
+               '#5b8ff9','#e8684a','#6dc8ec','#9270ca','#ff9d4d','#269a99','#d96c9a','#5ad8a6','#c98a3b','#7a7fd6'];
 function distColor(dv){
   if(!_divmap){_divmap={};const ds=[...new Set(DISTRICTS.features.map(f=>f.properties.dv))].sort();ds.forEach((d,i)=>_divmap[d]=DIV_PAL[i%DIV_PAL.length]);}
-  return _divmap[dv]||'#d4af37';
+  return _divmap[dv]||'#4e79a7';
 }
 function distStyle(f){
   const home=f.properties.d===HOME_DIST;
-  return {color:home?'#3fe0ff':'#d4af37',weight:home?2.4:0.8,opacity:home?0.95:0.5,
-          fillColor:distColor(f.properties.dv),fillOpacity:home?0.30:0.12,dashArray:home?null:'3 3'};
+  const col=distColor(f.properties.dv);
+  return home
+    ? {color:'#00c2ff',weight:3,opacity:1,fillColor:'#12b6ff',fillOpacity:0.30,dashArray:null,lineJoin:'round'}
+    : {color:col,weight:1.6,opacity:0.9,fillColor:col,fillOpacity:0.20,dashArray:null,lineJoin:'round'};
 }
 function buildDistricts(){
   if(districtLayer)return;
@@ -591,8 +601,8 @@ function camInHome(c){ if(!DISTRICTS)return false; const p=districtAt({lat:c.lat
 const _camSvg='<svg viewBox="0 0 24 24" class="cvi"><rect x="2.5" y="7" width="12.5" height="10" rx="2.2"/><path d="M15 10.4 21.2 7.4v9.2L15 13.6Z"/><circle cx="8.7" cy="12" r="2.1"/></svg>';
 function camsIconFor(c){
   const home=camInHome(c);
-  return L.divIcon({className:'osCam '+(home?'osCamHome':(c.img?'osCamTii':'osCamOther')),
-    html:_camSvg+(home?'<i class="camlive"></i>':''), iconSize:[30,26], iconAnchor:[15,13]});
+  return L.divIcon({className:'osCam osCamPulse '+(home?'osCamHome':(c.img?'osCamTii':'osCamOther')),
+    html:_camSvg+'<i class="camlive"></i>', iconSize:[30,26], iconAnchor:[15,13]});
 }
 function toggleCams(){
   camsOn=!camsOn; $('#osCams').classList.toggle('on',camsOn);
@@ -629,8 +639,9 @@ function showFeed(c){
         '<p class="osp-empty">Public webcam — not private or Garda CCTV. Everything opens here in the app.</p>')+
     '</div>';
   $('#ospClose').addEventListener('click',()=>{stopFeedTimer();p.classList.add('hidden');});
-  const idx=LIVECAMS.indexOf(c);
-  $('#feedReel').addEventListener('click',()=>{stopFeedTimer();p.classList.add('hidden');openCamReel(idx<0?0:idx);});
+  $('#feedReel').addEventListener('click',()=>{stopFeedTimer();p.classList.add('hidden');
+    const cat=c.cat||'district'; const grp=LIVECAMS.filter(x=>(x.cat||'district')===cat); const gi=grp.indexOf(c);
+    openCamReel(gi<0?0:gi, cat);});
   if(isImg){
     _feedTimer=setInterval(()=>{const im=$('#osFeedImg');if(im&&!p.classList.contains('hidden'))im.src=c.img+'?'+Date.now();else stopFeedTimer();},3000);
   }else{
@@ -712,7 +723,8 @@ function wirePanelLinks(p){
    LIVE CAMERA REEL — full-screen, one camera per screen,
    flick up for the next (like Reels). Stays in the app.
    ========================================================= */
-let _reelObs=null;
+let _reelObs=null, REELSET=[];
+const CAT_LABEL={m50:'M50 MOTORWAY',port:'DUBLIN PORT',district:'FITZGIBBON ST / MOUNTJOY'};
 function ensureCamsData(cb){
   const need=[];
   if(!(LIVECAMS&&LIVECAMS.length)) need.push(fetch('data/livecams.json').then(r=>r.json()).then(d=>{LIVECAMS=d;}));
@@ -723,7 +735,7 @@ function buildReelEl(){
   let r=document.getElementById('osReel'); if(r)return r;
   r=document.createElement('div'); r.id='osReel'; r.className='hidden';
   r.innerHTML='<div class="reel-top"><button class="reel-x" id="reelClose">‹ Close</button>'
-    +'<div class="reel-title" id="reelTitle">LIVE CAMERAS</div>'
+    +'<div class="reel-titles"><div class="reel-title" id="reelTitle">LIVE CAMERAS</div><div class="reel-grouptag" id="reelGroupTag"></div></div>'
     +'<button class="reel-gridbtn" id="reelGridBtn">▦ All</button></div>'
     +'<div class="reel-track" id="reelTrack"></div>'
     +'<div class="reel-gridview hidden" id="reelGridView"></div>'
@@ -748,7 +760,7 @@ function reelSlideHtml(c,i){
 }
 const _reelImgTimers={};
 function loadReelIframe(sl){
-  const i=+sl.dataset.i,c=LIVECAMS[i]; if(!c)return;
+  const i=+sl.dataset.i,c=REELSET[i]; if(!c)return;
   const media=sl.querySelector('.reelcam-media'); if(!media||media.dataset.loaded)return;
   if(c.yt){
     media.dataset.loaded='1';
@@ -761,7 +773,7 @@ function loadReelIframe(sl){
 }
 function unloadReelIframe(sl){
   const media=sl.querySelector('.reelcam-media'); if(!media||!media.dataset.loaded)return;
-  const i=+sl.dataset.i,c=LIVECAMS[i]; media.dataset.loaded='';
+  const i=+sl.dataset.i,c=REELSET[i]; media.dataset.loaded='';
   if(_reelImgTimers[i]){clearInterval(_reelImgTimers[i]);delete _reelImgTimers[i];}
   if(c.img){ media.innerHTML='<img class="rc-img" data-src="'+esc(c.img)+'" alt="'+esc(c.n)+'"><span class="rc-load">LIVE · M50</span>'; return; }
   media.innerHTML='<button class="rc-play" aria-label="Play">▶</button><span class="rc-load">LIVE</span>';
@@ -772,7 +784,7 @@ function setupReelObserver(track){
   if(_reelObs)_reelObs.disconnect();
   _reelObs=new IntersectionObserver(ents=>{
     ents.forEach(e=>{
-      const sl=e.target,i=+sl.dataset.i,c=LIVECAMS[i],t=document.getElementById('reelTitle');
+      const sl=e.target,i=+sl.dataset.i,c=REELSET[i],t=document.getElementById('reelTitle');
       if(e.isIntersecting&&e.intersectionRatio>0.55){ loadReelIframe(sl); if(t)t.textContent=(c.n||'LIVE').toUpperCase(); }
       else if(e.intersectionRatio<0.25){ unloadReelIframe(sl); }
     });
@@ -781,7 +793,7 @@ function setupReelObserver(track){
 }
 function wireReelSlides(track){
   track.querySelectorAll('.reelcam').forEach(sl=>{
-    const i=+sl.dataset.i,c=LIVECAMS[i];
+    const i=+sl.dataset.i,c=REELSET[i];
     sl.querySelectorAll('.rc-open').forEach(b=>b.addEventListener('click',ev=>{ev.stopPropagation();openWeb(c.u,{title:c.n,embed:!!c.yt||knownEmbed(c.u),note:'Live public webcam.'});}));
     const mb=sl.querySelector('.rc-map'); mb&&mb.addEventListener('click',ev=>{ev.stopPropagation();closeReel();openMapToCam(c);});
     const pb=sl.querySelector('.rc-play'); pb&&pb.addEventListener('click',()=>loadReelIframe(sl));
@@ -792,28 +804,41 @@ function openMapToCam(c){
   const go=()=>{ if(!map)return setTimeout(go,200); if(!camsOn)toggleCams(); map.setView([c.lat,c.lon],16); setTimeout(()=>showFeed(c),300); };
   go();
 }
-function openCamReel(startIndex){
+function openCamReel(startIndex,cat,grid){
   ensureCamsData(()=>{
+    REELSET = cat ? LIVECAMS.filter(c=>(c.cat||'district')===cat) : LIVECAMS.slice();
+    if(!REELSET.length){toast('No cameras in that group');return;}
     const r=buildReelEl(), track=document.getElementById('reelTrack');
-    document.getElementById('reelGridView').classList.add('hidden'); track.classList.remove('hidden');
-    track.innerHTML=LIVECAMS.map((c,i)=>reelSlideHtml(c,i)).join('');
+    const gt=document.getElementById('reelGroupTag'); if(gt)gt.textContent=cat?(CAT_LABEL[cat]||''):'ALL CAMERAS';
+    track.innerHTML=REELSET.map((c,i)=>reelSlideHtml(c,i)).join('');
     r.classList.remove('hidden'); document.body.classList.add('reel-open');
     wireReelSlides(track); setupReelObserver(track);
-    const si=startIndex&&startIndex>0&&startIndex<LIVECAMS.length?startIndex:0;
+    if(grid){
+      // open straight to the named grid so you can pick one fast
+      buildReelGrid();
+      const t=document.getElementById('reelTitle'); if(t)t.textContent='PICK A CAMERA';
+      return;
+    }
+    document.getElementById('reelGridView').classList.add('hidden'); track.classList.remove('hidden');
+    const si=startIndex&&startIndex>0&&startIndex<REELSET.length?startIndex:0;
     const first=track.children[si];
-    if(first){ if(si)first.scrollIntoView(); loadReelIframe(first); const t=document.getElementById('reelTitle'); if(t)t.textContent=(LIVECAMS[si].n||'LIVE').toUpperCase(); }
+    if(first){ if(si)first.scrollIntoView(); loadReelIframe(first); const t=document.getElementById('reelTitle'); if(t)t.textContent=(REELSET[si].n||'LIVE').toUpperCase(); }
     const hint=document.getElementById('reelHint'); if(hint){hint.style.opacity='1';clearTimeout(hint._t);hint._t=setTimeout(()=>{hint.style.opacity='0';},3800);}
   });
 }
+function buildReelGrid(){
+  const gv=document.getElementById('reelGridView'),track=document.getElementById('reelTrack'),btn=document.getElementById('reelGridBtn');
+  gv.innerHTML=REELSET.map((c,i)=>'<button class="reelthumb" data-i="'+i+'"'+(c.yt?' style="background-image:url('+ytThumb(c.yt,'mqdefault')+')"':c.img?' style="background-image:url('+esc(c.img)+'?'+Date.now()+')"':'')+'><span class="rt-live">● LIVE</span><span class="rt-name">'+esc(c.n)+'</span></button>').join('');
+  gv.classList.remove('hidden'); track.classList.add('hidden'); if(btn)btn.textContent='▤ Reel';
+  gv.querySelectorAll('.reelthumb').forEach(b=>b.addEventListener('click',()=>{
+    const i=+b.dataset.i; gv.classList.add('hidden'); track.classList.remove('hidden'); if(btn)btn.textContent='▦ All';
+    const el=track.children[i]; if(el){el.scrollIntoView(); loadReelIframe(el); const t=document.getElementById('reelTitle'); if(t)t.textContent=(REELSET[i].n||'LIVE').toUpperCase();}
+  }));
+}
 function toggleReelGrid(){
   const gv=document.getElementById('reelGridView'),track=document.getElementById('reelTrack'),btn=document.getElementById('reelGridBtn');
-  if(!gv.classList.contains('hidden')){gv.classList.add('hidden');track.classList.remove('hidden');btn.textContent='▦ All';return;}
-  gv.innerHTML=LIVECAMS.map((c,i)=>'<button class="reelthumb" data-i="'+i+'"'+(c.yt?' style="background-image:url('+ytThumb(c.yt,'mqdefault')+')"':c.img?' style="background-image:url('+esc(c.img)+'?'+Date.now()+')"':'')+'><span class="rt-live">● LIVE</span><span class="rt-name">'+esc(c.n)+'</span></button>').join('');
-  gv.classList.remove('hidden'); track.classList.add('hidden'); btn.textContent='▤ Reel';
-  gv.querySelectorAll('.reelthumb').forEach(b=>b.addEventListener('click',()=>{
-    const i=+b.dataset.i; gv.classList.add('hidden'); track.classList.remove('hidden'); btn.textContent='▦ All';
-    const el=track.children[i]; if(el){el.scrollIntoView(); loadReelIframe(el);}
-  }));
+  if(!gv.classList.contains('hidden')){gv.classList.add('hidden');track.classList.remove('hidden');if(btn)btn.textContent='▦ All';return;}
+  buildReelGrid();
 }
 function closeReel(){
   const r=document.getElementById('osReel'); if(!r)return;

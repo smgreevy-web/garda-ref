@@ -135,7 +135,12 @@ function homeQuick(){
   ${recentHtml}
 
   <button class="qbtn osintHero" id="hOsint">🛰️ OSINT field map<small>satellite · live flights · CCTV canvass log · draw & measure · links launcher</small></button>
-  <button class="qbtn camHero" id="hCams">📹 Live cameras<small>Dublin street feeds · flick up for the next · all in-app</small></button>
+  <h2 class="sec">📹 Live cameras <span class="livepip">● LIVE</span></h2><div class="quick">
+    <button class="qbtn camHero" id="hCamDist">📷 Fitzgibbon St / Mountjoy<small>local street cams · flick up for next</small></button>
+    <button class="qbtn camHero" id="hCamM50">🛣️ M50 motorway<small>TII CCTV · live snapshots</small></button>
+    <button class="qbtn camHero" id="hCamPort">⚓ Dublin Port<small>ships · Liffey · Poolbeg</small></button>
+    <button class="qbtn camHero" id="hCamAll">🎥 All cameras<small>every feed · one reel</small></button>
+  </div>
 
   <h2 class="sec">⚡ On the job</h2><div class="quick">
     <button class="qbtn" id="qbOff">📕 Offences<small>elements · arrest · statement</small></button>
@@ -206,7 +211,10 @@ function homeQuick(){
   go('hCaution',renderCautions);
   go('hScene',renderMajor);
   go('hOsint',()=>{ if(window.openOSINT) window.openOSINT(); });
-  go('hCams',()=>{ if(window.openCamReel) window.openCamReel(0); });
+  go('hCamDist',()=>{ if(window.openCamReel) window.openCamReel(0,'district',true); });
+  go('hCamM50',()=>{ if(window.openCamReel) window.openCamReel(0,'m50',true); });
+  go('hCamPort',()=>{ if(window.openCamReel) window.openCamReel(0,'port',true); });
+  go('hCamAll',()=>{ if(window.openCamReel) window.openCamReel(0,null,true); });
   go('hBail',()=>openGuide3('bail'));
   go('hOcall',()=>openGuide3('ocall'));
   go('hBailpack',()=>openTemplate(TPL.findIndex(t=>t.id==='bailpack')));

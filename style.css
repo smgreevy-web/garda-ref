@@ -685,8 +685,8 @@ html[data-fs="s"] .rd-body{font-size:15px}
 button.oslink{width:100%;text-align:left;cursor:pointer;font:inherit}
 
 /* ---- district borders + labels ---- */
-.os-distlabel span{position:absolute;left:0;top:0;transform:translate(-50%,-50%);font:700 10px/1 ui-monospace,Menlo,monospace;color:#e7c250;text-shadow:0 0 3px #000,0 0 3px #000,0 0 3px #000;white-space:nowrap;letter-spacing:.3px;text-transform:uppercase;opacity:.92}
-.os-distlabel.home span{color:#5fe6ff;font-size:10.5px;opacity:1}
+.os-distlabel span{position:absolute;left:0;top:0;transform:translate(-50%,-50%);font:700 9.5px/1 ui-monospace,Menlo,monospace;color:#fff;background:rgba(10,20,38,.72);padding:2px 6px;border-radius:6px;white-space:nowrap;letter-spacing:.3px;text-transform:uppercase;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.os-distlabel.home span{color:#0a1930;background:#5fe6ff;font-size:10px;font-weight:800;box-shadow:0 0 8px rgba(95,230,255,.7)}
 #osmap:not(.zlabels) .os-distlabel{display:none}
 
 /* ---- district popup block ---- */
@@ -729,9 +729,10 @@ body.reel-open{overflow:hidden}
 .reel-hint{position:absolute;left:0;right:0;bottom:96px;text-align:center;color:#eaf2ff;font-size:13px;font-weight:600;text-shadow:0 1px 6px #000;pointer-events:none;transition:opacity .6s;z-index:6}
 .reel-gridview{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:10px 12px calc(20px + var(--safe-b))}
 .reel-gridview.hidden{display:none}
-.reelthumb{position:relative;aspect-ratio:16/9;border-radius:12px;border:1px solid rgba(120,150,200,.25);background:#0a1220 center/cover no-repeat;cursor:pointer;overflow:hidden;display:flex;align-items:flex-end}
-.reelthumb .rt-live{position:absolute;top:6px;left:7px;font:700 9px/1 ui-monospace,Menlo,monospace;color:#ff6b6b;background:rgba(5,7,13,.65);padding:3px 5px;border-radius:4px}
-.reelthumb .rt-name{width:100%;padding:8px;font-size:11.5px;font-weight:700;color:#fff;background:linear-gradient(0deg,rgba(5,7,13,.9),transparent);text-align:left;line-height:1.25}
+.reelthumb{position:relative;aspect-ratio:16/10;border-radius:12px;border:1px solid rgba(120,150,200,.25);background:#0a1220 center/cover no-repeat;cursor:pointer;overflow:hidden;display:flex;align-items:flex-end}
+.reelthumb .rt-live{position:absolute;top:6px;left:7px;font:700 9px/1 ui-monospace,Menlo,monospace;color:#fff;background:#e0231b;padding:3px 6px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.5);z-index:2}
+.reelthumb .rt-name{position:relative;z-index:2;width:100%;padding:7px 8px;font-size:12px;font-weight:800;color:#fff;background:rgba(6,11,22,.9);text-align:left;line-height:1.2;letter-spacing:.2px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;border-top:1px solid rgba(120,150,200,.2)}
 @media (min-width:1000px){
   .reelcam-media{aspect-ratio:auto;height:100%}
   .reel-gridview{grid-template-columns:repeat(4,1fr)}
@@ -754,14 +755,18 @@ body.reel-open{overflow:hidden}
 .gdaCrest.hq{filter:drop-shadow(0 0 6px rgba(231,194,80,.55)) drop-shadow(0 2px 3px rgba(0,0,0,.6))}
 
 /* ---- camera markers: two icons (home patch vs everything else) ---- */
-.osCam{display:flex;align-items:center;justify-content:center}
+.osCam{position:relative;display:flex;align-items:center;justify-content:center}
 .osCam .cvi{width:26px;height:26px;fill:none;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
 .osCamHome .cvi{stroke:#ffd24d}
-.osCamHome{position:relative}
-.osCamHome .camlive{position:absolute;top:-2px;right:-1px;width:8px;height:8px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 0 2px #0a1930;animation:campulse 1.3s ease-in-out infinite}
-@keyframes campulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.35);opacity:.6}}
 .osCamOther .cvi{stroke:#4fd0e6}
 .osCamTii .cvi{stroke:#9aa8bd}
+/* live pulse dot on EVERY camera */
+.osCam .camlive{position:absolute;top:-2px;right:-1px;width:8px;height:8px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 0 2px #0a1930;animation:campulse 1.3s ease-in-out infinite}
+@keyframes campulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.55}}
+/* gentle glow pulse on the camera body too */
+.osCamPulse .cvi{animation:camglow 1.8s ease-in-out infinite}
+@keyframes camglow{0%,100%{filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)) drop-shadow(0 0 0 transparent)}50%{filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)) drop-shadow(0 0 5px currentColor)}}
+@media (prefers-reduced-motion:reduce){.osCam .camlive,.osCamPulse .cvi{animation:none}}
 
 /* Garda officer (policeman) markers */
 .gdaCop{filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}
@@ -775,3 +780,24 @@ body.reel-open{overflow:hidden}
 .os-trafficwrap{position:relative;width:100%;height:300px;border-radius:12px;overflow:hidden;border:1px solid rgba(120,150,200,.25);background:#0a1220;margin-bottom:4px}
 .os-trafficmap{width:100%;height:100%;border:0;display:block}
 @media (min-width:1000px){ .os-trafficwrap{height:380px} }
+
+/* live cameras section header pip */
+.livepip{font-size:10px;font-weight:800;color:#3fd07a;letter-spacing:1px;vertical-align:middle;margin-left:4px}
+/* reel header: title + group tag */
+.reel-titles{flex:1;min-width:0;text-align:center;display:flex;flex-direction:column;gap:1px}
+.reel-grouptag{font:700 9px/1 ui-monospace,Menlo,monospace;letter-spacing:1.5px;color:#8fa6c4}
+
+/* ---- draw/measure tools: collapsed into a drop-down ---- */
+.os-drawtoggle{position:absolute;top:14px;right:12px;z-index:650;width:50px;height:50px;border-radius:14px;
+  background:rgba(8,15,28,.8);border:1px solid rgba(120,150,200,.18);backdrop-filter:blur(6px);color:#b3c1d6;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  transition:color .15s,border-color .15s,background .15s}
+.os-drawtoggle .ri{width:22px;height:22px;stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;display:block}
+.os-drawtoggle em{font-style:normal;font-size:7.5px;letter-spacing:1.3px;font-family:ui-monospace,Menlo,monospace;opacity:.85}
+.os-drawtoggle.on{border-color:var(--gold);color:var(--gold);background:rgba(212,175,55,.13)}
+/* geoman toolbar hidden until the toggle opens it; sits just below the toggle */
+.leaflet-top.leaflet-right{top:72px}
+#osmap .leaflet-pm-toolbar{display:none}
+#osmap.draw-open .leaflet-pm-toolbar{display:block;animation:drawIn .18s ease}
+@keyframes drawIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (min-width:1000px){ .os-drawtoggle{width:46px;height:46px} }
