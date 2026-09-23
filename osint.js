@@ -584,7 +584,7 @@ function gardaIcon(hq){
   return L.divIcon({className:'gdaCop'+(hq?' hq':''),html:svg,iconSize:[w,h],iconAnchor:[Math.round(w/2),h-2]});
 }
 // ---- DCC (Dublin City Council) traffic CCTV — location layer for canvass ----
-function dccIcon(){return L.divIcon({className:'dccCam',html:'<svg viewBox="0 0 24 20"><rect x="2.5" y="6" width="11" height="6" rx="1.4"/><path d="M13.5 7.6 20.5 5.5v8l-7-2.1Z"/><circle cx="7" cy="9" r="1.5"/></svg>',iconSize:[22,16],iconAnchor:[11,8]});}
+function dccIcon(){return L.divIcon({className:'dccCam',html:'<span class="dccdot"></span><svg viewBox="0 0 24 20"><rect x="2.5" y="6" width="11" height="6" rx="1.4"/><path d="M13.5 7.6 20.5 5.5v8l-7-2.1Z"/><circle cx="7" cy="9" r="1.5"/></svg>',iconSize:[24,20],iconAnchor:[12,10]});}
 function toggleDcc(){
   dccOn=!dccOn; $('#osDcc').classList.toggle('on',dccOn);
   if(!dccOn){ if(dccLayer)map.removeLayer(dccLayer); return; }
@@ -606,6 +606,41 @@ function dccPopup(c){
     '<div class="ospop-sep"></div><b>'+c.lat.toFixed(6)+', '+c.lon.toFixed(6)+'</b>'+pointActionsHtml(ll)+'</div>';
   L.popup({maxWidth:260}).setLatLng(ll).setContent(html).openOn(map);
 }
+// searchable DCC list — openable from the home screen (outside the map)
+function ensureDcc(cb){ if(DCCCAMS&&DCCCAMS.length){cb();return;} fetch('data/dcc_cams.json').then(r=>r.json()).then(d=>{DCCCAMS=d;cb();}).catch(()=>toast('DCC data needs signal once')); }
+function openDccList(){
+  ensureDcc(()=>{
+    let el=document.getElementById('dccList');
+    if(!el){ el=document.createElement('div'); el.id='dccList'; document.body.appendChild(el); }
+    const rows=DCCCAMS.slice().sort((a,b)=>(a.n||'').localeCompare(b.n||''));
+    el.className='';
+    el.innerHTML='<div class="reel-top"><button class="reel-x" id="dclClose">‹ Close</button>'
+      +'<div class="reel-titles"><div class="reel-title">DCC CITY CCTV</div><div class="reel-grouptag">'+DCCCAMS.length+' fixed cameras · tap to locate</div></div>'
+      +'<span style="width:64px"></span></div>'
+      +'<div class="dl-search"><input id="dclSearch" type="search" placeholder="Search road or area…" autocomplete="off"></div>'
+      +'<div class="dl-rows" id="dclRows"></div>';
+    document.body.classList.add('reel-open');
+    const render=q=>{
+      q=(q||'').toLowerCase().trim();
+      const list=rows.filter(c=>!q||(c.n||'').toLowerCase().includes(q));
+      const rc=document.getElementById('dclRows');
+      rc.innerHTML=list.length?list.map(c=>'<button class="dl-row" data-lat="'+c.lat+'" data-lon="'+c.lon+'" data-id="'+esc(String(c.id))+'"><b>'+esc(c.n)+'</b><span>cam #'+esc(String(c.id))+' · '+c.lat.toFixed(4)+', '+c.lon.toFixed(4)+'</span></button>').join(''):'<p class="osp-empty" style="padding:18px">No camera matches “'+esc(q)+'”.</p>';
+      rc.querySelectorAll('.dl-row').forEach(b=>b.addEventListener('click',()=>{
+        closeDccList(); openMapToDcc({lat:+b.dataset.lat,lon:+b.dataset.lon,id:b.dataset.id,n:b.querySelector('b').textContent});
+      }));
+    };
+    render('');
+    document.getElementById('dclClose').addEventListener('click',closeDccList);
+    document.getElementById('dclSearch').addEventListener('input',e=>render(e.target.value));
+  });
+}
+function closeDccList(){const el=document.getElementById('dccList');if(el){el.className='hidden';el.innerHTML='';}document.body.classList.remove('reel-open');}
+function openMapToDcc(c){
+  open();   // builds the map overlay if it doesn't exist yet, shows it if it does
+  const go=()=>{ if(!map)return setTimeout(go,200); if(!dccOn)toggleDcc(); map.setView([c.lat,c.lon],17); setTimeout(()=>dccPopup(c),450); };
+  go();
+}
+window.openDccList=openDccList;
 function toggleGarda(){
   gardaOn=!gardaOn; $('#osGarda').classList.toggle('on',gardaOn);
   if(!gardaOn){map.removeLayer(gardaLayer);return;}
@@ -668,7 +703,7 @@ function showFeed(c){
     '</div>';
   $('#ospClose').addEventListener('click',()=>{stopFeedTimer();p.classList.add('hidden');});
   $('#feedReel').addEventListener('click',()=>{stopFeedTimer();p.classList.add('hidden');
-    const cat=c.cat||'district'; const grp=LIVECAMS.filter(x=>(x.cat||'district')===cat); const gi=grp.indexOf(c);
+    const cat=camCat(c); const grp=LIVECAMS.filter(x=>camCat(x)===cat); const gi=grp.indexOf(c);
     openCamReel(gi<0?0:gi, cat);});
   if(isImg){
     _feedTimer=setInterval(()=>{const im=$('#osFeedImg');if(im&&!p.classList.contains('hidden'))im.src=c.img+'?'+Date.now();else stopFeedTimer();},3000);
@@ -753,6 +788,13 @@ function wirePanelLinks(p){
    ========================================================= */
 let _reelObs=null, REELSET=[];
 const CAT_LABEL={m50:'M50 MOTORWAY',port:'DUBLIN PORT',district:'FITZGIBBON ST / MOUNTJOY'};
+// category of a camera — inferred if the data file is missing the tag (robust to stale data)
+function camCat(c){
+  if(c.cat)return c.cat;
+  if(c.img||c.road)return 'm50';                 // TII motorway snapshot cams
+  if(/dublin port|poolbeg|liffey/i.test(c.n||''))return 'port';
+  return 'district';
+}
 function ensureCamsData(cb){
   const need=[];
   if(!(LIVECAMS&&LIVECAMS.length)) need.push(fetch('data/livecams.json').then(r=>r.json()).then(d=>{LIVECAMS=d;}));
@@ -828,13 +870,13 @@ function wireReelSlides(track){
   });
 }
 function openMapToCam(c){
-  if(typeof open==='function'){ if(document.getElementById('osint')&&document.getElementById('osint').classList.contains('hidden'))open(); }
+  open();   // ensure the map overlay exists and is shown
   const go=()=>{ if(!map)return setTimeout(go,200); if(!camsOn)toggleCams(); map.setView([c.lat,c.lon],16); setTimeout(()=>showFeed(c),300); };
   go();
 }
 function openCamReel(startIndex,cat,grid){
   ensureCamsData(()=>{
-    REELSET = cat ? LIVECAMS.filter(c=>(c.cat||'district')===cat) : LIVECAMS.slice();
+    REELSET = cat ? LIVECAMS.filter(c=>camCat(c)===cat) : LIVECAMS.slice();
     if(!REELSET.length){toast('No cameras in that group');return;}
     const r=buildReelEl(), track=document.getElementById('reelTrack');
     const gt=document.getElementById('reelGroupTag'); if(gt)gt.textContent=cat?(CAT_LABEL[cat]||''):'ALL CAMERAS';

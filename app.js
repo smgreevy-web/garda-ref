@@ -140,6 +140,7 @@ function homeQuick(){
     <button class="qbtn camHero" id="hCamM50">🛣️ M50 motorway<small>TII CCTV · live snapshots</small></button>
     <button class="qbtn camHero" id="hCamPort">⚓ Dublin Port<small>ships · Liffey · Poolbeg</small></button>
     <button class="qbtn camHero" id="hCamAll">🎥 All cameras<small>every feed · one reel</small></button>
+    <button class="qbtn camHero" id="hDccList">🎥 City CCTV list<small>241 DCC cameras · search & locate</small></button>
   </div>
 
   <h2 class="sec">⚡ On the job</h2><div class="quick">
@@ -215,6 +216,7 @@ function homeQuick(){
   go('hCamM50',()=>{ if(window.openCamReel) window.openCamReel(0,'m50',true); });
   go('hCamPort',()=>{ if(window.openCamReel) window.openCamReel(0,'port',true); });
   go('hCamAll',()=>{ if(window.openCamReel) window.openCamReel(0,null,true); });
+  go('hDccList',()=>{ if(window.openDccList) window.openDccList(); });
   go('hBail',()=>openGuide3('bail'));
   go('hOcall',()=>openGuide3('ocall'));
   go('hBailpack',()=>openTemplate(TPL.findIndex(t=>t.id==='bailpack')));
