@@ -1,14 +1,14 @@
 [
- {"n":"Mountjoy Street","s":"Live From Ireland","lat":53.3560,"lon":-6.2672,"u":"https://www.youtube.com/watch?v=h5rt6oSZOak","yt":"h5rt6oSZOak","feat":true},
- {"n":"North Circular Road (facing NE)","s":"Live From Ireland","lat":53.3598,"lon":-6.2772,"u":"https://www.youtube.com/watch?v=dMufmNEwXRc","yt":"dMufmNEwXRc"},
- {"n":"North Circular Road (facing NW)","s":"Live From Ireland","lat":53.3602,"lon":-6.2812,"u":"https://www.youtube.com/watch?v=eSWxGOZLgCU","yt":"eSWxGOZLgCU"},
- {"n":"Cabra Road (facing East)","s":"Live From Ireland","lat":53.3622,"lon":-6.2822,"u":"https://www.youtube.com/watch?v=8bqXtRoleVw","yt":"8bqXtRoleVw"},
- {"n":"Cabra (facing North-West)","s":"Live From Ireland","lat":53.3661,"lon":-6.2901,"u":"https://www.youtube.com/watch?v=f43rKPCALls","yt":"f43rKPCALls"},
- {"n":"Brian Boru Pub, Glasnevin","s":"Live From Ireland","lat":53.3690,"lon":-6.2738,"u":"https://www.youtube.com/watch?v=Abr7V_AsEMA","yt":"Abr7V_AsEMA"},
- {"n":"Collins Avenue, Whitehall","s":"Live From Ireland","lat":53.3805,"lon":-6.2470,"u":"https://www.youtube.com/watch?v=2UYUFoxWWIc","yt":"2UYUFoxWWIc"},
+ {"n":"Mountjoy Street","s":"Live From Ireland","lat":53.3558,"lon":-6.2668,"u":"https://www.youtube.com/watch?v=h5rt6oSZOak","yt":"h5rt6oSZOak","feat":true},
+ {"n":"North Circular Road (facing NE)","s":"Live From Ireland","lat":53.3597,"lon":-6.2740,"u":"https://www.youtube.com/watch?v=dMufmNEwXRc","yt":"dMufmNEwXRc"},
+ {"n":"North Circular Road (facing NW)","s":"Live From Ireland","lat":53.3601,"lon":-6.2776,"u":"https://www.youtube.com/watch?v=eSWxGOZLgCU","yt":"eSWxGOZLgCU"},
+ {"n":"Cabra Road (facing East)","s":"Live From Ireland","lat":53.3629,"lon":-6.2816,"u":"https://www.youtube.com/watch?v=8bqXtRoleVw","yt":"8bqXtRoleVw"},
+ {"n":"Cabra (facing North-West)","s":"Live From Ireland","lat":53.3668,"lon":-6.2905,"u":"https://www.youtube.com/watch?v=f43rKPCALls","yt":"f43rKPCALls"},
+ {"n":"Brian Boru Pub, Glasnevin","s":"Live From Ireland","lat":53.3690,"lon":-6.2742,"u":"https://www.youtube.com/watch?v=Abr7V_AsEMA","yt":"Abr7V_AsEMA"},
+ {"n":"Collins Avenue, Whitehall","s":"Live From Ireland","lat":53.3800,"lon":-6.2470,"u":"https://www.youtube.com/watch?v=2UYUFoxWWIc","yt":"2UYUFoxWWIc"},
  {"n":"The Paddocks Riding Centre","s":"Live From Ireland","lat":53.3735,"lon":-6.3050,"u":"https://www.youtube.com/watch?v=M1t4rRSv_YM","yt":"M1t4rRSv_YM","ap":1},
- {"n":"Temple Bar — EarthCam","s":"EarthCam / YouTube","lat":53.3453,"lon":-6.2637,"u":"https://www.youtube.com/watch?v=3nyPER2kzqk","yt":"3nyPER2kzqk"},
- {"n":"O'Connell Street","s":"SkylineWebcams","lat":53.3498,"lon":-6.2603,"u":"https://www.skylinewebcams.com/en/webcam/ireland/leinster/dublin/dublin-o-connell-street.html"},
- {"n":"Dublin Skyline","s":"SkylineWebcams","lat":53.3478,"lon":-6.2597,"u":"https://www.skylinewebcams.com/en/webcam/ireland/leinster/dublin/dublin-skyline.html"},
- {"n":"Port of Dublin","s":"SkylineWebcams","lat":53.3477,"lon":-6.2349,"u":"https://www.skylinewebcams.com/en/webcam/ireland/leinster/dublin/port-of-dublin.html"}
+ {"n":"Dublin Port — Dublin Bay (ships in/out)","s":"Dublin Port / YouTube","lat":53.3476,"lon":-6.1985,"u":"https://www.youtube.com/watch?v=oxx7MqjhOpw","yt":"oxx7MqjhOpw"},
+ {"n":"Dublin Port — City View (Liffey)","s":"Dublin Port / YouTube","lat":53.3487,"lon":-6.2115,"u":"https://www.youtube.com/watch?v=K_ye7QHXosQ","yt":"K_ye7QHXosQ"},
+ {"n":"Dublin Port — Poolbeg Lighthouse","s":"Dublin Port / YouTube","lat":53.3435,"lon":-6.1555,"u":"https://www.youtube.com/watch?v=jy3fkOBIolk","yt":"jy3fkOBIolk"},
+ {"n":"Temple Bar — EarthCam","s":"EarthCam / YouTube","lat":53.3453,"lon":-6.2637,"u":"https://www.youtube.com/watch?v=3nyPER2kzqk","yt":"3nyPER2kzqk"}
 ]

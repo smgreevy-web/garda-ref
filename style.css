@@ -581,11 +581,12 @@ html[data-fs="s"] .rd-body{font-size:15px}
 .os-top input{padding:13px 14px;font-size:16px}
 .iconbtn{width:46px;height:46px;font-size:22px}
 #osmap{background:#05070d}
-.os-grid{position:absolute;inset:0;pointer-events:none;z-index:400;
+.os-grid{position:absolute;inset:0;pointer-events:none;z-index:400;display:none;
   background-image:linear-gradient(rgba(62,200,221,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(62,200,221,.06) 1px,transparent 1px);
   background-size:44px 44px;
   -webkit-mask-image:radial-gradient(circle at 50% 50%,#000,transparent 92%);mask-image:radial-gradient(circle at 50% 50%,#000,transparent 92%)}
-#osmap.sat .os-grid{opacity:.4}
+#osmap.tac .os-grid{display:block}
+#osmap.sat.tac .os-grid{opacity:.4}
 .camIcon{font-size:22px;filter:drop-shadow(0 0 6px rgba(212,175,55,.9))}
 .planeIcon{filter:drop-shadow(0 0 6px rgba(62,200,221,.9))}
 .leaflet-container{background:#05070d}
@@ -751,3 +752,26 @@ body.reel-open{overflow:hidden}
 /* Garda station crest markers */
 .gdaCrest{filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
 .gdaCrest.hq{filter:drop-shadow(0 0 6px rgba(231,194,80,.55)) drop-shadow(0 2px 3px rgba(0,0,0,.6))}
+
+/* ---- camera markers: two icons (home patch vs everything else) ---- */
+.osCam{display:flex;align-items:center;justify-content:center}
+.osCam .cvi{width:26px;height:26px;fill:none;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+.osCamHome .cvi{stroke:#ffd24d}
+.osCamHome{position:relative}
+.osCamHome .camlive{position:absolute;top:-2px;right:-1px;width:8px;height:8px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 0 2px #0a1930;animation:campulse 1.3s ease-in-out infinite}
+@keyframes campulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.35);opacity:.6}}
+.osCamOther .cvi{stroke:#4fd0e6}
+.osCamTii .cvi{stroke:#9aa8bd}
+
+/* Garda officer (policeman) markers */
+.gdaCop{filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}
+.gdaCop.hq{filter:drop-shadow(0 0 6px rgba(231,194,80,.5)) drop-shadow(0 2px 3px rgba(0,0,0,.55))}
+
+/* motorway snapshot image (feed panel + reel) */
+.os-feedimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.rc-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#05070d;border:0}
+
+/* ---- live traffic map (Waze embed, in-app) ---- */
+.os-trafficwrap{position:relative;width:100%;height:300px;border-radius:12px;overflow:hidden;border:1px solid rgba(120,150,200,.25);background:#0a1220;margin-bottom:4px}
+.os-trafficmap{width:100%;height:100%;border:0;display:block}
+@media (min-width:1000px){ .os-trafficwrap{height:380px} }
