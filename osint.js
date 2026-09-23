@@ -14,6 +14,18 @@ function save(){try{localStorage.setItem(CCTVKEY,JSON.stringify(cctv));}catch(e)
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(m){let t=$('#osToast');if(!t){t=document.createElement('div');t.id='osToast';document.body.appendChild(t);}t.textContent=m;t.className='show';clearTimeout(t._h);t._h=setTimeout(()=>t.className='',3200);}
 
+// ---- rail line-icons (osiris-style, stroke = currentColor) ----
+const _sv=p=>'<svg viewBox="0 0 24 24" class="ri">'+p+'</svg>';
+const RIC={
+  garda:_sv('<path d="M12 2.6 19 5.2V11c0 4.9-3 8.4-7 9.8C8 19.4 5 15.9 5 11V5.2Z"/><path d="M9 7.2c4.4 1 4.2 8.2 0 11.2M9 7.2v11.2" stroke-width="1.2"/>'),
+  dist:_sv('<path d="M12 3 3 7.5l9 4.5 9-4.5Z"/><path d="M3 12l9 4.5L21 12"/><path d="M3 16.5 12 21l9-4.5"/>'),
+  cam:_sv('<rect x="3" y="7.5" width="12" height="9.5" rx="2"/><path d="M15 10.6 21 8v8l-6-2.6Z"/>'),
+  air:_sv('<path d="M12 2.7c.7 0 1 .6 1 1.4v4.7l7 4v2l-7-2v4.4l2 1.4V20l-3-1-3 1v-1.4l2-1.4V12.8l-7 2v-2l7-4V4.1c0-.8.3-1.4 1-1.4Z"/>'),
+  bus:_sv('<rect x="4" y="4" width="16" height="13" rx="2"/><path d="M4 11h16M4 8h16"/><circle cx="8" cy="20" r="1.3"/><circle cx="16" cy="20" r="1.3"/>'),
+  log:_sv('<rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9 4.5h6v3H9Z"/><path d="M8.5 11.5h7M8.5 15h7"/>'),
+  pin:_sv('<path d="M12 21s7-6.3 7-11.3A7 7 0 0 0 5 9.7C5 14.7 12 21 12 21Z"/><circle cx="12" cy="9.6" r="2.3"/>'),
+  me:_sv('<circle cx="12" cy="12" r="7"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>')
+};
 // ---- build overlay once ----
 function build(){
   if(built)return;
@@ -30,14 +42,14 @@ function build(){
    </div>
    <div id="osmap">
      <div class="os-rail">
-       <button class="os-r on" id="osGarda"><span>🛡️</span><em>GARDA</em><i class="rbadge" id="bGarda">96</i></button>
-       <button class="os-r on" id="osDist"><span>▦</span><em>DIST</em><i class="rbadge" id="bDist">96</i></button>
-       <button class="os-r" id="osCams"><span>📹</span><em>CAMS</em><i class="rbadge" id="bCams">7</i></button>
-       <button class="os-r" id="osFlights"><span>✈️</span><em>AIR</em></button>
-       <button class="os-r" id="osTransport"><span>🚌</span><em>TRANSIT</em></button>
-       <button class="os-r" id="osList"><span>📷</span><em>LOG</em><i class="rbadge" id="bLog">${cctv.length}</i></button>
-       <button class="os-r" id="osCam"><span>➕</span><em>PIN</em></button>
-       <button class="os-r" id="osLoc"><span>📍</span><em>ME</em></button>
+       <button class="os-r" id="osGarda">${RIC.garda}<em>GARDA</em><i class="rbadge" id="bGarda">96</i></button>
+       <button class="os-r on" id="osDist">${RIC.dist}<em>DIST</em><i class="rbadge" id="bDist">96</i></button>
+       <button class="os-r" id="osCams">${RIC.cam}<em>CAMS</em><i class="rbadge" id="bCams">7</i></button>
+       <button class="os-r" id="osFlights">${RIC.air}<em>AIR</em></button>
+       <button class="os-r" id="osTransport">${RIC.bus}<em>TRANSIT</em></button>
+       <button class="os-r" id="osList">${RIC.log}<em>LOG</em><i class="rbadge" id="bLog">${cctv.length}</i></button>
+       <button class="os-r" id="osCam">${RIC.pin}<em>PIN</em></button>
+       <button class="os-r" id="osLoc">${RIC.me}<em>ME</em></button>
      </div>
      <div class="os-mode">
        <button id="osModeMap" class="on">◐ TACTICAL</button>
@@ -90,17 +102,19 @@ function initMap(){
   if(map)return;
   map=L.map('osmap',{zoomControl:false,attributionControl:true}).setView(DUB,14);
   L.control.zoom({position:'bottomright'}).addTo(map);
-  // keyless dark tactical basemap (Esri Dark Gray) — no API key required
+  // keyless dark basemap — Esri Dark Gray (no API key, no watermark).
+  // Esri serves to z16; overzoom to 19 so street-level close-ups never go blank.
   baseStreets=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-    {maxZoom:16,attribution:'Esri — dark canvas'});
-  baseLabels=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
-    {maxZoom:16,pane:'markerPane'});
+    {maxNativeZoom:16,maxZoom:19,attribution:'Tiles © Esri'});
   baseSat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    {maxZoom:19,attribution:'Imagery © Esri'});
-  // fallback dark tiles from OSM/CARTO community mirror if Esri is slow
-  baseStreets.on('tileerror',function(){ if(!baseStreets._fb){baseStreets._fb=1;
-    baseStreets.setUrl('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'); baseStreets.options.subdomains='abcd'; } });
-  baseStreets.addTo(map); baseLabels.addTo(map);
+    {maxNativeZoom:19,maxZoom:19,attribution:'Imagery © Esri'});
+  baseLabels=null;
+  // fallback is plain OSM (keyless) — never CARTO, which stamps "API KEY REQUIRED" on its tiles
+  baseStreets.on('tileerror',function(){
+    if(!baseStreets._fb){baseStreets._fb=1;
+      baseStreets.setUrl('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');baseStreets.options.subdomains='abc';baseStreets.options.maxNativeZoom=19;}
+  });
+  baseStreets.addTo(map);
   // tactical grid overlay
   const grid=document.createElement('div'); grid.className='os-grid'; 
   const mc=document.querySelector('#osmap'); if(mc)mc.appendChild(grid);
@@ -145,8 +159,8 @@ function initMap(){
 function autoDefaults(){
   if(!map)return;
   if(DISTRICTS && !distOn) toggleDist();
-  if(STATIONS.length && !gardaOn) toggleGarda();
   if(LIVECAMS.length && !camsOn) toggleCams();
+  // Garda stations are OFF by default now — tap the shield rail button to show them.
   if(!_featShown){const feat=LIVECAMS.find(c=>c.feat);if(feat){_featShown=true;setTimeout(()=>showFeed(feat),450);}}
 }
 
@@ -169,8 +183,8 @@ function measureArea(layer){
 function setBase(sat){
   onSat=sat;
   const mm=$('#osModeMap'),ms=$('#osModeSat');
-  if(sat){map.removeLayer(baseStreets);map.removeLayer(baseLabels);baseSat.addTo(map);document.querySelector('#osmap').classList.add('sat');mm&&mm.classList.remove('on');ms&&ms.classList.add('on');}
-  else{map.removeLayer(baseSat);baseStreets.addTo(map);baseLabels.addTo(map);document.querySelector('#osmap').classList.remove('sat');ms&&ms.classList.remove('on');mm&&mm.classList.add('on');}
+  if(sat){map.removeLayer(baseStreets);if(baseLabels)map.removeLayer(baseLabels);baseSat.addTo(map);document.querySelector('#osmap').classList.add('sat');mm&&mm.classList.remove('on');ms&&ms.classList.add('on');}
+  else{map.removeLayer(baseSat);baseStreets.addTo(map);if(baseLabels)baseLabels.addTo(map);document.querySelector('#osmap').classList.remove('sat');ms&&ms.classList.remove('on');mm&&mm.classList.add('on');}
 }
 
 // ---- in-app web viewer (keeps everything on this page, no redirect) ----
@@ -336,9 +350,10 @@ function fetchFlights(){
      });
      toast(ac.length+' aircraft overhead');
    }).catch(()=>{
-     toast('Live flights unavailable — opening FlightRadar');
-     const c2=map.getCenter();window.open(`https://www.flightradar24.com/${c2.lat.toFixed(4)},${c2.lng.toFixed(4)}/12`,'_blank');
-     flightsOn=false;$('#osFlights').classList.remove('on');clearInterval(flightTimer);
+     // stay in the app — don't bounce out to FlightRadar. Offer the in-app viewer.
+     const c2=map.getCenter();
+     openWeb('https://globe.adsbexchange.com/?lat='+c2.lat.toFixed(3)+'&lon='+c2.lng.toFixed(3)+'&zoom=11',
+       {title:'Live aircraft', note:'Live ADS-B traffic. If the in-app feed is quiet, this is the fallback radar — still inside the app.'});
    });
 }
 
@@ -524,7 +539,17 @@ function longPressAt(ll){
   if(d)districtPopup(d,ll);else pointPopup(ll);
 }
 
-function gardaIcon(hq){return L.divIcon({className:'gdaIcon'+(hq?' hq':''),html:'🛡️',iconSize:[26,26],iconAnchor:[13,13]});}
+function gardaIcon(hq){
+  const svg='<svg viewBox="0 0 24 28" width="'+(hq?30:25)+'" height="'+(hq?35:29)+'" aria-hidden="true">'
+    +'<path d="M12 1 L22 4 V13 C22 20.5 17.2 25 12 27 C6.8 25 2 20.5 2 13 V4 Z" fill="#12315e" stroke="#e7c250" stroke-width="1.5"/>'
+    +'<g stroke="#f0d67a" stroke-width="1" fill="none" stroke-linecap="round">'
+    +'<path d="M9 6.5 C15.5 8 15 17.5 9 20.5"/>'
+    +'<line x1="9" y1="6.5" x2="9" y2="20.5"/>'
+    +'<line x1="10.6" y1="8.4" x2="10.6" y2="18.9"/>'
+    +'<line x1="12.1" y1="9.6" x2="12.1" y2="17.7"/>'
+    +'<line x1="13.4" y1="10.8" x2="13.4" y2="16.4"/></g></svg>';
+  return L.divIcon({className:'gdaCrest'+(hq?' hq':''),html:svg,iconSize:[hq?30:25,hq?35:29],iconAnchor:[hq?15:13,hq?34:28]});
+}
 function toggleGarda(){
   gardaOn=!gardaOn; $('#osGarda').classList.toggle('on',gardaOn);
   if(!gardaOn){map.removeLayer(gardaLayer);return;}
@@ -545,6 +570,7 @@ function toggleGarda(){
 function camsIcon(live){return L.divIcon({className:'liveCamIcon'+(live?' isLive':''),html:live?'🔴':'📹',iconSize:[26,26],iconAnchor:[13,13]});}
 function toggleCams(){
   camsOn=!camsOn; $('#osCams').classList.toggle('on',camsOn);
+  const bc=$('#bCams');if(bc)bc.textContent=LIVECAMS.length;
   if(!camsOn){map.removeLayer(camsLayer);return;}
   camsLayer.clearLayers();
   LIVECAMS.forEach((c,i)=>{
@@ -563,10 +589,13 @@ function showFeed(c){
     '<div class="os-feedmeta">'+c.lat.toFixed(4)+', '+c.lon.toFixed(4)+' · '+esc(c.s)+' · <span class="os-livetag">● LIVE</span></div></div>'+
     '<button class="osx" id="ospClose">✕</button></div>'+
     embed+
+    '<div class="osp-btns"><button class="osbtn wide" id="feedReel">▶ All cameras (flick through)</button></div>'+
     '<div class="osp-btns"><button class="osbtn wide" id="feedOpen">↗ Open live feed (source)</button>'+
     '<button class="osbtn" id="feedCams">📹 More cams</button></div>'+
     '<p class="osp-empty">Public webcam — not private or Garda CCTV. Everything opens here in the app.</p></div>';
   $('#ospClose').addEventListener('click',()=>p.classList.add('hidden'));
+  const idx=LIVECAMS.indexOf(c);
+  $('#feedReel').addEventListener('click',()=>{p.classList.add('hidden');openCamReel(idx<0?0:idx);});
   $('#feedOpen').addEventListener('click',()=>openWeb(c.u,{title:c.n,embed:!!c.yt||knownEmbed(c.u),note:'Live public webcam source.'}));
   $('#feedCams').addEventListener('click',()=>openWeb('https://embed.windy.com/embed2.html?type=map&location=coordinates&zoom=12&overlay=webcams&lat='+c.lat+'&lon='+c.lon,{title:'Public webcams near '+c.n,embed:true}));
 }
@@ -591,5 +620,108 @@ function wirePanelLinks(p){
     const u=b.dataset.u;openWeb(u,{title:b.textContent.replace(/^[^\w]+/,'').trim(),embed:b.dataset.e==='1'||knownEmbed(u)});
   }));
 }
+
+/* =========================================================
+   LIVE CAMERA REEL — full-screen, one camera per screen,
+   flick up for the next (like Reels). Stays in the app.
+   ========================================================= */
+let _reelObs=null;
+function ensureCamsData(cb){
+  if(LIVECAMS&&LIVECAMS.length){cb();return;}
+  fetch('data/livecams.json').then(r=>r.json()).then(d=>{LIVECAMS=d;cb();}).catch(()=>toast('Cameras unavailable — needs signal once'));
+}
+function buildReelEl(){
+  let r=document.getElementById('osReel'); if(r)return r;
+  r=document.createElement('div'); r.id='osReel'; r.className='hidden';
+  r.innerHTML='<div class="reel-top"><button class="reel-x" id="reelClose">‹ Close</button>'
+    +'<div class="reel-title" id="reelTitle">LIVE CAMERAS</div>'
+    +'<button class="reel-gridbtn" id="reelGridBtn">▦ All</button></div>'
+    +'<div class="reel-track" id="reelTrack"></div>'
+    +'<div class="reel-gridview hidden" id="reelGridView"></div>'
+    +'<div class="reel-hint" id="reelHint">▲ flick up for the next camera</div>';
+  document.body.appendChild(r);
+  document.getElementById('reelClose').addEventListener('click',closeReel);
+  document.getElementById('reelGridBtn').addEventListener('click',toggleReelGrid);
+  return r;
+}
+function ytThumb(id,q){return 'https://i.ytimg.com/vi/'+id+'/'+(q||'hqdefault')+'.jpg';}
+function reelSlideHtml(c,i){
+  const bg=c.yt?' style="background-image:url('+ytThumb(c.yt)+')"':'';
+  const media = c.yt
+    ? '<button class="rc-play" aria-label="Play">▶</button><span class="rc-load">LIVE</span>'
+    : '<div class="rc-ext"><div class="rc-extico">📹</div><b>'+esc(c.n)+'</b><span>'+esc(c.s)+' — plays on its own site</span><button class="rc-open osbtn">↗ Open live feed</button></div>';
+  return '<div class="reelcam" data-i="'+i+'"><div class="reelcam-media"'+bg+'>'+media+'</div>'
+    +'<div class="reelcam-cap"><div class="rc-name">'+esc(c.n)+(c.ap?' <span class="rc-approx">approx</span>':'')+'</div>'
+    +'<div class="rc-meta"><span class="os-livetag">● LIVE</span> · '+esc(c.s)+' · '+c.lat.toFixed(4)+', '+c.lon.toFixed(4)+'</div>'
+    +'<div class="rc-btns"><button class="rc-map">📍 On map</button><button class="rc-open">↗ Open</button></div></div></div>';
+}
+function loadReelIframe(sl){
+  const i=+sl.dataset.i,c=LIVECAMS[i]; if(!c||!c.yt)return;
+  const media=sl.querySelector('.reelcam-media'); if(!media||media.dataset.loaded)return;
+  media.dataset.loaded='1';
+  media.innerHTML='<iframe class="reelcam-vid" src="https://www.youtube.com/embed/'+c.yt+'?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&fs=1" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>';
+}
+function unloadReelIframe(sl){
+  const media=sl.querySelector('.reelcam-media'); if(!media||!media.dataset.loaded)return;
+  const i=+sl.dataset.i,c=LIVECAMS[i]; media.dataset.loaded='';
+  media.innerHTML='<button class="rc-play" aria-label="Play">▶</button><span class="rc-load">LIVE</span>';
+  if(c.yt)media.style.backgroundImage='url('+ytThumb(c.yt)+')';
+  const pb=media.querySelector('.rc-play'); pb&&pb.addEventListener('click',()=>loadReelIframe(sl));
+}
+function setupReelObserver(track){
+  if(_reelObs)_reelObs.disconnect();
+  _reelObs=new IntersectionObserver(ents=>{
+    ents.forEach(e=>{
+      const sl=e.target,i=+sl.dataset.i,c=LIVECAMS[i],t=document.getElementById('reelTitle');
+      if(e.isIntersecting&&e.intersectionRatio>0.55){ if(c.yt)loadReelIframe(sl); if(t)t.textContent=(c.n||'LIVE').toUpperCase(); }
+      else if(e.intersectionRatio<0.25){ unloadReelIframe(sl); }
+    });
+  },{threshold:[0,0.25,0.55,0.85],root:track});
+  track.querySelectorAll('.reelcam').forEach(sl=>_reelObs.observe(sl));
+}
+function wireReelSlides(track){
+  track.querySelectorAll('.reelcam').forEach(sl=>{
+    const i=+sl.dataset.i,c=LIVECAMS[i];
+    sl.querySelectorAll('.rc-open').forEach(b=>b.addEventListener('click',ev=>{ev.stopPropagation();openWeb(c.u,{title:c.n,embed:!!c.yt||knownEmbed(c.u),note:'Live public webcam.'});}));
+    const mb=sl.querySelector('.rc-map'); mb&&mb.addEventListener('click',ev=>{ev.stopPropagation();closeReel();openMapToCam(c);});
+    const pb=sl.querySelector('.rc-play'); pb&&pb.addEventListener('click',()=>loadReelIframe(sl));
+  });
+}
+function openMapToCam(c){
+  if(typeof open==='function'){ if(document.getElementById('osint')&&document.getElementById('osint').classList.contains('hidden'))open(); }
+  const go=()=>{ if(!map)return setTimeout(go,200); if(!camsOn)toggleCams(); map.setView([c.lat,c.lon],16); setTimeout(()=>showFeed(c),300); };
+  go();
+}
+function openCamReel(startIndex){
+  ensureCamsData(()=>{
+    const r=buildReelEl(), track=document.getElementById('reelTrack');
+    document.getElementById('reelGridView').classList.add('hidden'); track.classList.remove('hidden');
+    track.innerHTML=LIVECAMS.map((c,i)=>reelSlideHtml(c,i)).join('');
+    r.classList.remove('hidden'); document.body.classList.add('reel-open');
+    wireReelSlides(track); setupReelObserver(track);
+    const si=startIndex&&startIndex>0&&startIndex<LIVECAMS.length?startIndex:0;
+    const first=track.children[si];
+    if(first){ if(si)first.scrollIntoView(); loadReelIframe(first); const t=document.getElementById('reelTitle'); if(t)t.textContent=(LIVECAMS[si].n||'LIVE').toUpperCase(); }
+    const hint=document.getElementById('reelHint'); if(hint){hint.style.opacity='1';clearTimeout(hint._t);hint._t=setTimeout(()=>{hint.style.opacity='0';},3800);}
+  });
+}
+function toggleReelGrid(){
+  const gv=document.getElementById('reelGridView'),track=document.getElementById('reelTrack'),btn=document.getElementById('reelGridBtn');
+  if(!gv.classList.contains('hidden')){gv.classList.add('hidden');track.classList.remove('hidden');btn.textContent='▦ All';return;}
+  gv.innerHTML=LIVECAMS.map((c,i)=>'<button class="reelthumb" data-i="'+i+'"'+(c.yt?' style="background-image:url('+ytThumb(c.yt,'mqdefault')+')"':'')+'><span class="rt-live">● LIVE</span><span class="rt-name">'+esc(c.n)+'</span></button>').join('');
+  gv.classList.remove('hidden'); track.classList.add('hidden'); btn.textContent='▤ Reel';
+  gv.querySelectorAll('.reelthumb').forEach(b=>b.addEventListener('click',()=>{
+    const i=+b.dataset.i; gv.classList.add('hidden'); track.classList.remove('hidden'); btn.textContent='▦ All';
+    const el=track.children[i]; if(el){el.scrollIntoView(); loadReelIframe(el);}
+  }));
+}
+function closeReel(){
+  const r=document.getElementById('osReel'); if(!r)return;
+  if(_reelObs){_reelObs.disconnect();_reelObs=null;}
+  const track=document.getElementById('reelTrack'); if(track)track.innerHTML='';
+  const gv=document.getElementById('reelGridView'); if(gv){gv.innerHTML='';gv.classList.add('hidden');}
+  r.classList.add('hidden'); document.body.classList.remove('reel-open');
+}
+window.openCamReel=openCamReel;
 window.openOSINT=open;
 })();

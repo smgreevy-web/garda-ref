@@ -1,9 +1,14 @@
 [
- {"n":"Temple Bar — EarthCam LIVE","s":"EarthCam / YouTube","lat":53.3453,"lon":-6.2637,"u":"https://www.youtube.com/watch?v=3nyPER2kzqk","yt":"3nyPER2kzqk","feat":true},
+ {"n":"Mountjoy Street","s":"Live From Ireland","lat":53.3560,"lon":-6.2672,"u":"https://www.youtube.com/watch?v=h5rt6oSZOak","yt":"h5rt6oSZOak","feat":true},
+ {"n":"North Circular Road (facing NE)","s":"Live From Ireland","lat":53.3598,"lon":-6.2772,"u":"https://www.youtube.com/watch?v=dMufmNEwXRc","yt":"dMufmNEwXRc"},
+ {"n":"North Circular Road (facing NW)","s":"Live From Ireland","lat":53.3602,"lon":-6.2812,"u":"https://www.youtube.com/watch?v=eSWxGOZLgCU","yt":"eSWxGOZLgCU"},
+ {"n":"Cabra Road (facing East)","s":"Live From Ireland","lat":53.3622,"lon":-6.2822,"u":"https://www.youtube.com/watch?v=8bqXtRoleVw","yt":"8bqXtRoleVw"},
+ {"n":"Cabra (facing North-West)","s":"Live From Ireland","lat":53.3661,"lon":-6.2901,"u":"https://www.youtube.com/watch?v=f43rKPCALls","yt":"f43rKPCALls"},
+ {"n":"Brian Boru Pub, Glasnevin","s":"Live From Ireland","lat":53.3690,"lon":-6.2738,"u":"https://www.youtube.com/watch?v=Abr7V_AsEMA","yt":"Abr7V_AsEMA"},
+ {"n":"Collins Avenue, Whitehall","s":"Live From Ireland","lat":53.3805,"lon":-6.2470,"u":"https://www.youtube.com/watch?v=2UYUFoxWWIc","yt":"2UYUFoxWWIc"},
+ {"n":"The Paddocks Riding Centre","s":"Live From Ireland","lat":53.3735,"lon":-6.3050,"u":"https://www.youtube.com/watch?v=M1t4rRSv_YM","yt":"M1t4rRSv_YM","ap":1},
+ {"n":"Temple Bar — EarthCam","s":"EarthCam / YouTube","lat":53.3453,"lon":-6.2637,"u":"https://www.youtube.com/watch?v=3nyPER2kzqk","yt":"3nyPER2kzqk"},
  {"n":"O'Connell Street","s":"SkylineWebcams","lat":53.3498,"lon":-6.2603,"u":"https://www.skylinewebcams.com/en/webcam/ireland/leinster/dublin/dublin-o-connell-street.html"},
- {"n":"Streets of Dublin","s":"SkylineWebcams","lat":53.3455,"lon":-6.2650,"u":"https://www.skylinewebcams.com/en/webcam/ireland/leinster/dublin/streets.html"},
  {"n":"Dublin Skyline","s":"SkylineWebcams","lat":53.3478,"lon":-6.2597,"u":"https://www.skylinewebcams.com/en/webcam/ireland/leinster/dublin/dublin-skyline.html"},
- {"n":"Cabra Road","s":"SkylineWebcams","lat":53.3615,"lon":-6.2958,"u":"https://www.skylinewebcams.com/en/webcam/ireland/leinster/dublin/"},
- {"n":"Liffey / Ha'penny Bridge","s":"Live From Ireland","lat":53.3466,"lon":-6.2632,"u":"https://livefromireland.ie/"},
- {"n":"Dublin City Centre","s":"WebcamTaxi","lat":53.3505,"lon":-6.2610,"u":"https://www.webcamtaxi.com/en/ireland/dublin/dublin-city-centre.html"}
+ {"n":"Port of Dublin","s":"SkylineWebcams","lat":53.3477,"lon":-6.2349,"u":"https://www.skylinewebcams.com/en/webcam/ireland/leinster/dublin/port-of-dublin.html"}
 ]

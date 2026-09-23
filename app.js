@@ -135,6 +135,7 @@ function homeQuick(){
   ${recentHtml}
 
   <button class="qbtn osintHero" id="hOsint">🛰️ OSINT field map<small>satellite · live flights · CCTV canvass log · draw & measure · links launcher</small></button>
+  <button class="qbtn camHero" id="hCams">📹 Live cameras<small>Dublin street feeds · flick up for the next · all in-app</small></button>
 
   <h2 class="sec">⚡ On the job</h2><div class="quick">
     <button class="qbtn" id="qbOff">📕 Offences<small>elements · arrest · statement</small></button>
@@ -173,6 +174,7 @@ function homeQuick(){
   <h2 class="sec">📖 Deep guides</h2><div class="quick">
     <button class="qbtn" id="hPO">🚨 Public order<small>s.6 & s.8</small></button>
     <button class="qbtn" id="hAffray">⚔️ Affray<small>investigation guide</small></button>
+    <button class="qbtn" id="hClamp">🚗 Clamping & s.41<small>public clamping · seizure · rogue clampers</small></button>
     <button class="qbtn" id="hIplan">🎙️ Interview plan<small>stencil</small></button>
     <button class="qbtn" id="hDrugs">💊 Drugs prosecutions<small>MDA · s.23 · s.26 warrants</small></button>
     <button class="qbtn" id="hRare">📜 Rare offences<small>niche statutes</small></button>
@@ -204,6 +206,7 @@ function homeQuick(){
   go('hCaution',renderCautions);
   go('hScene',renderMajor);
   go('hOsint',()=>{ if(window.openOSINT) window.openOSINT(); });
+  go('hCams',()=>{ if(window.openCamReel) window.openCamReel(0); });
   go('hBail',()=>openGuide3('bail'));
   go('hOcall',()=>openGuide3('ocall'));
   go('hBailpack',()=>openTemplate(TPL.findIndex(t=>t.id==='bailpack')));
@@ -218,6 +221,7 @@ function homeQuick(){
   go('hPrecis',()=>openGuide3('precis2'));
   go('hPO',()=>openGuide3('po'));
   go('hAffray',()=>openGuide3('affray'));
+  go('hClamp',()=>openGuide3('clamping'));
   go('hIplan',()=>openGuide3('iplan'));
   go('hAmend',()=>openGuide3('amendments'));
   go('hJudg',renderJudgments);
