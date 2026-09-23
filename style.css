@@ -655,3 +655,41 @@ html[data-fs="s"] .rd-body{font-size:15px}
   .os-r{width:50px;height:50px}
   .os-r span{font-size:18px}
 }
+/* live feed panel */
+.os-feedhead .os-feedmeta{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--ink-dim);letter-spacing:.5px;margin-top:3px}
+.os-livetag{color:#3fd07a;font-weight:700}
+.os-feedwrap{position:relative;width:100%;padding-top:56.25%;border-radius:12px;overflow:hidden;border:1px solid rgba(212,175,55,.3);background:#000}
+.os-feedvid{position:absolute;inset:0;width:100%;height:100%;border:0}
+.os-feednoembed{padding:24px;text-align:center;color:var(--ink-dim);background:var(--navy);border-radius:12px}
+.liveCamIcon.isLive{animation:livePulse 1.6s ease-in-out infinite}
+@keyframes livePulse{0%,100%{filter:drop-shadow(0 0 4px rgba(255,60,60,.7))}50%{filter:drop-shadow(0 0 10px rgba(255,60,60,1))}}
+@media (prefers-reduced-motion:reduce){.liveCamIcon.isLive{animation:none}}
+
+/* ---- in-app web viewer (no redirects) ---- */
+.os-panel.os-web{top:0;bottom:0;left:0;right:0;max-height:100%;height:100%;border-radius:0;overflow:hidden;border-left:none}
+.os-webin{display:flex;flex-direction:column;height:100%;padding:0}
+.osw-head{padding:10px 12px;margin:0;border-bottom:1px solid var(--navy3);background:var(--navy);gap:10px;flex:0 0 auto}
+.osw-back{font-size:14px;color:var(--gold);white-space:nowrap;background:none;border:none;cursor:pointer;font-weight:700;font-family:inherit}
+.osw-title{flex:1;text-align:center;font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.osw-ext{color:var(--ink-dim);font-size:18px;text-decoration:none;padding:0 4px}
+.osw-frame{flex:1;min-height:0;background:#000}
+.osw-frame iframe{width:100%;height:100%;border:0;display:block}
+.osw-block{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 26px;gap:6px}
+.osw-blkico{font-size:40px;color:var(--gold);opacity:.5}
+.osw-blkh{font-size:16px;color:var(--gold);font-weight:700;word-break:break-all}
+.osw-block p{color:var(--ink-dim);font-size:13px;line-height:1.5;max-width:340px}
+.osw-open{flex:0 0 auto;margin-top:10px;width:auto;max-width:320px;text-align:center;text-decoration:none}
+@media (min-width:1000px){ .os-panel.os-web{top:56px} }
+button.oslink{width:100%;text-align:left;cursor:pointer;font:inherit}
+
+/* ---- district borders + labels ---- */
+.os-distlabel span{position:absolute;left:0;top:0;transform:translate(-50%,-50%);font:700 10px/1 ui-monospace,Menlo,monospace;color:#e7c250;text-shadow:0 0 3px #000,0 0 3px #000,0 0 3px #000;white-space:nowrap;letter-spacing:.3px;text-transform:uppercase;opacity:.92}
+.os-distlabel.home span{color:#5fe6ff;font-size:10.5px;opacity:1}
+#osmap:not(.zlabels) .os-distlabel{display:none}
+
+/* ---- district popup block ---- */
+.osp-dist b{display:block;color:#20180a;margin-bottom:3px;font-size:14px}
+.osp-dist.home b{color:#0a3d47}
+.os-homepin{display:inline-block;background:#0a1930;color:#5fe6ff;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:6px;margin-left:2px;letter-spacing:.5px}
+.osp-distmeta{color:#20180a;font-size:11.5px;line-height:1.35;margin:1px 0}
+.ospop-sep{height:1px;background:rgba(10,25,48,.18);margin:8px 0 6px}
