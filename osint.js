@@ -25,7 +25,8 @@ const RIC={
   log:_sv('<rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9 4.5h6v3H9Z"/><path d="M8.5 11.5h7M8.5 15h7"/>'),
   pin:_sv('<path d="M12 21s7-6.3 7-11.3A7 7 0 0 0 5 9.7C5 14.7 12 21 12 21Z"/><circle cx="12" cy="9.6" r="2.3"/>'),
   me:_sv('<circle cx="12" cy="12" r="7"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>'),
-  traffic:_sv('<path d="M12 3v18" stroke-dasharray="0 0"/><rect x="4.5" y="4.5" width="9" height="3.6" rx="1"/><rect x="10.5" y="10.2" width="9" height="3.6" rx="1"/><rect x="4.5" y="15.9" width="9" height="3.6" rx="1"/>')
+  traffic:_sv('<path d="M12 3v18" stroke-dasharray="0 0"/><rect x="4.5" y="4.5" width="9" height="3.6" rx="1"/><rect x="10.5" y="10.2" width="9" height="3.6" rx="1"/><rect x="4.5" y="15.9" width="9" height="3.6" rx="1"/>'),
+  cctv:_sv('<rect x="2.5" y="7" width="11" height="5.5" rx="1.2"/><path d="M13.5 8.6 20.5 6.5v7.5l-7-2.1Z"/><path d="M7.5 12.5v4.5"/><path d="M4.5 17h6"/>')
 };
 // ---- build overlay once ----
 function build(){
@@ -46,6 +47,7 @@ function build(){
        <button class="os-r" id="osGarda">${RIC.garda}<em>GARDA</em><i class="rbadge" id="bGarda">96</i></button>
        <button class="os-r on" id="osDist">${RIC.dist}<em>DIST</em><i class="rbadge" id="bDist">96</i></button>
        <button class="os-r" id="osCams">${RIC.cam}<em>CAMS</em><i class="rbadge" id="bCams">7</i></button>
+       <button class="os-r" id="osDcc">${RIC.cctv}<em>DCC</em><i class="rbadge" id="bDcc">241</i></button>
        <button class="os-r" id="osFlights">${RIC.air}<em>AIR</em></button>
        <button class="os-r" id="osTransport">${RIC.bus}<em>TRANSIT</em></button>
        <button class="os-r" id="osTraffic">${RIC.traffic}<em>TRAFFIC</em></button>
@@ -80,6 +82,7 @@ function build(){
   $('#osGarda').addEventListener('click',toggleGarda);
   $('#osDist').addEventListener('click',toggleDist);
   $('#osCams').addEventListener('click',toggleCams);
+  $('#osDcc').addEventListener('click',toggleDcc);
   $('#osTransport').addEventListener('click',showTransport);
   $('#osTraffic').addEventListener('click',toggleTraffic);
   startClock();
@@ -101,6 +104,7 @@ function startClock(){
 }
 let baseLight,baseStreets,baseSat,baseLabels,onSat=false,baseMode='street';
 let gardaLayer=null,camsLayer=null,STATIONS=[],LIVECAMS=[],TIICAMS=[],gardaOn=false,camsOn=false,_tiiMerged=false;
+let DCCCAMS=[],dccLayer=null,dccOn=false;
 // merge TII motorway cams into the cam set once both files are in
 function mergeTii(){
   if(_tiiMerged || !LIVECAMS.length || !TIICAMS.length) return;
@@ -137,6 +141,7 @@ function initMap(){
   fetch('data/garda_stations.json').then(r=>r.json()).then(d=>{STATIONS=d;autoDefaults();}).catch(()=>{});
   fetch('data/livecams.json').then(r=>r.json()).then(d=>{LIVECAMS=d;mergeTii();autoDefaults();}).catch(()=>{});
   fetch('data/tii_cams.json').then(r=>r.json()).then(d=>{TIICAMS=d;mergeTii();}).catch(()=>{});
+  fetch('data/dcc_cams.json').then(r=>r.json()).then(d=>{DCCCAMS=d;const b=$('#bDcc');if(b)b.textContent=d.length;}).catch(()=>{});
   drawCameras();
   // drawing / measuring tools — collapsed into a single drop-down toggle
   try{
@@ -577,6 +582,29 @@ function gardaIcon(hq){
     +'<rect x="6.6" y="10.3" width="12.8" height="2" fill="#0a1d3a"/>'
     +'<circle cx="13" cy="7.9" r="1.2" fill="#e7c250"/></svg>';
   return L.divIcon({className:'gdaCop'+(hq?' hq':''),html:svg,iconSize:[w,h],iconAnchor:[Math.round(w/2),h-2]});
+}
+// ---- DCC (Dublin City Council) traffic CCTV — location layer for canvass ----
+function dccIcon(){return L.divIcon({className:'dccCam',html:'<svg viewBox="0 0 24 20"><rect x="2.5" y="6" width="11" height="6" rx="1.4"/><path d="M13.5 7.6 20.5 5.5v8l-7-2.1Z"/><circle cx="7" cy="9" r="1.5"/></svg>',iconSize:[22,16],iconAnchor:[11,8]});}
+function toggleDcc(){
+  dccOn=!dccOn; $('#osDcc').classList.toggle('on',dccOn);
+  if(!dccOn){ if(dccLayer)map.removeLayer(dccLayer); return; }
+  if(!DCCCAMS.length){ fetch('data/dcc_cams.json').then(r=>r.json()).then(d=>{DCCCAMS=d;plotDcc();}).catch(()=>{dccOn=false;$('#osDcc').classList.remove('on');toast('DCC data needs signal once');}); return; }
+  plotDcc();
+}
+function plotDcc(){
+  if(!dccLayer)dccLayer=L.layerGroup();
+  dccLayer.clearLayers();
+  DCCCAMS.forEach(c=>{ L.marker([c.lat,c.lon],{icon:dccIcon()}).addTo(dccLayer).on('click',()=>dccPopup(c)); });
+  dccLayer.addTo(map);
+  const b=$('#bDcc'); if(b)b.textContent=DCCCAMS.length;
+  toast(DCCCAMS.length+' DCC traffic cameras · location only');
+}
+function dccPopup(c){
+  const ll={lat:c.lat,lng:c.lon};
+  const html='<div class="ospop"><b>🎥 '+esc(c.n)+'</b>'+
+    '<div class="osp-distmeta">DCC traffic CCTV'+(c.id?' · cam #'+esc(String(c.id)):'')+' · fixed council camera</div>'+
+    '<div class="ospop-sep"></div><b>'+c.lat.toFixed(6)+', '+c.lon.toFixed(6)+'</b>'+pointActionsHtml(ll)+'</div>';
+  L.popup({maxWidth:260}).setLatLng(ll).setContent(html).openOn(map);
 }
 function toggleGarda(){
   gardaOn=!gardaOn; $('#osGarda').classList.toggle('on',gardaOn);
