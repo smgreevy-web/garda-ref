@@ -19,58 +19,84 @@
 <body>
 <div id="boot" aria-hidden="true">
 <style>
-#boot{position:fixed;inset:0;z-index:99999;background:#06060C;color:#e9dcb0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;transition:opacity .45s ease,transform .45s ease}
-#boot.out{opacity:0;transform:scale(1.04);pointer-events:none}
-#boot::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(212,175,55,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(212,175,55,.06) 1px,transparent 1px);background-size:30px 30px;-webkit-mask-image:radial-gradient(circle at 50% 42%,#000,transparent 72%);mask-image:radial-gradient(circle at 50% 42%,#000,transparent 72%)}
-#boot::after{content:'';position:absolute;left:0;right:0;height:120px;top:-120px;background:linear-gradient(180deg,transparent,rgba(212,175,55,.07),transparent);animation:bscan 2.4s linear infinite}
+#boot{position:fixed;inset:0;z-index:99999;background:#06060C;color:#e9dcb0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;transition:opacity .5s ease,transform .5s ease;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#boot.out{opacity:0;transform:scale(1.05);pointer-events:none}
+#boot::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(212,175,55,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(212,175,55,.06) 1px,transparent 1px);background-size:30px 30px;-webkit-mask-image:radial-gradient(circle at 50% 42%,#000,transparent 74%);mask-image:radial-gradient(circle at 50% 42%,#000,transparent 74%)}
+#boot::after{content:'';position:absolute;left:0;right:0;height:120px;top:-120px;background:linear-gradient(180deg,transparent,rgba(212,175,55,.07),transparent);animation:bscan 2.6s linear infinite;pointer-events:none}
 @keyframes bscan{to{top:100%}}
-#boot .bk-top{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:16px;right:16px;display:flex;justify-content:space-between;font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:1.5px;color:#8a7a45}
-#boot .bk-top b{color:#D4AF37;font-weight:700}
+#boot .bk-top{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:16px;right:16px;display:flex;justify-content:space-between;align-items:center;font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:1.4px;color:#8a7a45}
+#boot .bk-top b{color:#D4AF37;font-weight:800}
 #boot .bk-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:#3fe07a;box-shadow:0 0 8px #3fe07a;vertical-align:1px}
 #boot .bk-dot.off{background:#e0a33f;box-shadow:0 0 8px #e0a33f}
-#boot .bk-ring{position:relative;width:148px;height:148px;display:flex;align-items:center;justify-content:center}
-#boot .bk-ring i{position:absolute;inset:0;border-radius:50%;border:2px solid transparent;border-top-color:#D4AF37;border-right-color:rgba(212,175,55,.35);animation:bspin 1.1s linear infinite}
-#boot .bk-ring i+i{inset:10px;border-top-color:transparent;border-right-color:transparent;border-bottom-color:rgba(212,175,55,.8);border-left-color:rgba(212,175,55,.25);animation:bspin 1.6s linear infinite reverse}
-#boot .bk-ring img{width:62px;height:auto;filter:drop-shadow(0 0 14px rgba(212,175,55,.35));animation:bpulse 1.6s ease-in-out infinite}
+#boot .bk-ring{position:relative;width:138px;height:138px;display:flex;align-items:center;justify-content:center}
+#boot .bk-ring i{position:absolute;inset:0;border-radius:50%;border:2px solid transparent;border-top-color:#D4AF37;border-right-color:rgba(212,175,55,.35);animation:bspin 1.3s linear infinite}
+#boot .bk-ring i+i{inset:10px;border-top-color:transparent;border-right-color:transparent;border-bottom-color:rgba(212,175,55,.8);border-left-color:rgba(212,175,55,.25);animation:bspin 1.9s linear infinite reverse}
+#boot .bk-ring img{width:58px;height:auto;filter:drop-shadow(0 0 14px rgba(212,175,55,.35));animation:bpulse 1.8s ease-in-out infinite}
 @keyframes bspin{to{transform:rotate(360deg)}}
 @keyframes bpulse{50%{transform:scale(1.05)}}
-#boot h1{margin:22px 0 4px;font:800 23px/1.1 system-ui,-apple-system,Roboto,sans-serif;letter-spacing:6px;text-indent:6px;background:linear-gradient(180deg,#f3e3a6,#D4AF37 60%,#9a7f2a);-webkit-background-clip:text;background-clip:text;color:transparent}
-#boot .bk-sub{font:600 10.5px/1.4 ui-monospace,Menlo,monospace;letter-spacing:2.5px;color:#8a7a45;text-align:center}
-#boot .bk-log{margin-top:20px;width:min(300px,82vw);min-height:104px;font:600 11px/1.6 ui-monospace,Menlo,monospace;color:#b9a970;letter-spacing:.4px}
+#boot .bk-word{margin:20px 0 0;height:40px;display:flex;gap:14px;font:800 34px/1 system-ui,-apple-system,Roboto,sans-serif;letter-spacing:0}
+#boot .bk-word span{background:linear-gradient(180deg,#f3e3a6,#D4AF37 60%,#9a7f2a);-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0;transform:translateY(8px);transition:opacity .28s ease,transform .28s ease}
+#boot .bk-word span.in{opacity:1;transform:none}
+#boot .bk-ref{margin-top:8px;font:700 12px/1 ui-monospace,Menlo,monospace;letter-spacing:9px;text-indent:9px;color:#b9a970;opacity:0;transition:opacity .5s ease}
+#boot .bk-sub{margin-top:14px;font:700 10.5px/1.5 ui-monospace,Menlo,monospace;letter-spacing:2.2px;color:#8a7a45;text-align:center;opacity:0;transition:opacity .5s ease}
+#boot .bk-sub b{display:block;color:#D4AF37;letter-spacing:3px;font-size:12px}
+#boot.shown .bk-ref,#boot.shown .bk-sub{opacity:1}
+#boot .bk-log{margin-top:18px;width:min(300px,82vw);min-height:0;font:600 11px/1.65 ui-monospace,Menlo,monospace;color:#b9a970;letter-spacing:.4px}
 #boot .bk-log div{white-space:nowrap;overflow:hidden;opacity:0;animation:bline .22s ease forwards}
 #boot .bk-log div span{float:right;color:#3fe07a}
 #boot .bk-log div.rdy{color:#D4AF37;font-weight:800;letter-spacing:2px}
 @keyframes bline{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
-#boot .bk-bar{margin-top:14px;width:min(300px,82vw);height:2px;background:rgba(212,175,55,.15);border-radius:2px;overflow:hidden}
-#boot .bk-bar b{display:block;height:100%;width:0;background:linear-gradient(90deg,#9a7f2a,#D4AF37,#f3e3a6);box-shadow:0 0 10px #D4AF37;transition:width 1.9s cubic-bezier(.3,.7,.3,1)}
+#boot .bk-bar{margin-top:12px;width:min(300px,82vw);height:2px;background:rgba(212,175,55,.15);border-radius:2px;overflow:hidden;visibility:hidden}
+#boot.run .bk-bar{visibility:visible}
+#boot .bk-bar b{display:block;height:100%;width:0;background:linear-gradient(90deg,#9a7f2a,#D4AF37,#f3e3a6);box-shadow:0 0 10px #D4AF37;transition:width 1.7s cubic-bezier(.3,.7,.3,1)}
+#boot .bk-go{margin-top:26px;min-width:220px;padding:15px 26px;border-radius:99px;border:1.5px solid #D4AF37;background:rgba(212,175,55,.08);color:#f3e3a6;font:800 14px/1 ui-monospace,Menlo,monospace;letter-spacing:3px;cursor:pointer;animation:bglow 1.6s ease-in-out infinite;opacity:0;transition:opacity .4s ease}
+#boot.shown .bk-go{opacity:1}
+#boot .bk-go.enter{background:linear-gradient(180deg,#e6c65a,#D4AF37);color:#0a1930;border-color:#f3e3a6}
+#boot.run .bk-go{visibility:hidden}
+#boot.ready .bk-go{visibility:visible}
+@keyframes bglow{50%{box-shadow:0 0 22px rgba(212,175,55,.55)}}
 #boot .bk-foot{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom,0px));font:600 10px/1 ui-monospace,Menlo,monospace;letter-spacing:2px;color:#5d5230}
-@media (prefers-reduced-motion:reduce){#boot::after,#boot .bk-ring i,#boot .bk-ring img{animation:none}}
+@media (prefers-reduced-motion:reduce){#boot::after,#boot .bk-ring i,#boot .bk-ring img,#boot .bk-go{animation:none}}
 </style>
-<div class="bk-top"><span>ZULU <b id="bkZ">--:--:--Z</b></span><span><i class="bk-dot" id="bkDot"></i><b id="bkNet">ONLINE</b></span></div>
+<div class="bk-top"><span><b id="bkClock">--:--:--</b> · <span id="bkDate"></span></span><span><i class="bk-dot" id="bkDot"></i><b id="bkNet">ONLINE</b></span></div>
 <div class="bk-ring"><i></i><i></i><img src="icons/officer.png" alt=""></div>
-<h1>GARDA REFERENCE</h1>
-<div class="bk-sub">OPERATIONAL INTELLIGENCE<br>MOUNTJOY · DMR NORTH CENTRAL</div>
+<div class="bk-word" id="bkWord"><span>G</span><span>A</span><span>R</span><span>D</span><span>A</span></div>
+<div class="bk-ref">REFERENCE</div>
+<div class="bk-sub"><b>DMR</b>DUBLIN METROPOLITAN REGION</div>
 <div class="bk-log" id="bkLog"></div>
 <div class="bk-bar"><b id="bkBar"></b></div>
-<div class="bk-foot">v46 · TAP TO SKIP</div>
+<button class="bk-go" id="bkGo" type="button">▶ TAP TO START</button>
+<div class="bk-foot">v47 · OFFLINE REFERENCE</div>
 <script>
 (function(){
   var b=document.getElementById('boot'); if(!b)return;
-  var seen=false; try{seen=sessionStorage.getItem('gr_boot')==='1';sessionStorage.setItem('gr_boot','1');}catch(e){}
-  var quick=seen||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
-  var done=false; function end(){ if(done)return; done=true; b.classList.add('out'); setTimeout(function(){ if(b.parentNode)b.parentNode.removeChild(b); },480); }
-  if(quick){ setTimeout(end,seen?60:500); return; }
-  b.addEventListener('click',end);
+  var seen=false; try{seen=sessionStorage.getItem('gr_boot')==='1';}catch(e){}
+  if(seen){ b.parentNode.removeChild(b); return; }        // once per launch
+  var calm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   var on=navigator.onLine!==false;
   document.getElementById('bkNet').textContent=on?'ONLINE':'OFFLINE';
   if(!on)document.getElementById('bkDot').className='bk-dot off';
-  var z=document.getElementById('bkZ'); function tick(){ z.textContent=new Date().toISOString().substr(11,8)+'Z'; } tick(); var zt=setInterval(tick,1000);
-  var lines=[[on?'ESTABLISHING SECURE LINK':'OFFLINE MODE · LOCAL CACHE','OK'],['LOADING 12 VOLUMES + MANUAL','OK'],['INDEXING 397 CASES','OK'],['CAMERA GRID · 138 FEEDS','OK'],['DISTRICTS · STATIONS · DCC 241','OK'],['SYSTEM READY','']];
-  var log=document.getElementById('bkLog');
-  lines.forEach(function(l,i){ setTimeout(function(){ var d=document.createElement('div'); if(!l[1])d.className='rdy';
-      d.innerHTML='› '+l[0]+(l[1]?'<span>'+l[1]+'</span>':''); log.appendChild(d); },170+i*290); });
-  requestAnimationFrame(function(){ document.getElementById('bkBar').style.width='100%'; });
-  setTimeout(function(){ clearInterval(zt); end(); },2250);
+  var D=['SUN','MON','TUE','WED','THU','FRI','SAT'],M=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  function p(n){return (n<10?'0':'')+n;}
+  function tick(){var d=new Date(); document.getElementById('bkClock').textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+    document.getElementById('bkDate').textContent=D[d.getDay()]+' '+p(d.getDate())+' '+M[d.getMonth()]+' '+d.getFullYear();}
+  tick(); var ct=setInterval(tick,1000);
+  var letters=document.querySelectorAll('#bkWord span');
+  letters.forEach(function(s,i){ setTimeout(function(){s.className='in';}, calm?0:150+i*130); });
+  setTimeout(function(){ b.classList.add('shown'); }, calm?0:150+letters.length*130+120);
+  var stage=0, go=document.getElementById('bkGo');
+  function start(){
+    if(stage!==0)return; stage=1; b.classList.add('run','shown');
+    var lines=[[on?'ESTABLISHING SECURE LINK':'OFFLINE MODE · LOCAL CACHE','OK'],['LOADING 12 VOLUMES + MANUAL','OK'],['INDEXING 397 CASES','OK'],['CAMERA GRID · 138 FEEDS','OK'],['568 STATIONS · 96 DISTRICTS · DCC 241','OK'],['SYSTEM READY','']];
+    var log=document.getElementById('bkLog');
+    lines.forEach(function(l,i){ setTimeout(function(){ var d=document.createElement('div'); if(!l[1])d.className='rdy';
+      d.innerHTML='&rsaquo; '+l[0]+(l[1]?'<span>'+l[1]+'</span>':''); log.appendChild(d); }, calm?0:120+i*260); });
+    requestAnimationFrame(function(){ document.getElementById('bkBar').style.width='100%'; });
+    setTimeout(function(){ stage=2; go.textContent='ENTER ▸'; go.classList.add('enter'); b.classList.remove('run'); b.classList.add('ready'); }, calm?50:1800);
+  }
+  function enter(){ if(stage!==2)return; stage=3; clearInterval(ct); try{sessionStorage.setItem('gr_boot','1');}catch(e){}
+    b.classList.add('out'); setTimeout(function(){ if(b.parentNode)b.parentNode.removeChild(b); },520); }
+  b.addEventListener('click',function(){ if(stage===0)start(); else if(stage===2)enter(); });
 })();
 </script>
 </div>
@@ -78,9 +104,9 @@
   <header id="topbar">
     <div class="brand" id="brandBtn">
       <img class="brandlogo" src="icons/officer.png" alt="" width="26" height="42">
-      <div><b>Garda Reference</b><small>Vols 1–12 · Manual · Statements — offline</small></div>
+      <div><b>Garda Reference</b><small>DMR · Dublin Metropolitan Region</small></div>
     </div>
-    <div id="loadState" class="loadstate" title="Content load status"></div>
+    <div class="tb-right"><div class="hudclock tb-clock"></div><div id="loadState" class="loadstate" title="Content load status"></div></div>
   </header>
 
   <main id="view" tabindex="-1"></main>
@@ -91,6 +117,7 @@
       <div class="rd-meta">
         <div id="rdTitle" class="rd-title"></div>
         <div id="rdPage" class="rd-page"></div>
+        <div class="hudclock rd-clock" data-f="line"></div>
       </div>
       <button id="rdStar" class="iconbtn" aria-label="Save section">☆</button>
     </div>
@@ -117,5 +144,6 @@
 <script src="vendor/leaflet-geoman.min.js"></script>
 <script src="app.js"></script>
 <script src="osint.js"></script>
+<script src="media.js"></script>
 </body>
 </html>

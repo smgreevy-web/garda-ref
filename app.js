@@ -121,7 +121,7 @@ function homeQuick(){
   const online=navigator.onLine;
   let recent=[]; try{recent=JSON.parse(localStorage.getItem('gr_recent')||'[]');}catch(e){}
   const recentHtml = recent.length? `<h2 class="sec">↺ Recent</h2><div class="recentwrap">`+
-    recent.slice(0,5).map(r=>`<button class="recentrow" data-k="${r.k}" data-id="${esc(String(r.id))}"><div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${relTime(r.ts)}</div></button>`).join('')+`</div>` : '';
+    recent.slice(0,2).map(r=>`<button class="recentrow" data-k="${r.k}" data-id="${esc(String(r.id))}"><div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${relTime(r.ts)}</div></button>`).join('')+`</div>` : '';
   $('#results').innerHTML=`
   <div class="statstrip" role="group" aria-label="System status">
     <div class="stat"><span class="dot ${online?'on':'off'}"></span><b>${online?'ONLINE':'OFFLINE'}</b><small>${online?'links live':'local content'}</small></div>
@@ -131,16 +131,23 @@ function homeQuick(){
     <div class="stat"><b>${nGuides}</b><small>guides</small></div>
     <div class="stat"><b>✓</b><small>offline-ready</small></div>
   </div>
+  <div id="homeNews"></div>
   ${lp?`<button class="hit ixhit contbtn" id="contBtn"><div class="h-title">▶ Continue reading</div><div class="h-loc">${esc(titleFor(lp))} — ${esc(pageLabel(lp))}</div></button>`:''}
   ${recentHtml}
 
-  <button class="qbtn osintHero" id="hOsint">🛰️ OSINT field map<small>Street View pin · every camera · DCC CCTV · canvass log · draw & measure · satellite</small></button>
+  <button class="qbtn osintHero" id="hOsint">🗺️ Map<small>stations · districts · cameras · DCC CCTV · Street View pin · draw & measure — you choose what's on</small></button>
   <h2 class="sec">📹 Live cameras <span class="livepip">● LIVE</span></h2><div class="quick">
     <button class="qbtn camHero" id="hCamDist">📷 Fitzgibbon St / Mountjoy<small>street cams · your district + north city</small></button>
     <button class="qbtn camHero" id="hCamM50">🛣️ M50 motorway<small>every TII camera · J3 → J17</small></button>
     <button class="qbtn camHero" id="hCamPort">⚓ Dublin Port<small>ships · Liffey · Poolbeg</small></button>
     <button class="qbtn camHero" id="hCamAll">🎥 All cameras<small>organised list · M1 · N4 · N7 too</small></button>
     <button class="qbtn camHero" id="hDccList">🎥 City CCTV list<small>241 DCC cameras · search & locate</small></button>
+  </div>
+
+  <h2 class="sec">📡 Live TV & radio</h2><div class="quick">
+    <button class="qbtn camHero" id="hSky">📺 Sky News<small>24/7 live · plays in the app</small></button>
+    <button class="qbtn camHero" id="hRte">📰 RTÉ News<small>latest reports · in the app</small></button>
+    <button class="qbtn camHero" id="hRadio">📻 Irish radio<small>RTÉ · Newstalk · 98 · FM104 · all stations</small></button>
   </div>
 
   <h2 class="sec">⚡ On the job</h2><div class="quick">
@@ -217,6 +224,10 @@ function homeQuick(){
   go('hCamPort',()=>{ if(window.openCamReel) window.openCamReel(0,'port',true); });
   go('hCamAll',()=>{ if(window.openCamReel) window.openCamReel(0,null,true); });
   go('hDccList',()=>{ if(window.openDccList) window.openDccList(); });
+  go('hSky',()=>{ if(window.GRMedia) GRMedia.openTV('sky'); });
+  go('hRte',()=>{ if(window.GRMedia) GRMedia.openTV('rte'); });
+  go('hRadio',()=>{ if(window.GRMedia) GRMedia.openRadio(); });
+  if(window.GRMedia) GRMedia.mountNewsStrip($('#homeNews'));
   go('hBail',()=>openGuide3('bail'));
   go('hOcall',()=>openGuide3('ocall'));
   go('hBailpack',()=>openTemplate(TPL.findIndex(t=>t.id==='bailpack')));
@@ -1295,3 +1306,20 @@ async function askAI(){
 }
 function stripMd(t){return String(t).replace(/\*{1,3}|_{2,}|^#+\s/gm,'');}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ---------- always-on 24h clock + date (covert HUD) — fills every .hudclock ---------- */
+(function(){
+  const DAYS=['SUN','MON','TUE','WED','THU','FRI','SAT'], MON=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const p=n=>String(n).padStart(2,'0');
+  function tick(){
+    const d=new Date(), t=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+    const ds=DAYS[d.getDay()]+' '+p(d.getDate())+' '+MON[d.getMonth()]+' '+d.getFullYear();
+    document.querySelectorAll('.hudclock').forEach(el=>{
+      const f=el.dataset.f, h=f==='line'?'<b>'+t+'</b> · '+ds:'<b>'+t+'</b><small>'+(f==='noyear'?ds.slice(0,-5):ds)+'</small>';
+      if(el._h!==h){el.innerHTML=h;el._h=h;}
+    });
+  }
+  tick(); setInterval(tick,250); window.grHudTick=tick;   // 4×/s so new screens never show a blank clock
+  window.grToast=function(m){let t=document.getElementById('osToast');if(!t){t=document.createElement('div');t.id='osToast';document.body.appendChild(t);}
+    t.textContent=m;t.className='show';clearTimeout(t._h);t._h=setTimeout(()=>t.className='',3200);};
+})();

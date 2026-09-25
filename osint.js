@@ -34,18 +34,18 @@ function build(){
   const o=document.createElement('div'); o.id='osint'; o.className='hidden';
   o.innerHTML=`
    <div class="os-header">
-     <div class="os-brand"><span class="oseye">◎</span><div><b>GARDA · OSINT</b><small>FIELD INTELLIGENCE</small></div></div>
+     <div class="os-brand"><span class="oseye">◎</span><div><b>MAP</b></div></div>
      <div class="os-statusline" id="osStatus">INITIALISING…</div>
      <div class="os-hact">
        <input id="osSearch" type="search" placeholder="SEARCH LOCATION…" autocomplete="off">
-       <button id="osLinks" class="os-ic" title="OSINT links">☰</button>
+       <button id="osLinks" class="os-ic" title="Links">☰</button>
        <button id="osBack" class="os-ic" title="Close" aria-label="Close">✕</button>
      </div>
    </div>
    <div id="osmap">
      <div class="os-rail">
-       <button class="os-r" id="osGarda">${RIC.garda}<em>GARDA</em><i class="rbadge" id="bGarda">96</i></button>
-       <button class="os-r on" id="osDist">${RIC.dist}<em>DIST</em><i class="rbadge" id="bDist">96</i></button>
+       <button class="os-r" id="osGarda">${RIC.garda}<em>GARDA</em><i class="rbadge" id="bGarda">568</i></button>
+       <button class="os-r" id="osDist">${RIC.dist}<em>DIST</em><i class="rbadge" id="bDist">96</i></button>
        <button class="os-r" id="osCams">${RIC.cam}<em>CAMS</em><i class="rbadge" id="bCams">7</i></button>
        <button class="os-r" id="osDcc">${RIC.cctv}<em>DCC</em><i class="rbadge" id="bDcc">241</i></button>
        <button class="os-r" id="osTraffic">${RIC.traffic}<em>TRAFFIC</em></button>
@@ -93,8 +93,8 @@ function startClock(){
     const on=navigator.onLine;
     const st=$('#osStatus');
     const nly=(distOn?1:0)+(gardaOn?1:0)+(camsOn?1:0)+(flightsOn?1:0)+(cctv&&cctv.length?1:0);
-    if(st)st.innerHTML='ZULU <b>'+z+'Z</b> <span class="sdot '+(on?'live':'off')+'"></span>'+(on?'LIVE':'OFFLINE')+
-      ' · <b>96</b> STN · <b>'+(DISTRICTS?DISTRICTS.features.length:'—')+'</b> DIST · <b>'+nly+'</b> LYR';
+    if(st){ if(!st._init){st.innerHTML='<span class="sdot"></span><span class="hudclock os-clk" data-f="noyear"></span>';st._init=1;if(window.grHudTick)grHudTick();}
+      st.firstChild.className='sdot '+(on?'live':'off'); st.title=(on?'Online':'Offline')+' · '+nly+' layer(s) on'; }
   };
   upd(); _clk=setInterval(upd,1000);
 }
@@ -128,7 +128,7 @@ function initMap(){
   gardaLayer=L.layerGroup();
   camsLayer=L.layerGroup();
   fetch('data/garda_districts.geojson').then(r=>r.json()).then(d=>{DISTRICTS=d;const b=$('#bDist');if(b)b.textContent=d.features.length;autoDefaults();}).catch(()=>{const b=$('#osDist');if(b){b.classList.remove('on');}});
-  fetch('data/garda_stations.json').then(r=>r.json()).then(d=>{STATIONS=d;autoDefaults();}).catch(()=>{});
+  fetch('data/garda_stations.json').then(r=>r.json()).then(d=>{STATIONS=d;const b=$('#bGarda');if(b)b.textContent=d.length;}).catch(()=>{});
   fetch('data/livecams.json').then(r=>r.json()).then(d=>{STREETCAMS=d;rebuildCams();autoDefaults();}).catch(()=>{});
   loadTiiCams().catch(()=>{});
   fetch('data/dcc_cams.json').then(r=>r.json()).then(d=>{DCCCAMS=d;const b=$('#bDcc');if(b)b.textContent=d.length;}).catch(()=>{});
@@ -169,11 +169,8 @@ function initMap(){
 
 // enable the default layers once their data is in — order doesn't affect stacking
 function autoDefaults(){
-  if(!map)return;
-  if(DISTRICTS && !distOn) toggleDist();
-  if(LIVECAMS.length && !camsOn) toggleCams();
-  // Garda stations are OFF by default now — tap the shield rail button to show them.
-  if(!_featShown){const feat=LIVECAMS.find(c=>c.feat);if(feat){_featShown=true;setTimeout(()=>showFeed(feat),450);}}
+  // v47: the map opens clean — no layers switched on, no camera popping up.
+  // Every layer (districts, stations, cameras, DCC…) is the user's choice from the rail.
 }
 
 function measureLine(layer){
@@ -439,7 +436,7 @@ const LINKS=[
 ];
 function showLinks(){
   const p=$('#osPanel');p.classList.remove('hidden');
-  p.innerHTML=`<div class="os-panel-in"><div class="osp-head"><b>☰ OSINT links</b><button class="osx" id="ospClose">✕</button></div>
+  p.innerHTML=`<div class="os-panel-in"><div class="osp-head"><b>☰ Links</b><button class="osx" id="ospClose">✕</button></div>
    ${LINKS.map(([h,items])=>`<div class="oslgrp"><div class="oslh">${esc(h)}</div>${items.map(([n,u])=>`<button class="oslink" data-u="${esc(u)}">${esc(n)}</button>`).join('')}</div>`).join('')}
    <p class="osp-empty">Everything opens here in the app. Any sign-ins are yours; nothing here is logged by the app.</p></div>`;
   $('#ospClose').addEventListener('click',()=>p.classList.add('hidden'));
@@ -613,7 +610,7 @@ function openDccList(){
     const rows=DCCCAMS.slice().sort((a,b)=>(a.n||'').localeCompare(b.n||''));
     el.className='';
     el.innerHTML='<div class="reel-top"><button class="reel-x" id="dclClose">‹ Close</button>'
-      +'<div class="reel-titles"><div class="reel-title">DCC CITY CCTV</div><div class="reel-grouptag">'+DCCCAMS.length+' fixed cameras · tap to locate</div></div>'
+      +'<div class="reel-titles"><div class="reel-title">DCC CITY CCTV</div><div class="reel-grouptag">'+DCCCAMS.length+' fixed cameras · tap to locate</div><div class="hudclock reel-clock" data-f="line"></div></div>'
       +'<span style="width:64px"></span></div>'
       +'<div class="dl-search"><input id="dclSearch" type="search" placeholder="Search road or area…" autocomplete="off"></div>'
       +'<div class="dl-rows" id="dclRows"></div>';
@@ -646,12 +643,13 @@ function toggleGarda(){
   STATIONS.forEach(st=>{
     const hq=/HQ/i.test(st.ty);
     const m=L.marker([st.lat,st.lon],{icon:gardaIcon(hq)}).addTo(gardaLayer);
-    m.bindPopup('<div class="ospop"><b>🛡️ '+esc(st.n)+' Garda Station</b>'+
-      '<div style="color:#20180a;font-size:11px;margin:2px 0 6px">'+esc(st.dv)+' · '+esc(st.ty)+(st.ft?' · 24hr':'')+'</div>'+
-      '<div style="color:#20180a;font-size:12px;margin-bottom:6px">'+esc(st.a)+'</div>'+
-      (st.ph?'<a href="tel:0'+esc(st.ph.replace(/^0/,""))+'">📞 Call 0'+esc(st.ph.replace(/^0/,""))+'</a>':'')+
-      '<button class="osact" data-act="dir" data-la="'+st.lat+'" data-lo="'+st.lon+'">🧭 Directions</button>'+
-      (st.u?'<button class="osact" data-act="url" data-u="'+esc(st.u)+'" data-t="'+esc(st.n)+' station page">🔗 Station page</button>':'')+'</div>');
+    const nm=String(st.n).replace(/^(.*?),\s*(.*)$/,'$1 ($2)');
+    m.bindPopup('<div class="ospop"><b>🛡️ '+esc(nm)+' Garda Station</b>'+
+      '<div style="color:#20180a;font-size:11px;margin:2px 0 6px">'+esc(st.dv||'')+(st.ds?' · '+esc(st.ds)+' district':'')+(st.ty&&st.ty!=='Station'?' · <b>'+esc(st.ty)+'</b>':'')+'</div>'+
+      '<div style="color:#20180a;font-size:12px;margin-bottom:4px">'+esc(st.a||'')+'</div>'+
+      '<div style="color:#20180a;font-size:12px;margin-bottom:7px">🕘 '+(st.ft?'<b>Open 24 hours</b>':esc(st.hrs||'Contact station for hours'))+(st.id?' · <span style="opacity:.7">ID '+esc(st.id)+'</span>':'')+'</div>'+
+      (st.tel?'<a href="tel:'+esc(st.tel)+'">📞 '+esc(st.ph)+'</a>':'')+
+      '<button class="osact" data-act="dir" data-la="'+st.lat+'" data-lo="'+st.lon+'">🧭 Directions</button></div>');
   });
   gardaLayer.addTo(map);
   toast(STATIONS.length+' Garda stations shown');
@@ -794,13 +792,15 @@ function tiiFromApi(list){
     const la=+c.location.latitude, lo=+c.location.longitude;
     if(!(la>DUB_BOX.s&&la<DUB_BOX.n&&lo>DUB_BOX.w&&lo<DUB_BOX.e))return;
     const vs=(c.views||[]).filter(v=>v&&v.url&&/^https:\/\//.test(v.url));
+    const lr=c.location.linearReference==null?null:+(+c.location.linearReference).toFixed(3);
     vs.forEach((v,k)=>out.push({id:String(c.id)+(vs.length>1?'-'+k:''),
-      n:String(c.name||'').replace(/\s+/g,' ').trim()+(vs.length>1?' — '+String(v.name||('View '+(k+1))).trim()+' view':''),
-      lat:la,lon:lo,road:String(c.location.routeId||''),img:v.url,s:'TII motorway CCTV'}));
+      n:String(c.name||'').replace(/\s+/g,' ').trim(), vw:vs.length>1?String(v.name||('View '+(k+1))).trim():'',
+      lat:la,lon:lo,road:String(c.location.routeId||''),lr,img:v.url,s:'TII motorway CCTV'}));
   });
   return out;
 }
 function rebuildCams(){
+  labelTii(TIICAMS);
   LIVECAMS=STREETCAMS.concat(TIICAMS);
   const bc=document.querySelector('#bCams'); if(bc)bc.textContent=LIVECAMS.length;
   if(camsOn&&map&&camsLayer)plotCams();
@@ -810,12 +810,12 @@ function refreshTiiLive(){
   if(_tiiLiveBusy||_tiiLiveDone||navigator.onLine===false)return; _tiiLiveBusy=true;
   fetch(TII_API,{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{
     const l=tiiFromApi(j); if(l.length<40)return;          // never swap in a broken/partial list
-    try{localStorage.setItem('gr_tii',JSON.stringify({t:Date.now(),list:l}));}catch(e){}
+    try{localStorage.setItem('gr_tii2',JSON.stringify({t:Date.now(),list:l}));}catch(e){}
     TIICAMS=l; _tiiLiveDone=true; rebuildCams();
   }).catch(()=>{}).finally(()=>{_tiiLiveBusy=false;});
 }
 function loadTiiCams(){
-  let cached=null; try{cached=JSON.parse(localStorage.getItem('gr_tii')||'null');}catch(e){}
+  let cached=null; try{cached=JSON.parse(localStorage.getItem('gr_tii2')||'null');}catch(e){}
   const p=(cached&&Array.isArray(cached.list)&&cached.list.length>40)?Promise.resolve(cached.list)
          :fetch('data/tii_cams.json').then(r=>r.json());
   return p.then(l=>{TIICAMS=Array.isArray(l)?l:[];rebuildCams();refreshTiiLive();});
@@ -830,59 +830,119 @@ function ensureCamsData(cb){
     .catch(()=>{ if(LIVECAMS.length)cb(); else toast('Cameras unavailable — needs signal once'); });
 }
 
-// ---- clear names: "M50(S) 0.5 Km Before J4 (Ballymun)" → "J4 · Ballymun" / "M50 · southbound · 0.5 km before"
-const M50J={3:'M1 · Airport',4:'Ballymun',5:'Finglas (N2)',6:'Blanchardstown (N3)',7:'Lucan (N4)',9:'Red Cow (N7)',
-  10:'Ballymount',11:'Tallaght (N81)',12:'Firhouse',13:'Dundrum',14:'Stillorgan',15:'Carrickmines',16:'Cherrywood',17:'M11 · Bray'};
-const DIRW={N:'northbound',S:'southbound',E:'eastbound',W:'westbound'};
+/* ---- clear, unique names ----
+   TII: "M50(S) 1.1 Km Before J4 (Ballymun)" → title "Southbound · 1.1 km before J4",
+        sub "heading W → J4 Ballymun" (compass heading of the traffic it watches + next junction ahead).
+   TII gives each camera's km position along its road (linearReference): southbound M50 = rising km. */
+const ROUTE_INC={'M50':'S','M1/N1':'N','M4/N4':'W','M3/N3':'W','M7/N7':'W','M11/N11':'S'};
+const ROUTE_END={'M1/N1':{N:'Swords · Balbriggan',S:'M50 · city'},'M4/N4':{W:'Lucan · Maynooth',E:'M50 · city'},
+  'M3/N3':{W:'Navan',E:'M50'},'M7/N7':{W:'Naas',E:'M50 · Red Cow'},'M11/N11':{S:'Bray · Wexford',N:'M50'}};
+const M50JN=[[3,'M1 · Airport',6.6],[4,'Ballymun',9.0],[5,'Finglas · N2',12.2],[6,'Blanchardstown · N3',16.5],[7,'Lucan · N4',19.9],
+  [9,'Red Cow · N7',24.3],[10,'Ballymount',25.85],[11,'Tallaght · N81',28.43],[12,'Firhouse',29.95],[13,'Dundrum',35.85],
+  [14,'Stillorgan',37.43],[15,'Carrickmines',40.94],[16,'Cherrywood',43.26],[17,'M11 · Bray',45.0]];
+const M50J={}; M50JN.forEach(([n,nm])=>M50J[n]=nm);
+const DIRW={N:'Northbound',S:'Southbound',E:'Eastbound',W:'Westbound'};
+const DIRDEG={N:0,NE:45,E:90,SE:135,S:180,SW:225,W:270,NW:315};
+const COMPASS=['N','NE','E','SE','S','SW','W','NW'];
+function bearingTo(a,b){const r=Math.PI/180,y=Math.sin((b.lon-a.lon)*r)*Math.cos(b.lat*r),
+  x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lon-a.lon)*r);
+  return (Math.atan2(y,x)/r+360)%360;}
+function compass(d){return COMPASS[Math.round(((d%360)+360)%360/45)%8];}
 function tcase(s){return String(s||'').toLowerCase().replace(/\b([a-z])/g,m=>m.toUpperCase()).replace(/\b([nmr])(\d+)\b/gi,(m,a,b)=>a.toUpperCase()+b);}
+// direction of rising km at a camera, from its nearest neighbours on the same road
+function roadBearing(c,all){
+  if(c.lr==null)return null; let lo=null,hi=null;
+  all.forEach(o=>{ if(o===c||o.road!==c.road||o.lr==null)return; const d=o.lr-c.lr;
+    if(d>=0.25&&(!hi||d<hi.lr-c.lr))hi=o; if(d<=-0.25&&(!lo||d>lo.lr-c.lr))lo=o; });
+  if(lo&&hi)return bearingTo(lo,hi); if(hi)return bearingTo(c,hi); if(lo)return bearingTo(lo,c); return null;
+}
+function parseTii(name){
+  const s=String(name||'').replace(/[–—]/g,'-').replace(/\s+/g,' ').replace(/Lexlip/gi,'Leixlip').trim();
+  const m=s.match(/^(M50|M11|M1|M3|M4|M7|N11|N81|N3|N4|N7)\s*\(([NSEW])\)\s*-?\s*(.*)$/i);
+  if(!m)return null;
+  const rest=m[3].replace(/\s-\s\d+\s\(\d+\)$/,'').trim();
+  const jm=rest.match(/J\s?(\d+)\s*(?:\(\s*([^)]*)\))?/i);
+  let pre=(jm?rest.slice(0,jm.index):rest).replace(/-\s*$/,'').trim().toLowerCase()
+          .replace(/(\d)\s*km\s*/,'$1 km ').replace(/\s+/g,' ').trim();
+  const post=(jm?rest.slice(jm.index+jm[0].length):'').replace(/^[\s-]+/,'').trim().toLowerCase();
+  return {road:m[1].toUpperCase(),dir:m[2].toUpperCase(),jn:jm?+jm[1]:0,place:jm?tcase((jm[2]||'').trim()):'',pre,post};
+}
+function posPhrase(p){
+  const j=p.jn?'J'+p.jn+(p.road!=='M50'&&p.place?' '+p.place:''):'', side=p.post?' · '+p.post:'';
+  if(/^off\s?slip/.test(p.pre))return 'off-slip at '+j+side;
+  if(/^on\s?slip from m1/.test(p.pre))return 'on-slip from M1';
+  if(/^at r139/.test(p.pre))return 'at R139 (east of J3)';
+  if(!p.pre||p.pre==='at')return 'at '+j+side;
+  return p.pre+(j?' '+j:'')+side;
+}
+function nearestJ(lr){let b=null,bd=1e9;M50JN.forEach(J=>{const d=Math.abs(J[2]-lr);if(d<bd){bd=d;b=J;}});return b?b[0]:0;}
+function labelTii(all){
+  (all||[]).forEach(c=>{
+    const p=parseTii(c.n), rb=roadBearing(c,all);
+    let t,st='',hd=null,sec='',ord=0,jn=0;
+    if(p){
+      jn=p.road==='M50'?(p.jn||(c.lr!=null?nearestJ(c.lr):0)):0;
+      if(/^on\s?slip from m1/.test(p.pre)||/^at r139/.test(p.pre))jn=3;
+      t=(p.road==='M50'?'':p.road+' · ')+DIRW[p.dir]+' · '+posPhrase(p);
+      const inc=ROUTE_INC[c.road], pair={N:'S',S:'N',E:'W',W:'E'};
+      if(rb!=null&&inc&&(p.dir===inc||p.dir===pair[inc]))hd=p.dir===inc?rb:(rb+180)%360;
+      else hd=DIRDEG[p.dir];
+      let to='';
+      if(c.road==='M50'&&c.lr!=null&&(p.dir==='S'||p.dir==='N')){
+        const up=p.dir==='S', cand=M50JN.filter(J=>up?J[2]>c.lr+0.12:J[2]<c.lr-0.12);
+        const nx=up?cand[0]:cand[cand.length-1];
+        to=nx?'J'+nx[0]+' '+nx[1]:(up?'M11 · Wicklow':'M1 · Port Tunnel');
+      } else if(ROUTE_END[c.road]) to=ROUTE_END[c.road][p.dir]||'';
+      st='heading '+compass(hd)+(to?' → '+to:'');
+      ord=(p.dir===(ROUTE_INC[c.road]||'S')?0:1)*1000+(c.lr!=null?(p.dir===(ROUTE_INC[c.road]||'S')?c.lr:100-c.lr):0);
+    } else if(c.vw){                               // one mast, several fixed angles (e.g. N7 East / West)
+      const vd=DIRDEG[String(c.vw).trim().toUpperCase().replace(/^(NORTH|SOUTH|EAST|WEST)$/,x=>x[0])];
+      t=(/^N7 At J1 M50/i.test(c.n)?'N7 at M50 J9 · Red Cow':tcase(c.n))+' · '+c.vw+' view';
+      hd=vd!=null?vd:null; st=(hd!=null?'looking '+compass(hd)+' · ':'')+'same mast, '+c.vw.toLowerCase()+' angle'; ord=500+(hd||0);
+    } else {                                       // TII road-weather station camera
+      t=tcase(c.n).replace(/\s+Master$/i,'')+' · weather camera';
+      st=(c.road?c.road.split('/')[0]+' · ':'')+'road-weather station view'; ord=900;
+      if(c.road==='M50'&&c.lr!=null){ const byName=M50JN.find(J=>new RegExp(J[1].split(' ')[0],'i').test(c.n)); jn=byName?byName[0]:nearestJ(c.lr); }
+    }
+    if(c.road==='M50'||jn) sec='m50-'+jn;
+    else if(/^M11/.test(c.road)) sec='m11';
+    else if(/^M1\//.test(c.road)||c.road==='M1') sec='m1';
+    else if(/^M4/.test(c.road)) sec='n4';
+    else sec='n7';                                 // N7 · N3 · N81
+    c._lab={t,st,j:jn,hd,sec,ord,tii:1};
+  });
+  const byKey={}; (all||[]).forEach(c=>{const k=c._lab.sec+'|'+c._lab.t;(byKey[k]=byKey[k]||[]).push(c);});
+  Object.values(byKey).forEach(g=>{ if(g.length<2)return;
+    g.forEach((c,i)=>{ const J=M50JN.find(x=>x[0]===c._lab.j);
+      c._lab.t+=(J&&c.lr!=null)?' · ≈'+Math.abs(c.lr-J[2]).toFixed(1)+' km from J'+J[0]:' · view '+(i+1); }); });
+}
 function camLabel(c){
   if(c._lab)return c._lab;
-  let t=String(c.n||'Camera'), st=String(c.s||''), jn=0;
-  if(!c.img){
-    const m=t.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
-    if(m){t=m[1];st=m[2]+' · '+(c.s||'');}
-  } else {
-    let s=String(c.n||'').replace(/\s+/g,' ').replace(/\s-\s\d+\s\(\d+\)$/,'').replace(/Lexlip/gi,'Leixlip').trim();
-    let view=''; const vm=s.match(/\s—\s(.+?) view$/); if(vm){view=vm[1];s=s.slice(0,vm.index).trim();}
-    const m=s.match(/^(M50|M11|M1|M3|M4|M7|N11|N81|N3|N4|N7)\s*\(([NSEW])\)\s*[–—-]?\s*(.*)$/i);
-    if(/on slip from m1/i.test(s)){ t='J3 · '+M50J[3]; st='M50 · southbound · on-slip from M1'; jn=3; }
-    else if(/^M50\s*\(S\)\s*At R139/i.test(s)){ t='R139 · east of J3'; st='M50 · southbound · at R139'; jn=3; }
-    else if(/^N7 At J1 M50/i.test(s)){ t='N7 J1 · M50 (Red Cow)'; st='N7 · '+(view?view.toLowerCase()+' view':'at junction'); }
-    else if(!m){ const rd=String(c.road||'').split('/')[0]; t=s.replace(/^(M50|N81|N7|M11|N11)\s+/i,'').replace(/\s+Master$/i,''); st=(rd?rd+' · ':'')+'weather-station camera'; }
-    else{
-      const road=m[1].toUpperCase(), dir=DIRW[m[2].toUpperCase()]||'', rest=m[3];
-      const jm=rest.match(/J\s?(\d+)\s*(?:\(([^)]*)\))?/i);
-      if(jm){
-        const n=+jm[1], place=(jm[2]||'').trim();
-        const nm=(road==='M50'&&M50J[n])?M50J[n]:tcase(place);
-        t=(road==='M50'?'':road+' ')+'J'+n+(nm?' · '+nm:'');
-        let pos=rest.slice(0,jm.index).replace(/[–—-]\s*$/,'').trim().toLowerCase().replace(/(\d)\s*km\s*/,'$1 km ').trim();
-        const side=rest.slice(jm.index+jm[0].length).replace(/^[\s–—-]+/,'').trim().toLowerCase().replace(/\b([nmr])(\d+)\b/g,(x,a,b)=>a.toUpperCase()+b);
-        if(road==='M50')jn=n;
-        if(!pos||pos==='at')pos='at junction'; else if(/^off slip/.test(pos))pos='off-slip'; else if(/^on slip/.test(pos))pos='on-slip';
-        st=road+' · '+dir+' · '+pos+(side?' · '+side:'');
-      } else { t=tcase(rest.replace(/^at\s+/i,'')); st=road+' · '+dir; }
-    }
-  }
-  c._lab={t:t.trim(),st:st.trim(),j:jn||0};
+  if(c.img){ labelTii(TIICAMS.includes(c)?TIICAMS:[c]); if(c._lab)return c._lab; }
+  let t=String(c.n||'Camera'), st=String(c.s||''), hd=null;
+  const m=t.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+  if(m){ t=m[1];
+    const f=m[2].replace(/^facing\s+/i,'').trim().toUpperCase().replace(/NORTH-?/g,'N').replace(/SOUTH-?/g,'S').replace(/EAST/g,'E').replace(/WEST/g,'W');
+    if(DIRDEG[f]!=null){ hd=DIRDEG[f]; st='facing '+compass(hd)+' · '+(c.s||''); } else st=m[2]+' · '+(c.s||''); }
+  c._lab={t:t.trim(),st:st.trim(),j:0,hd,sec:'',ord:0,tii:0};
   return c._lab;
 }
+function arrowHtml(hd){return hd==null?'':'<i class="cl-arrow" style="transform:rotate('+Math.round(hd)+'deg)" aria-hidden="true"></i>';}
 
 // ---- groups (in order) and the filter chip each belongs to
 const CAM_GROUPS=[
-  {k:'home',f:'streets',ico:'📍',h:'Fitzgibbon St district · Mountjoy',sub:'Inside your district boundary'},
-  {k:'north',f:'streets',ico:'🏘️',h:'Nearby north Dublin',sub:'Cabra · Whitehall · Ashtown — neighbouring districts'},
+  {k:'home',f:'streets',ico:'📍',h:'Fitzgibbon St district',sub:'Inside your district boundary'},
+  {k:'north',f:'streets',ico:'🏘️',h:'Nearby north Dublin',sub:'Cabra · Whitehall · Ashtown'},
   {k:'city',f:'streets',ico:'🏛️',h:'City centre'},
-  {k:'port',f:'port',ico:'⚓',h:'Dublin Port & Bay'},
-  {k:'m50n',f:'m50',ico:'🛣️',h:'M50 North · J3 → J6',sub:'Airport · Ballymun · Finglas · Blanchardstown'},
-  {k:'m50w',f:'m50',ico:'🛣️',h:'M50 West · J6 → J10',sub:'Lucan · Red Cow · Ballymount'},
-  {k:'m50s',f:'m50',ico:'🛣️',h:'M50 South · J11 → J17',sub:'Tallaght · Firhouse · Dundrum · Carrickmines · Cherrywood'},
+  {k:'port',f:'port',ico:'⚓',h:'Dublin Port & Bay'}
+].concat(M50JN.map(([n,nm])=>({k:'m50-'+n,f:'m50',ico:'🛣️',h:'M50 · J'+n+' '+nm,jn:n})),[
   {k:'m1',f:'mway',ico:'🛣️',h:'M1 · Airport → Balbriggan'},
   {k:'n4',f:'mway',ico:'🛣️',h:'N4 / M4 · Liffey Valley → Celbridge'},
-  {k:'oth',f:'mway',ico:'🛣️',h:'N7 · N3 · N81 · M11'}
-];
-const CAM_FILTERS=[['all','All'],['streets','Streets'],['port','Port'],['m50','M50'],['mway','Other motorways']];
-const FILTER_LABEL={all:'ALL CAMERAS',streets:'STREETS · MOUNTJOY & NORTH CITY',port:'DUBLIN PORT',m50:'M50 MOTORWAY',mway:'M1 · N4 · N7 · N3 · M11'};
+  {k:'n7',f:'mway',ico:'🛣️',h:'N7 · N3 · N81'},
+  {k:'m11',f:'mway',ico:'🛣️',h:'M11 · Bray'}
+]);
+const CAM_FILTERS=[['all','All'],['streets','Streets'],['port','Port'],['m50','M50'],['mway','Other roads']];
+const FILTER_LABEL={all:'ALL CAMERAS',streets:'STREETS · FITZGIBBON ST & NORTH CITY',port:'DUBLIN PORT',m50:'M50 · BY JUNCTION',mway:'M1 · N4/M4 · N7 · N3 · M11'};
 function camCat(c){ // legacy tag, kept for older data files
   if(c.cat)return c.cat;
   if(c.img||c.road)return 'm50';
@@ -895,27 +955,14 @@ function camGroup(c){
     if(camCat(c)==='city'||/temple bar|earthcam/i.test(c.n||''))return 'city';
     return camInHome(c)?'home':'north';
   }
-  const rd=String(c.road||'');
-  if(/^M50/i.test(c.n||'')||rd==='M50') return c.lat>=53.375?'m50n':(c.lat>=53.30?'m50w':'m50s');
-  if(/M1\b|N1\b/.test(rd))return 'm1';
-  if(/N4|M4/.test(rd))return 'n4';
-  return 'oth';
+  return camLabel(c).sec||'n7';
 }
-// position around the ring so each M50 section reads junction by junction
-function ringAng(c){let a=Math.atan2(c.lat-53.335,(c.lon+6.27)*0.6)*180/Math.PI;return a<0?a+360:a;}
 function sortGroup(k,arr){
-  if(/^m50/.test(k)){
-    // junction number first (all J4 cams together), then position along the ring
-    const withJ=arr.filter(c=>camLabel(c).j);
-    const jOf=c=>{const j=camLabel(c).j; if(j)return j; let best=0,bd=1e9; withJ.forEach(o=>{const d=(o.lat-c.lat)**2+((o.lon-c.lon)*0.6)**2; if(d<bd){bd=d;best=camLabel(o).j;}}); return best;};
-    return arr.sort((a,b)=>(jOf(a)-jOf(b))||(ringAng(a)-ringAng(b)));
-  }
-  if(k==='m1')return arr.sort((a,b)=>a.lat-b.lat);
-  if(k==='n4')return arr.sort((a,b)=>b.lon-a.lon);
-  if(k==='oth')return arr.sort((a,b)=>String(a.road).localeCompare(String(b.road))||a.lat-b.lat);
+  if(arr.length&&arr[0].img) return arr.sort((a,b)=>(camLabel(a).ord-camLabel(b).ord));
   return arr;                                   // street cams keep their hand-picked order
 }
 function filterOf(c){const G=CAM_GROUPS.find(G=>G.k===camGroup(c));return G?G.f:'all';}
+function groupOf(c){return CAM_GROUPS.find(G=>G.k===camGroup(c))||null;}
 function camsFor(f){
   const byG={}; LIVECAMS.forEach(c=>{const g=camGroup(c);(byG[g]=byG[g]||[]).push(c);});
   const list=[],secs=[];
@@ -933,7 +980,7 @@ function buildReelEl(){
   let r=document.getElementById('osReel'); if(r)return r;
   r=document.createElement('div'); r.id='osReel'; r.className='hidden';
   r.innerHTML='<div class="reel-top"><button class="reel-x" id="reelClose">‹ Close</button>'
-    +'<div class="reel-titles"><div class="reel-title" id="reelTitle">LIVE CAMERAS</div><div class="reel-grouptag" id="reelGroupTag"></div></div>'
+    +'<div class="reel-titles"><div class="reel-title" id="reelTitle">LIVE CAMERAS</div><div class="reel-grouptag" id="reelGroupTag"></div><div class="hudclock reel-clock" data-f="line"></div></div>'
     +'<button class="reel-gridbtn" id="reelGridBtn">▦ List</button></div>'
     +'<div class="reel-track" id="reelTrack"></div>'
     +'<div class="reel-gridview hidden" id="reelGridView"></div>'
@@ -953,8 +1000,9 @@ function reelSlideHtml(c,i){
     ? '<img class="rc-img" data-src="'+esc(c.img)+'" alt="'+esc(lb.t)+'"><span class="rc-load">TII · loading</span>'
     : '<div class="rc-ext"><div class="rc-extico">📹</div><b>'+esc(lb.t)+'</b><span>'+esc(c.s||'')+'</span></div>';
   return '<div class="reelcam" data-i="'+i+'"><div class="reelcam-media"'+bg+'>'+media+'</div>'
-    +'<div class="reelcam-cap"><div class="rc-name">'+esc(lb.t)+(c.ap?' <span class="rc-approx">approx</span>':'')+'</div>'
-    +'<div class="rc-meta">'+(c.yt?'<span class="os-livetag">● LIVE</span>':'<span class="os-snaptag">◷ TII still</span>')+' · '+esc(lb.st)+'</div>'
+    +'<div class="reelcam-cap">'+(function(){const G=groupOf(c);return G?'<div class="rc-grp">'+esc(G.h)+'</div>':'';})()
+    +'<div class="rc-name">'+esc(lb.t)+(c.ap?' <span class="rc-approx">approx</span>':'')+'</div>'
+    +'<div class="rc-meta">'+(c.yt?'<span class="os-livetag">● LIVE</span>':'<span class="os-snaptag">◷ TII still</span>')+' · '+arrowHtml(lb.hd)+esc(lb.st)+'</div>'
     +'<div class="rc-btns"><button class="rc-map">📍 On map</button>'+(c.u?'<button class="rc-open">↗ Source</button>':'')+'</div></div></div>';
 }
 const _reelImgTimers={};
@@ -984,7 +1032,9 @@ function unloadReelIframe(sl){
   if(c&&c.yt)media.style.backgroundImage='url('+ytThumb(c.yt)+')';
   const pb=media.querySelector('.rc-play'); pb&&pb.addEventListener('click',()=>loadReelIframe(sl));
 }
-function setReelTitle(i){const t=document.getElementById('reelTitle'),c=REELSET[i]; if(t&&c)t.textContent=camLabel(c).t.toUpperCase();}
+function setReelTitle(i){const t=document.getElementById('reelTitle'),g=document.getElementById('reelGroupTag'),c=REELSET[i];
+  if(t&&c)t.textContent=camLabel(c).t.toUpperCase();
+  if(g&&c){const G=groupOf(c); g.textContent=(G?G.h:'').toUpperCase();}}
 function setupReelObserver(track){
   if(_reelObs)_reelObs.disconnect();
   _reelObs=new IntersectionObserver(ents=>{
@@ -1046,19 +1096,24 @@ function buildReelGrid(){
   const gv=document.getElementById('reelGridView'),track=document.getElementById('reelTrack'),btn=document.getElementById('reelGridBtn');
   const cnt={all:LIVECAMS.length}; LIVECAMS.forEach(c=>{const f=filterOf(c);cnt[f]=(cnt[f]||0)+1;});
   const bucket=Math.floor(Date.now()/120000);   // TII stills: fresh every ~2 min in the list
-  let h='<div class="cl-bar"><input class="cl-search" id="clSearch" type="search" placeholder="Search — Ballymun, J9, Cabra, port…" autocomplete="off" enterkeyhint="search">'
-    +'<div class="cl-chips">'+CAM_FILTERS.map(([k,l])=>'<button class="cl-chip'+(k===CAMFILTER?' on':'')+'" data-f="'+k+'">'+esc(l)+' <em>'+(cnt[k]||0)+'</em></button>').join('')+'</div></div>'
-    +'<div class="cl-scroll" id="clScroll">';
+  const jumps=CAMSECS.filter(sec=>sec.G.jn);
+  let h='<div class="cl-bar"><input class="cl-search" id="clSearch" type="search" placeholder="Search — Ballymun, J9, southbound, Cabra, port…" autocomplete="off" enterkeyhint="search">'
+    +'<div class="cl-chips">'+CAM_FILTERS.map(([k,l])=>'<button class="cl-chip'+(k===CAMFILTER?' on':'')+'" data-f="'+k+'">'+esc(l)+' <em>'+(cnt[k]||0)+'</em></button>').join('')+'</div>'
+    +(jumps.length>1?'<div class="cl-jumps"><span>M50</span>'+jumps.map(sec=>'<button class="cl-jump" data-k="'+sec.G.k+'">J'+sec.G.jn+'</button>').join('')+'</div>':'')
+    +'</div><div class="cl-scroll" id="clScroll">';
   CAMSECS.forEach(sec=>{
-    h+='<section class="cl-sec"><h3 class="cl-h"><span class="cl-hico">'+sec.G.ico+'</span><span class="cl-ht">'+esc(sec.G.h)
-      +(sec.G.sub?'<small>'+esc(sec.G.sub)+'</small>':'')+'</span><em>'+sec.n+'</em></h3><div class="cl-grid">';
+    let sub=sec.G.sub||'';
+    if(sec.G.jn){ let sb=0,nb=0; for(let i=sec.start;i<sec.start+sec.n;i++){const t=camLabel(REELSET[i]).t; if(/^Southbound/.test(t))sb++; else if(/^Northbound/.test(t))nb++;}
+      sub=[sb?sb+' southbound':'',nb?nb+' northbound':''].filter(Boolean).join(' · ')||'M50'; }
+    h+='<section class="cl-sec" data-k="'+sec.G.k+'"><h3 class="cl-h"><span class="cl-hico">'+sec.G.ico+'</span><span class="cl-ht">'+esc(sec.G.h)
+      +(sub?'<small>'+esc(sub)+'</small>':'')+'</span><em>'+sec.n+'</em></h3><div class="cl-grid">';
     for(let i=sec.start;i<sec.start+sec.n;i++){
       const c=REELSET[i], lb=camLabel(c);
       const src=c.yt?ytThumb(c.yt,'mqdefault'):(c.img?c.img+'?t='+bucket:'');
-      h+='<button class="cl-tile" data-i="'+i+'" data-q="'+esc((lb.t+' '+lb.st+' '+(c.n||'')+' '+(c.road||'')).toLowerCase())+'">'
+      h+='<button class="cl-tile" data-i="'+i+'" data-q="'+esc((sec.G.h+' '+lb.t+' '+lb.st+' '+(c.n||'')+' '+(c.road||'')).toLowerCase())+'">'
         +'<span class="cl-thumb">'+(src?'<img loading="lazy" decoding="async" alt="" src="'+esc(src)+'" onerror="this.parentNode.classList.add(\'err\');this.remove()">':'')
         +'<i class="cl-badge '+(c.yt?'live':'snap')+'">'+(c.yt?'● LIVE':'◷ TII')+'</i></span>'
-        +'<span class="cl-cap"><b>'+esc(lb.t)+'</b><small>'+esc(lb.st)+'</small></span></button>';
+        +'<span class="cl-cap"><b>'+esc(lb.t)+'</b><small>'+arrowHtml(lb.hd)+esc(lb.st)+'</small></span></button>';
     }
     h+='</div></section>';
   });
@@ -1069,6 +1124,8 @@ function buildReelGrid(){
   const t=document.getElementById('reelTitle'); if(t)t.textContent='PICK A CAMERA';
   gv.querySelectorAll('.cl-chip').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.f===CAMFILTER)return; setReelFilter(b.dataset.f); buildReelGrid(); }));
   gv.querySelectorAll('.cl-tile').forEach(b=>b.addEventListener('click',()=>showReelAt(+b.dataset.i)));
+  gv.querySelectorAll('.cl-jump').forEach(b=>b.addEventListener('click',()=>{const sc=document.getElementById('clScroll'),el=gv.querySelector('.cl-sec[data-k="'+b.dataset.k+'"]');
+    if(sc&&el)sc.scrollTo({top:el.offsetTop-sc.offsetTop-4,behavior:'smooth'});}));
   const inp=document.getElementById('clSearch');
   inp.addEventListener('input',()=>{
     const words=inp.value.toLowerCase().split(/\s+/).filter(Boolean); let any=0;
