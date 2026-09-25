@@ -1,7 +1,7 @@
 {
  "name": "Garda Investigation Reference",
  "short_name": "Garda Ref",
- "description": "Searchable offline reference \u2014 Vols 1\u201312, 2007 Manual, statement suite. No case data.",
+ "description": "Searchable offline reference — Vols 1–12, 2007 Manual, statement suite. No case data.",
  "start_url": "./index.html",
  "scope": "./",
  "display": "standalone",
@@ -11,12 +11,26 @@
   {
    "src": "icons/icon-192.png",
    "sizes": "192x192",
-   "type": "image/png"
+   "type": "image/png",
+   "purpose": "any"
   },
   {
    "src": "icons/icon-512.png",
    "sizes": "512x512",
-   "type": "image/png"
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icons/maskable-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "maskable"
+  },
+  {
+   "src": "icons/maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
   }
  ]
 }

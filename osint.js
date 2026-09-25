@@ -48,11 +48,9 @@ function build(){
        <button class="os-r on" id="osDist">${RIC.dist}<em>DIST</em><i class="rbadge" id="bDist">96</i></button>
        <button class="os-r" id="osCams">${RIC.cam}<em>CAMS</em><i class="rbadge" id="bCams">7</i></button>
        <button class="os-r" id="osDcc">${RIC.cctv}<em>DCC</em><i class="rbadge" id="bDcc">241</i></button>
-       <button class="os-r" id="osFlights">${RIC.air}<em>AIR</em></button>
-       <button class="os-r" id="osTransport">${RIC.bus}<em>TRANSIT</em></button>
        <button class="os-r" id="osTraffic">${RIC.traffic}<em>TRAFFIC</em></button>
        <button class="os-r" id="osList">${RIC.log}<em>LOG</em><i class="rbadge" id="bLog">${cctv.length}</i></button>
-       <button class="os-r" id="osCam">${RIC.pin}<em>PIN</em></button>
+       <button class="os-r" id="osCam" title="Street View: tap PIN, then tap the map">${RIC.pin}<em>PIN</em></button>
        <button class="os-r" id="osLoc">${RIC.me}<em>ME</em></button>
      </div>
      <div class="os-mode">
@@ -75,15 +73,13 @@ function build(){
   $('#osModeStreet').addEventListener('click',()=>setBase('street'));
   $('#osModeTac').addEventListener('click',()=>setBase('tactical'));
   $('#osModeSat').addEventListener('click',()=>setBase('sat'));
-  $('#osCam').addEventListener('click',togglePlace);
-  $('#osFlights').addEventListener('click',toggleFlights);
+  $('#osCam').addEventListener('click',togglePin);
   $('#osLoc').addEventListener('click',locate);
   $('#osList').addEventListener('click',showList);
   $('#osGarda').addEventListener('click',toggleGarda);
   $('#osDist').addEventListener('click',toggleDist);
   $('#osCams').addEventListener('click',toggleCams);
   $('#osDcc').addEventListener('click',toggleDcc);
-  $('#osTransport').addEventListener('click',showTransport);
   $('#osTraffic').addEventListener('click',toggleTraffic);
   startClock();
   built=true;
@@ -103,15 +99,8 @@ function startClock(){
   upd(); _clk=setInterval(upd,1000);
 }
 let baseLight,baseStreets,baseSat,baseLabels,onSat=false,baseMode='street';
-let gardaLayer=null,camsLayer=null,STATIONS=[],LIVECAMS=[],TIICAMS=[],gardaOn=false,camsOn=false,_tiiMerged=false;
+let gardaLayer=null,camsLayer=null,STATIONS=[],LIVECAMS=[],STREETCAMS=[],TIICAMS=[],gardaOn=false,camsOn=false;
 let DCCCAMS=[],dccLayer=null,dccOn=false;
-// merge TII motorway cams into the cam set once both files are in
-function mergeTii(){
-  if(_tiiMerged || !LIVECAMS.length || !TIICAMS.length) return;
-  LIVECAMS = LIVECAMS.concat(TIICAMS); _tiiMerged=true;
-  const bc=document.querySelector('#bCams'); if(bc)bc.textContent=LIVECAMS.length;
-  if(camsOn && map){ camsOn=false; toggleCams(); }   // re-plot with the full set + two icons
-}
 let districtLayer=null,districtLabels=null,DISTRICTS=null,distOn=false,_divmap=null,_featShown=false;
 const HOME_DIST='Fitzgibbon Street'; // Mountjoy Station's district — highlighted as "your patch"
 function initMap(){
@@ -133,14 +122,15 @@ function initMap(){
   const grid=document.createElement('div'); grid.className='os-grid'; 
   const mc=document.querySelector('#osmap'); if(mc)mc.appendChild(grid);
   L.control.scale({imperial:false,position:'bottomright'}).addTo(map);
+  map.on('click',e=>{ if(!svPick)return; svPick=false; const b=$('#osCam'); if(b)b.classList.remove('on'); map.getContainer().classList.remove('svpick'); openStreetView(e.latlng); });
   cctvLayer=L.layerGroup().addTo(map);
   flightLayer=L.layerGroup();
   gardaLayer=L.layerGroup();
   camsLayer=L.layerGroup();
   fetch('data/garda_districts.geojson').then(r=>r.json()).then(d=>{DISTRICTS=d;const b=$('#bDist');if(b)b.textContent=d.features.length;autoDefaults();}).catch(()=>{const b=$('#osDist');if(b){b.classList.remove('on');}});
   fetch('data/garda_stations.json').then(r=>r.json()).then(d=>{STATIONS=d;autoDefaults();}).catch(()=>{});
-  fetch('data/livecams.json').then(r=>r.json()).then(d=>{LIVECAMS=d;mergeTii();autoDefaults();}).catch(()=>{});
-  fetch('data/tii_cams.json').then(r=>r.json()).then(d=>{TIICAMS=d;mergeTii();}).catch(()=>{});
+  fetch('data/livecams.json').then(r=>r.json()).then(d=>{STREETCAMS=d;rebuildCams();autoDefaults();}).catch(()=>{});
+  loadTiiCams().catch(()=>{});
   fetch('data/dcc_cams.json').then(r=>r.json()).then(d=>{DCCCAMS=d;const b=$('#bDcc');if(b)b.textContent=d.length;}).catch(()=>{});
   drawCameras();
   // drawing / measuring tools — collapsed into a single drop-down toggle
@@ -235,25 +225,22 @@ function openWeb(url,opt){
   $('#ospBack').addEventListener('click',()=>{p.classList.add('hidden');p.classList.remove('os-web');p.innerHTML='';});
 }
 // known keyless-embeddable URL shapes — everything else opens via the fallback card
-function knownEmbed(u){return /(maps\.google\.[^/]+\/maps\?.*output=embed|[?&]output=embed|openstreetmap\.org\/export\/embed|youtube(-nocookie)?\.com\/embed\/|embed\.windy\.com)/i.test(u);}
+function knownEmbed(u){return /(maps\.google\.[^/]+\/maps\?.*output=embed|[?&]output=embed|openstreetmap\.org\/export\/embed|youtube(-nocookie)?\.com\/embed\/|embed\.windy\.com|[?&]output=svembed)/i.test(u);}
 
 // ---- point / coordinate actions (all in-app) ----
 function pointActionsHtml(ll){
   const la=ll.lat.toFixed(6),lo=ll.lng.toFixed(6);
   return '<button class="oscopy" data-c="'+la+', '+lo+'">⧉ copy coords</button>'
-   +'<button class="osact" data-act="map" data-la="'+ll.lat+'" data-lo="'+ll.lng+'">🗺️ Map & Street View here</button>'
+   +'<button class="osact" data-act="sv" data-la="'+ll.lat+'" data-lo="'+ll.lng+'">🧍 Street View here</button>'
    +'<button class="osact" data-act="sat" data-la="'+ll.lat+'" data-lo="'+ll.lng+'">✦ Aerial (satellite) here</button>'
-   +'<button class="osact" data-act="air" data-la="'+ll.lat+'" data-lo="'+ll.lng+'">✈️ Live aircraft overhead</button>'
    +'<button class="osact" data-act="cams" data-la="'+ll.lat+'" data-lo="'+ll.lng+'">📹 Public webcams near here</button>'
-   +'<button class="osact" data-act="yt" data-la="'+ll.lat+'" data-lo="'+ll.lng+'">▶️ Live video search</button>'
    +'<button class="oscam2" data-la="'+ll.lat+'" data-lo="'+ll.lng+'">📷 Log a camera here</button>';
 }
 function doAct(act,la,lo){
   if(act==='sat'){map.closePopup();setBase(true);map.setView([la,lo],18);toast('Satellite view — this map');return;}
-  if(act==='air'){map.closePopup();map.setView([la,lo],13);if(!flightsOn)toggleFlights();toast('Live aircraft (needs signal)');return;}
+  if(act==='sv'){map.closePopup();openStreetView({lat:la,lng:lo});return;}
   if(act==='map'){openWeb('https://maps.google.com/maps?q='+la+','+lo+'&t=m&z=18&output=embed',{title:'Map — '+la.toFixed(5)+', '+lo.toFixed(5),embed:true,note:'Google map of this point (drag/zoom inside). Drag to Pegman for Street View. Aerial is on the ✦ SAT toggle top-right.'});return;}
   if(act==='cams'){openWeb('https://embed.windy.com/embed2.html?type=map&location=coordinates&metricRain=default&metricTemp=default&metricWind=default&zoom=12&overlay=webcams&product=ecmwf&level=surface&lat='+la+'&lon='+lo,{title:'Public webcams near here',embed:true,note:'Windy public webcams — tap a camera dot to view. Public only, not Garda or private CCTV.'});return;}
-  if(act==='yt'){openWeb('https://www.youtube.com/results?search_query='+la.toFixed(3)+'%2C'+lo.toFixed(3)+'+live',{title:'Live video search',note:'Public YouTube live streams mentioning this area.'});return;}
 }
 // wire any in-app buttons inside a freshly-opened popup or panel
 function wireEls(el){
@@ -283,6 +270,19 @@ function drawCameras(){
     L.marker([c.lat,c.lon],{icon:camIcon()}).addTo(cctvLayer).on('click',()=>editCamera(i));
   });
   const lb=$('#bLog');if(lb)lb.textContent=cctv.length;
+}
+// ---- PIN = Street View: tap PIN, then tap the map → Street View opens right there, in the app
+let svPick=false;
+function togglePin(){
+  svPick=!svPick; const b=$('#osCam'); if(b)b.classList.toggle('on',svPick);
+  if(map&&map.getContainer())map.getContainer().classList.toggle('svpick',svPick);
+  toast(svPick?'Tap the map — Street View opens right there':'Street View pin off');
+}
+function openStreetView(ll){
+  const la=(+ll.lat).toFixed(6), lo=(+ll.lng).toFixed(6);
+  openWeb('https://maps.google.com/maps?layer=c&cbll='+la+','+lo+'&cbp=11,0,0,0,0&output=svembed',
+    {title:'Street View · '+(+la).toFixed(5)+', '+(+lo).toFixed(5),embed:true,
+     note:'Drag to look around · tap the arrows to move along the road. A grey screen means there is no Street View on that exact spot — drop the pin on a road.'});
 }
 function togglePlace(){
   placing=!placing;
@@ -425,9 +425,7 @@ const LINKS=[
    ['Bing Maps (bird\'s-eye)','https://www.bing.com/maps'],
    ['GeoHive / OSI historic maps','https://webapps.geohive.ie/mapviewer/'],
  ]],
- ['Transport & movement',[
-   ['Transport for Ireland — live','https://www.transportforireland.ie/'],
-   ['FlightRadar24','https://www.flightradar24.com/'],
+ ['Maritime',[
    ['MarineTraffic','https://www.marinetraffic.com/'],
  ]],
  ['Metadata & media',[
@@ -667,17 +665,19 @@ function camsIconFor(c){
   return L.divIcon({className:'osCam osCamPulse '+(home?'osCamHome':(c.img?'osCamTii':'osCamOther')),
     html:_camSvg+'<i class="camlive"></i>', iconSize:[30,26], iconAnchor:[15,13]});
 }
+function plotCams(){
+  camsLayer.clearLayers();
+  LIVECAMS.forEach(c=>{
+    const m=L.marker([c.lat,c.lon],{icon:camsIconFor(c),title:camLabel(c).t}).addTo(camsLayer);
+    m.on('click',()=>showFeed(c));
+  });
+}
 function toggleCams(){
   camsOn=!camsOn; $('#osCams').classList.toggle('on',camsOn);
   const bc=$('#bCams');if(bc)bc.textContent=LIVECAMS.length;
   if(!camsOn){map.removeLayer(camsLayer);return;}
-  camsLayer.clearLayers();
-  LIVECAMS.forEach((c,i)=>{
-    const m=L.marker([c.lat,c.lon],{icon:camsIconFor(c)}).addTo(camsLayer);
-    m.on('click',()=>showFeed(c));
-  });
-  camsLayer.addTo(map);
-  toast(LIVECAMS.length+' public webcams · tap to view');
+  plotCams(); camsLayer.addTo(map);
+  toast(LIVECAMS.length+' cameras ('+TIICAMS.length+' TII motorway) · tap one to view');
 }
 let _feedTimer=null;
 function stopFeedTimer(){ if(_feedTimer){clearInterval(_feedTimer);_feedTimer=null;} }
@@ -689,24 +689,22 @@ function showFeed(c){
     : c.img
     ? '<div class="os-feedwrap"><img class="os-feedimg" id="osFeedImg" src="'+esc(c.img)+'?'+Date.now()+'" alt="'+esc(c.n)+'"></div>'
     : '<div class="os-feednoembed">This camera plays on its own site — tap “Open live feed” to watch it here in the app.</div>';
-  const isImg=!!c.img;
-  p.innerHTML='<div class="os-panel-in"><div class="osp-head os-feedhead"><div><b>'+(isImg?'🎥':'📹')+' '+esc(c.n)+'</b>'+
-    '<div class="os-feedmeta">'+c.lat.toFixed(4)+', '+c.lon.toFixed(4)+' · '+esc(c.s)+' · <span class="os-livetag">● LIVE</span></div></div>'+
+  const isImg=!!c.img, lb=camLabel(c);
+  p.innerHTML='<div class="os-panel-in"><div class="osp-head os-feedhead"><div><b>'+(isImg?'🛣️':'📹')+' '+esc(lb.t)+'</b>'+
+    '<div class="os-feedmeta">'+esc(lb.st)+' · '+c.lat.toFixed(5)+', '+c.lon.toFixed(5)+' · '+(isImg?'<span class="os-snaptag">◷ TII still</span>':'<span class="os-livetag">● LIVE</span>')+'</div></div>'+
     '<button class="osx" id="ospClose">✕</button></div>'+
     embed+
-    '<div class="osp-btns"><button class="osbtn wide" id="feedReel">▶ All cameras (flick through)</button></div>'+
+    '<div class="osp-btns"><button class="osbtn wide" id="feedReel">▶ Flick through this group</button></div>'+
     (isImg
-      ? '<p class="osp-empty">TII motorway CCTV — refreshes automatically every few seconds. Placed at the named junction (TII doesn’t publish exact camera coordinates).</p>'
-      : '<div class="osp-btns"><button class="osbtn wide" id="feedOpen">↗ Open live feed (source)</button>'+
+      ? '<p class="osp-empty">TII camera at its exact TII position. Still image — refreshes automatically.</p>'
+      : '<div class="osp-btns"><button class="osbtn wide" id="feedOpen">↗ Source page (in app)</button>'+
         '<button class="osbtn" id="feedCams">📹 More cams</button></div>'+
         '<p class="osp-empty">Public webcam — not private or Garda CCTV. Everything opens here in the app.</p>')+
     '</div>';
   $('#ospClose').addEventListener('click',()=>{stopFeedTimer();p.classList.add('hidden');});
-  $('#feedReel').addEventListener('click',()=>{stopFeedTimer();p.classList.add('hidden');
-    const cat=camCat(c); const grp=LIVECAMS.filter(x=>camCat(x)===cat); const gi=grp.indexOf(c);
-    openCamReel(gi<0?0:gi, cat);});
+  $('#feedReel').addEventListener('click',()=>{stopFeedTimer();p.classList.add('hidden');openCamReel(0,null,false,c);});
   if(isImg){
-    _feedTimer=setInterval(()=>{const im=$('#osFeedImg');if(im&&!p.classList.contains('hidden'))im.src=c.img+'?'+Date.now();else stopFeedTimer();},3000);
+    _feedTimer=setInterval(()=>{const im=$('#osFeedImg');if(im&&!p.classList.contains('hidden'))im.src=c.img+'?'+Date.now();else stopFeedTimer();},10000);
   }else{
     const fo=$('#feedOpen'); fo&&fo.addEventListener('click',()=>openWeb(c.u,{title:c.n,embed:!!c.yt||knownEmbed(c.u),note:'Live public webcam source.'}));
     const fc=$('#feedCams'); fc&&fc.addEventListener('click',()=>openWeb('https://embed.windy.com/embed2.html?type=map&location=coordinates&zoom=12&overlay=webcams&lat='+c.lat+'&lon='+c.lon,{title:'Public webcams near '+c.n,embed:true}));
@@ -783,30 +781,160 @@ function wirePanelLinks(p){
 }
 
 /* =========================================================
-   LIVE CAMERA REEL — full-screen, one camera per screen,
-   flick up for the next (like Reels). Stays in the app.
+   CAMERAS — public street webcams + every TII camera around
+   Dublin. The TII list loads LIVE from TII (exact positions,
+   real names) and is cached so it still works offline.
    ========================================================= */
-let _reelObs=null, REELSET=[];
-const CAT_LABEL={m50:'M50 MOTORWAY',port:'DUBLIN PORT',district:'FITZGIBBON ST / MOUNTJOY'};
-// category of a camera — inferred if the data file is missing the tag (robust to stale data)
-function camCat(c){
-  if(c.cat)return c.cat;
-  if(c.img||c.road)return 'm50';                 // TII motorway snapshot cams
-  if(/dublin port|poolbeg|liffey/i.test(c.n||''))return 'port';
-  return 'district';
+const TII_API='https://iretg.carsprogram.org/cameras_v1/api/cameras';
+const DUB_BOX={s:53.18,n:53.62,w:-6.62,e:-5.95};
+function tiiFromApi(list){
+  const out=[];
+  (Array.isArray(list)?list:[]).forEach(c=>{
+    if(!c||c.public===false||c.active===false||!c.location)return;
+    const la=+c.location.latitude, lo=+c.location.longitude;
+    if(!(la>DUB_BOX.s&&la<DUB_BOX.n&&lo>DUB_BOX.w&&lo<DUB_BOX.e))return;
+    const vs=(c.views||[]).filter(v=>v&&v.url&&/^https:\/\//.test(v.url));
+    vs.forEach((v,k)=>out.push({id:String(c.id)+(vs.length>1?'-'+k:''),
+      n:String(c.name||'').replace(/\s+/g,' ').trim()+(vs.length>1?' — '+String(v.name||('View '+(k+1))).trim()+' view':''),
+      lat:la,lon:lo,road:String(c.location.routeId||''),img:v.url,s:'TII motorway CCTV'}));
+  });
+  return out;
+}
+function rebuildCams(){
+  LIVECAMS=STREETCAMS.concat(TIICAMS);
+  const bc=document.querySelector('#bCams'); if(bc)bc.textContent=LIVECAMS.length;
+  if(camsOn&&map&&camsLayer)plotCams();
+}
+let _tiiLiveBusy=false,_tiiLiveDone=false;
+function refreshTiiLive(){
+  if(_tiiLiveBusy||_tiiLiveDone||navigator.onLine===false)return; _tiiLiveBusy=true;
+  fetch(TII_API,{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{
+    const l=tiiFromApi(j); if(l.length<40)return;          // never swap in a broken/partial list
+    try{localStorage.setItem('gr_tii',JSON.stringify({t:Date.now(),list:l}));}catch(e){}
+    TIICAMS=l; _tiiLiveDone=true; rebuildCams();
+  }).catch(()=>{}).finally(()=>{_tiiLiveBusy=false;});
+}
+function loadTiiCams(){
+  let cached=null; try{cached=JSON.parse(localStorage.getItem('gr_tii')||'null');}catch(e){}
+  const p=(cached&&Array.isArray(cached.list)&&cached.list.length>40)?Promise.resolve(cached.list)
+         :fetch('data/tii_cams.json').then(r=>r.json());
+  return p.then(l=>{TIICAMS=Array.isArray(l)?l:[];rebuildCams();refreshTiiLive();});
 }
 function ensureCamsData(cb){
   const need=[];
-  if(!(LIVECAMS&&LIVECAMS.length)) need.push(fetch('data/livecams.json').then(r=>r.json()).then(d=>{LIVECAMS=d;}));
-  if(!(TIICAMS&&TIICAMS.length)) need.push(fetch('data/tii_cams.json').then(r=>r.json()).then(d=>{TIICAMS=d;}));
-  Promise.all(need).then(()=>{mergeTii();cb();}).catch(()=>{ if(LIVECAMS&&LIVECAMS.length){mergeTii();cb();} else toast('Cameras unavailable — needs signal once'); });
+  if(!STREETCAMS.length) need.push(fetch('data/livecams.json').then(r=>r.json()).then(d=>{STREETCAMS=d;}));
+  if(!TIICAMS.length) need.push(loadTiiCams());
+  // district boundaries decide "your district" vs "nearby" even when the map hasn't been opened yet
+  if(!DISTRICTS) need.push(fetch('data/garda_districts.geojson').then(r=>r.json()).then(d=>{if(!DISTRICTS)DISTRICTS=d;}).catch(()=>{}));
+  Promise.all(need).then(()=>{rebuildCams();refreshTiiLive();cb();})
+    .catch(()=>{ if(LIVECAMS.length)cb(); else toast('Cameras unavailable — needs signal once'); });
 }
+
+// ---- clear names: "M50(S) 0.5 Km Before J4 (Ballymun)" → "J4 · Ballymun" / "M50 · southbound · 0.5 km before"
+const M50J={3:'M1 · Airport',4:'Ballymun',5:'Finglas (N2)',6:'Blanchardstown (N3)',7:'Lucan (N4)',9:'Red Cow (N7)',
+  10:'Ballymount',11:'Tallaght (N81)',12:'Firhouse',13:'Dundrum',14:'Stillorgan',15:'Carrickmines',16:'Cherrywood',17:'M11 · Bray'};
+const DIRW={N:'northbound',S:'southbound',E:'eastbound',W:'westbound'};
+function tcase(s){return String(s||'').toLowerCase().replace(/\b([a-z])/g,m=>m.toUpperCase()).replace(/\b([nmr])(\d+)\b/gi,(m,a,b)=>a.toUpperCase()+b);}
+function camLabel(c){
+  if(c._lab)return c._lab;
+  let t=String(c.n||'Camera'), st=String(c.s||''), jn=0;
+  if(!c.img){
+    const m=t.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+    if(m){t=m[1];st=m[2]+' · '+(c.s||'');}
+  } else {
+    let s=String(c.n||'').replace(/\s+/g,' ').replace(/\s-\s\d+\s\(\d+\)$/,'').replace(/Lexlip/gi,'Leixlip').trim();
+    let view=''; const vm=s.match(/\s—\s(.+?) view$/); if(vm){view=vm[1];s=s.slice(0,vm.index).trim();}
+    const m=s.match(/^(M50|M11|M1|M3|M4|M7|N11|N81|N3|N4|N7)\s*\(([NSEW])\)\s*[–—-]?\s*(.*)$/i);
+    if(/on slip from m1/i.test(s)){ t='J3 · '+M50J[3]; st='M50 · southbound · on-slip from M1'; jn=3; }
+    else if(/^M50\s*\(S\)\s*At R139/i.test(s)){ t='R139 · east of J3'; st='M50 · southbound · at R139'; jn=3; }
+    else if(/^N7 At J1 M50/i.test(s)){ t='N7 J1 · M50 (Red Cow)'; st='N7 · '+(view?view.toLowerCase()+' view':'at junction'); }
+    else if(!m){ const rd=String(c.road||'').split('/')[0]; t=s.replace(/^(M50|N81|N7|M11|N11)\s+/i,'').replace(/\s+Master$/i,''); st=(rd?rd+' · ':'')+'weather-station camera'; }
+    else{
+      const road=m[1].toUpperCase(), dir=DIRW[m[2].toUpperCase()]||'', rest=m[3];
+      const jm=rest.match(/J\s?(\d+)\s*(?:\(([^)]*)\))?/i);
+      if(jm){
+        const n=+jm[1], place=(jm[2]||'').trim();
+        const nm=(road==='M50'&&M50J[n])?M50J[n]:tcase(place);
+        t=(road==='M50'?'':road+' ')+'J'+n+(nm?' · '+nm:'');
+        let pos=rest.slice(0,jm.index).replace(/[–—-]\s*$/,'').trim().toLowerCase().replace(/(\d)\s*km\s*/,'$1 km ').trim();
+        const side=rest.slice(jm.index+jm[0].length).replace(/^[\s–—-]+/,'').trim().toLowerCase().replace(/\b([nmr])(\d+)\b/g,(x,a,b)=>a.toUpperCase()+b);
+        if(road==='M50')jn=n;
+        if(!pos||pos==='at')pos='at junction'; else if(/^off slip/.test(pos))pos='off-slip'; else if(/^on slip/.test(pos))pos='on-slip';
+        st=road+' · '+dir+' · '+pos+(side?' · '+side:'');
+      } else { t=tcase(rest.replace(/^at\s+/i,'')); st=road+' · '+dir; }
+    }
+  }
+  c._lab={t:t.trim(),st:st.trim(),j:jn||0};
+  return c._lab;
+}
+
+// ---- groups (in order) and the filter chip each belongs to
+const CAM_GROUPS=[
+  {k:'home',f:'streets',ico:'📍',h:'Fitzgibbon St district · Mountjoy',sub:'Inside your district boundary'},
+  {k:'north',f:'streets',ico:'🏘️',h:'Nearby north Dublin',sub:'Cabra · Whitehall · Ashtown — neighbouring districts'},
+  {k:'city',f:'streets',ico:'🏛️',h:'City centre'},
+  {k:'port',f:'port',ico:'⚓',h:'Dublin Port & Bay'},
+  {k:'m50n',f:'m50',ico:'🛣️',h:'M50 North · J3 → J6',sub:'Airport · Ballymun · Finglas · Blanchardstown'},
+  {k:'m50w',f:'m50',ico:'🛣️',h:'M50 West · J6 → J10',sub:'Lucan · Red Cow · Ballymount'},
+  {k:'m50s',f:'m50',ico:'🛣️',h:'M50 South · J11 → J17',sub:'Tallaght · Firhouse · Dundrum · Carrickmines · Cherrywood'},
+  {k:'m1',f:'mway',ico:'🛣️',h:'M1 · Airport → Balbriggan'},
+  {k:'n4',f:'mway',ico:'🛣️',h:'N4 / M4 · Liffey Valley → Celbridge'},
+  {k:'oth',f:'mway',ico:'🛣️',h:'N7 · N3 · N81 · M11'}
+];
+const CAM_FILTERS=[['all','All'],['streets','Streets'],['port','Port'],['m50','M50'],['mway','Other motorways']];
+const FILTER_LABEL={all:'ALL CAMERAS',streets:'STREETS · MOUNTJOY & NORTH CITY',port:'DUBLIN PORT',m50:'M50 MOTORWAY',mway:'M1 · N4 · N7 · N3 · M11'};
+function camCat(c){ // legacy tag, kept for older data files
+  if(c.cat)return c.cat;
+  if(c.img||c.road)return 'm50';
+  if(/dublin port|poolbeg|liffey/i.test(c.n||''))return 'port';
+  return 'district';
+}
+function camGroup(c){
+  if(!c.img){
+    if(camCat(c)==='port')return 'port';
+    if(camCat(c)==='city'||/temple bar|earthcam/i.test(c.n||''))return 'city';
+    return camInHome(c)?'home':'north';
+  }
+  const rd=String(c.road||'');
+  if(/^M50/i.test(c.n||'')||rd==='M50') return c.lat>=53.375?'m50n':(c.lat>=53.30?'m50w':'m50s');
+  if(/M1\b|N1\b/.test(rd))return 'm1';
+  if(/N4|M4/.test(rd))return 'n4';
+  return 'oth';
+}
+// position around the ring so each M50 section reads junction by junction
+function ringAng(c){let a=Math.atan2(c.lat-53.335,(c.lon+6.27)*0.6)*180/Math.PI;return a<0?a+360:a;}
+function sortGroup(k,arr){
+  if(/^m50/.test(k)){
+    // junction number first (all J4 cams together), then position along the ring
+    const withJ=arr.filter(c=>camLabel(c).j);
+    const jOf=c=>{const j=camLabel(c).j; if(j)return j; let best=0,bd=1e9; withJ.forEach(o=>{const d=(o.lat-c.lat)**2+((o.lon-c.lon)*0.6)**2; if(d<bd){bd=d;best=camLabel(o).j;}}); return best;};
+    return arr.sort((a,b)=>(jOf(a)-jOf(b))||(ringAng(a)-ringAng(b)));
+  }
+  if(k==='m1')return arr.sort((a,b)=>a.lat-b.lat);
+  if(k==='n4')return arr.sort((a,b)=>b.lon-a.lon);
+  if(k==='oth')return arr.sort((a,b)=>String(a.road).localeCompare(String(b.road))||a.lat-b.lat);
+  return arr;                                   // street cams keep their hand-picked order
+}
+function filterOf(c){const G=CAM_GROUPS.find(G=>G.k===camGroup(c));return G?G.f:'all';}
+function camsFor(f){
+  const byG={}; LIVECAMS.forEach(c=>{const g=camGroup(c);(byG[g]=byG[g]||[]).push(c);});
+  const list=[],secs=[];
+  CAM_GROUPS.forEach(G=>{
+    if(f!=='all'&&G.f!==f)return;
+    const arr=sortGroup(G.k,(byG[G.k]||[]).slice()); if(!arr.length)return;
+    secs.push({G,start:list.length,n:arr.length}); list.push(...arr);
+  });
+  return {list,secs};
+}
+
+/* ---- REEL (full screen, flick up) + ORGANISED LIST ---- */
+let _reelObs=null, REELSET=[], CAMSECS=[], CAMFILTER='all';
 function buildReelEl(){
   let r=document.getElementById('osReel'); if(r)return r;
   r=document.createElement('div'); r.id='osReel'; r.className='hidden';
   r.innerHTML='<div class="reel-top"><button class="reel-x" id="reelClose">‹ Close</button>'
     +'<div class="reel-titles"><div class="reel-title" id="reelTitle">LIVE CAMERAS</div><div class="reel-grouptag" id="reelGroupTag"></div></div>'
-    +'<button class="reel-gridbtn" id="reelGridBtn">▦ All</button></div>'
+    +'<button class="reel-gridbtn" id="reelGridBtn">▦ List</button></div>'
     +'<div class="reel-track" id="reelTrack"></div>'
     +'<div class="reel-gridview hidden" id="reelGridView"></div>'
     +'<div class="reel-hint" id="reelHint">▲ flick up for the next camera</div>';
@@ -817,16 +945,17 @@ function buildReelEl(){
 }
 function ytThumb(id,q){return 'https://i.ytimg.com/vi/'+id+'/'+(q||'hqdefault')+'.jpg';}
 function reelSlideHtml(c,i){
+  const lb=camLabel(c);
   const bg=c.yt?' style="background-image:url('+ytThumb(c.yt)+')"':'';
   const media = c.yt
     ? '<button class="rc-play" aria-label="Play">▶</button><span class="rc-load">LIVE</span>'
     : c.img
-    ? '<img class="rc-img" data-src="'+esc(c.img)+'" alt="'+esc(c.n)+'"><span class="rc-load">LIVE · M50</span>'
-    : '<div class="rc-ext"><div class="rc-extico">📹</div><b>'+esc(c.n)+'</b><span>'+esc(c.s)+' — plays on its own site</span><button class="rc-open osbtn">↗ Open live feed</button></div>';
+    ? '<img class="rc-img" data-src="'+esc(c.img)+'" alt="'+esc(lb.t)+'"><span class="rc-load">TII · loading</span>'
+    : '<div class="rc-ext"><div class="rc-extico">📹</div><b>'+esc(lb.t)+'</b><span>'+esc(c.s||'')+'</span></div>';
   return '<div class="reelcam" data-i="'+i+'"><div class="reelcam-media"'+bg+'>'+media+'</div>'
-    +'<div class="reelcam-cap"><div class="rc-name">'+esc(c.n)+(c.ap?' <span class="rc-approx">approx</span>':'')+'</div>'
-    +'<div class="rc-meta"><span class="os-livetag">● LIVE</span> · '+esc(c.s)+' · '+c.lat.toFixed(4)+', '+c.lon.toFixed(4)+'</div>'
-    +'<div class="rc-btns"><button class="rc-map">📍 On map</button><button class="rc-open">↗ Open</button></div></div></div>';
+    +'<div class="reelcam-cap"><div class="rc-name">'+esc(lb.t)+(c.ap?' <span class="rc-approx">approx</span>':'')+'</div>'
+    +'<div class="rc-meta">'+(c.yt?'<span class="os-livetag">● LIVE</span>':'<span class="os-snaptag">◷ TII still</span>')+' · '+esc(lb.st)+'</div>'
+    +'<div class="rc-btns"><button class="rc-map">📍 On map</button>'+(c.u?'<button class="rc-open">↗ Source</button>':'')+'</div></div></div>';
 }
 const _reelImgTimers={};
 function loadReelIframe(sl){
@@ -837,25 +966,31 @@ function loadReelIframe(sl){
     media.innerHTML='<iframe class="reelcam-vid" src="https://www.youtube.com/embed/'+c.yt+'?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&fs=1" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>';
   } else if(c.img){
     media.dataset.loaded='1';
-    const im=media.querySelector('.rc-img');
-    if(im){ im.src=c.img+'?'+Date.now(); _reelImgTimers[i]=setInterval(()=>{ if(document.body.contains(im))im.src=c.img+'?'+Date.now(); else {clearInterval(_reelImgTimers[i]);delete _reelImgTimers[i];} },3000); }
+    const im=media.querySelector('.rc-img'), ld=media.querySelector('.rc-load');
+    if(im){
+      im.onload=()=>{if(ld)ld.textContent='TII · live still';};
+      im.onerror=()=>{if(ld)ld.textContent='TII · no image right now';};
+      im.src=c.img+'?'+Date.now();
+      _reelImgTimers[i]=setInterval(()=>{ if(document.body.contains(im))im.src=c.img+'?'+Date.now(); else {clearInterval(_reelImgTimers[i]);delete _reelImgTimers[i];} },10000);
+    }
   }
 }
 function unloadReelIframe(sl){
   const media=sl.querySelector('.reelcam-media'); if(!media||!media.dataset.loaded)return;
   const i=+sl.dataset.i,c=REELSET[i]; media.dataset.loaded='';
   if(_reelImgTimers[i]){clearInterval(_reelImgTimers[i]);delete _reelImgTimers[i];}
-  if(c.img){ media.innerHTML='<img class="rc-img" data-src="'+esc(c.img)+'" alt="'+esc(c.n)+'"><span class="rc-load">LIVE · M50</span>'; return; }
+  if(c&&c.img){ media.innerHTML='<img class="rc-img" data-src="'+esc(c.img)+'" alt=""><span class="rc-load">TII · loading</span>'; return; }
   media.innerHTML='<button class="rc-play" aria-label="Play">▶</button><span class="rc-load">LIVE</span>';
-  if(c.yt)media.style.backgroundImage='url('+ytThumb(c.yt)+')';
+  if(c&&c.yt)media.style.backgroundImage='url('+ytThumb(c.yt)+')';
   const pb=media.querySelector('.rc-play'); pb&&pb.addEventListener('click',()=>loadReelIframe(sl));
 }
+function setReelTitle(i){const t=document.getElementById('reelTitle'),c=REELSET[i]; if(t&&c)t.textContent=camLabel(c).t.toUpperCase();}
 function setupReelObserver(track){
   if(_reelObs)_reelObs.disconnect();
   _reelObs=new IntersectionObserver(ents=>{
     ents.forEach(e=>{
-      const sl=e.target,i=+sl.dataset.i,c=REELSET[i],t=document.getElementById('reelTitle');
-      if(e.isIntersecting&&e.intersectionRatio>0.55){ loadReelIframe(sl); if(t)t.textContent=(c.n||'LIVE').toUpperCase(); }
+      const sl=e.target,i=+sl.dataset.i;
+      if(e.isIntersecting&&e.intersectionRatio>0.55){ loadReelIframe(sl); setReelTitle(i); }
       else if(e.intersectionRatio<0.25){ unloadReelIframe(sl); }
     });
   },{threshold:[0,0.25,0.55,0.85],root:track});
@@ -864,7 +999,7 @@ function setupReelObserver(track){
 function wireReelSlides(track){
   track.querySelectorAll('.reelcam').forEach(sl=>{
     const i=+sl.dataset.i,c=REELSET[i];
-    sl.querySelectorAll('.rc-open').forEach(b=>b.addEventListener('click',ev=>{ev.stopPropagation();openWeb(c.u,{title:c.n,embed:!!c.yt||knownEmbed(c.u),note:'Live public webcam.'});}));
+    sl.querySelectorAll('.rc-open').forEach(b=>b.addEventListener('click',ev=>{ev.stopPropagation();openWeb(c.u,{title:camLabel(c).t,embed:!!c.yt||knownEmbed(c.u),note:'Live public webcam.'});}));
     const mb=sl.querySelector('.rc-map'); mb&&mb.addEventListener('click',ev=>{ev.stopPropagation();closeReel();openMapToCam(c);});
     const pb=sl.querySelector('.rc-play'); pb&&pb.addEventListener('click',()=>loadReelIframe(sl));
   });
@@ -874,45 +1009,86 @@ function openMapToCam(c){
   const go=()=>{ if(!map)return setTimeout(go,200); if(!camsOn)toggleCams(); map.setView([c.lat,c.lon],16); setTimeout(()=>showFeed(c),300); };
   go();
 }
-function openCamReel(startIndex,cat,grid){
+// (re)build the reel for a filter: REELSET order == list order, so list tile i == reel slide i
+function setReelFilter(f){
+  CAMFILTER=CAM_FILTERS.some(x=>x[0]===f)?f:'all';
+  Object.keys(_reelImgTimers).forEach(k=>{clearInterval(_reelImgTimers[k]);delete _reelImgTimers[k];});
+  const r=camsFor(CAMFILTER); REELSET=r.list; CAMSECS=r.secs;
+  const track=document.getElementById('reelTrack');
+  track.innerHTML=REELSET.map((c,i)=>reelSlideHtml(c,i)).join('');
+  wireReelSlides(track); setupReelObserver(track);
+  const gt=document.getElementById('reelGroupTag'); if(gt)gt.textContent=FILTER_LABEL[CAMFILTER]||'';
+}
+function showReelAt(i){
+  const gv=document.getElementById('reelGridView'),track=document.getElementById('reelTrack'),btn=document.getElementById('reelGridBtn');
+  gv.classList.add('hidden'); track.classList.remove('hidden'); if(btn)btn.textContent='▦ List';
+  const el=track.children[i]||track.children[0]; if(!el)return;
+  el.scrollIntoView(); loadReelIframe(el); setReelTitle(+el.dataset.i);
+  const hint=document.getElementById('reelHint'); if(hint){hint.style.opacity='1';clearTimeout(hint._t);hint._t=setTimeout(()=>{hint.style.opacity='0';},3800);}
+}
+// startIndex: position in the group · cat: 'streets' | 'port' | 'm50' | 'mway' | null (all)
+// grid: open on the organised list · focus: a camera object to jump straight to
+function openCamReel(startIndex,cat,grid,focus){
   ensureCamsData(()=>{
-    REELSET = cat ? LIVECAMS.filter(c=>camCat(c)===cat) : LIVECAMS.slice();
-    if(!REELSET.length){toast('No cameras in that group');return;}
-    const r=buildReelEl(), track=document.getElementById('reelTrack');
-    const gt=document.getElementById('reelGroupTag'); if(gt)gt.textContent=cat?(CAT_LABEL[cat]||''):'ALL CAMERAS';
-    track.innerHTML=REELSET.map((c,i)=>reelSlideHtml(c,i)).join('');
+    const legacy={district:'streets'};
+    const f=focus?filterOf(focus):(cat?(legacy[cat]||cat):'all');
+    const r=buildReelEl(); setReelFilter(f);
+    if(!REELSET.length){ setReelFilter('all'); }
+    if(!REELSET.length){toast('No cameras loaded yet — needs signal once');return;}
     r.classList.remove('hidden'); document.body.classList.add('reel-open');
-    wireReelSlides(track); setupReelObserver(track);
-    if(grid){
-      // open straight to the named grid so you can pick one fast
-      buildReelGrid();
-      const t=document.getElementById('reelTitle'); if(t)t.textContent='PICK A CAMERA';
-      return;
-    }
-    document.getElementById('reelGridView').classList.add('hidden'); track.classList.remove('hidden');
-    const si=startIndex&&startIndex>0&&startIndex<REELSET.length?startIndex:0;
-    const first=track.children[si];
-    if(first){ if(si)first.scrollIntoView(); loadReelIframe(first); const t=document.getElementById('reelTitle'); if(t)t.textContent=(REELSET[si].n||'LIVE').toUpperCase(); }
-    const hint=document.getElementById('reelHint'); if(hint){hint.style.opacity='1';clearTimeout(hint._t);hint._t=setTimeout(()=>{hint.style.opacity='0';},3800);}
+    if(grid){ buildReelGrid(); return; }
+    let si=focus?REELSET.indexOf(focus):(startIndex||0);
+    if(si<0||si>=REELSET.length)si=0;
+    showReelAt(si);
   });
 }
 function buildReelGrid(){
   const gv=document.getElementById('reelGridView'),track=document.getElementById('reelTrack'),btn=document.getElementById('reelGridBtn');
-  gv.innerHTML=REELSET.map((c,i)=>'<button class="reelthumb" data-i="'+i+'"'+(c.yt?' style="background-image:url('+ytThumb(c.yt,'mqdefault')+')"':c.img?' style="background-image:url('+esc(c.img)+'?'+Date.now()+')"':'')+'><span class="rt-live">● LIVE</span><span class="rt-name">'+esc(c.n)+'</span></button>').join('');
+  const cnt={all:LIVECAMS.length}; LIVECAMS.forEach(c=>{const f=filterOf(c);cnt[f]=(cnt[f]||0)+1;});
+  const bucket=Math.floor(Date.now()/120000);   // TII stills: fresh every ~2 min in the list
+  let h='<div class="cl-bar"><input class="cl-search" id="clSearch" type="search" placeholder="Search — Ballymun, J9, Cabra, port…" autocomplete="off" enterkeyhint="search">'
+    +'<div class="cl-chips">'+CAM_FILTERS.map(([k,l])=>'<button class="cl-chip'+(k===CAMFILTER?' on':'')+'" data-f="'+k+'">'+esc(l)+' <em>'+(cnt[k]||0)+'</em></button>').join('')+'</div></div>'
+    +'<div class="cl-scroll" id="clScroll">';
+  CAMSECS.forEach(sec=>{
+    h+='<section class="cl-sec"><h3 class="cl-h"><span class="cl-hico">'+sec.G.ico+'</span><span class="cl-ht">'+esc(sec.G.h)
+      +(sec.G.sub?'<small>'+esc(sec.G.sub)+'</small>':'')+'</span><em>'+sec.n+'</em></h3><div class="cl-grid">';
+    for(let i=sec.start;i<sec.start+sec.n;i++){
+      const c=REELSET[i], lb=camLabel(c);
+      const src=c.yt?ytThumb(c.yt,'mqdefault'):(c.img?c.img+'?t='+bucket:'');
+      h+='<button class="cl-tile" data-i="'+i+'" data-q="'+esc((lb.t+' '+lb.st+' '+(c.n||'')+' '+(c.road||'')).toLowerCase())+'">'
+        +'<span class="cl-thumb">'+(src?'<img loading="lazy" decoding="async" alt="" src="'+esc(src)+'" onerror="this.parentNode.classList.add(\'err\');this.remove()">':'')
+        +'<i class="cl-badge '+(c.yt?'live':'snap')+'">'+(c.yt?'● LIVE':'◷ TII')+'</i></span>'
+        +'<span class="cl-cap"><b>'+esc(lb.t)+'</b><small>'+esc(lb.st)+'</small></span></button>';
+    }
+    h+='</div></section>';
+  });
+  h+='<div class="cl-empty hidden" id="clEmpty">No cameras match that search.</div>'
+    +'<p class="cl-foot">TII motorway cameras load live from TII with their exact positions and names. Street cams are public webcams — not Garda or council CCTV.</p></div>';
+  gv.innerHTML=h;
   gv.classList.remove('hidden'); track.classList.add('hidden'); if(btn)btn.textContent='▤ Reel';
-  gv.querySelectorAll('.reelthumb').forEach(b=>b.addEventListener('click',()=>{
-    const i=+b.dataset.i; gv.classList.add('hidden'); track.classList.remove('hidden'); if(btn)btn.textContent='▦ All';
-    const el=track.children[i]; if(el){el.scrollIntoView(); loadReelIframe(el); const t=document.getElementById('reelTitle'); if(t)t.textContent=(REELSET[i].n||'LIVE').toUpperCase();}
-  }));
+  const t=document.getElementById('reelTitle'); if(t)t.textContent='PICK A CAMERA';
+  gv.querySelectorAll('.cl-chip').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.f===CAMFILTER)return; setReelFilter(b.dataset.f); buildReelGrid(); }));
+  gv.querySelectorAll('.cl-tile').forEach(b=>b.addEventListener('click',()=>showReelAt(+b.dataset.i)));
+  const inp=document.getElementById('clSearch');
+  inp.addEventListener('input',()=>{
+    const words=inp.value.toLowerCase().split(/\s+/).filter(Boolean); let any=0;
+    gv.querySelectorAll('.cl-sec').forEach(sec=>{
+      let vis=0; sec.querySelectorAll('.cl-tile').forEach(tl=>{const ok=words.every(w=>tl.dataset.q.includes(w)); tl.classList.toggle('hidden',!ok); if(ok)vis++;});
+      sec.classList.toggle('hidden',!vis); any+=vis;
+      const em=sec.querySelector('.cl-h em'); if(em){ if(!em.dataset.n)em.dataset.n=em.textContent; em.textContent=words.length?vis:em.dataset.n; }
+    });
+    document.getElementById('clEmpty').classList.toggle('hidden',!!any);
+  });
 }
 function toggleReelGrid(){
-  const gv=document.getElementById('reelGridView'),track=document.getElementById('reelTrack'),btn=document.getElementById('reelGridBtn');
-  if(!gv.classList.contains('hidden')){gv.classList.add('hidden');track.classList.remove('hidden');if(btn)btn.textContent='▦ All';return;}
+  const gv=document.getElementById('reelGridView');
+  if(!gv.classList.contains('hidden')){ showReelAt(0); return; }
   buildReelGrid();
 }
 function closeReel(){
   const r=document.getElementById('osReel'); if(!r)return;
   if(_reelObs){_reelObs.disconnect();_reelObs=null;}
+  Object.keys(_reelImgTimers).forEach(k=>{clearInterval(_reelImgTimers[k]);delete _reelImgTimers[k];});
   const track=document.getElementById('reelTrack'); if(track)track.innerHTML='';
   const gv=document.getElementById('reelGridView'); if(gv){gv.innerHTML='';gv.classList.add('hidden');}
   r.classList.add('hidden'); document.body.classList.remove('reel-open');

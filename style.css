@@ -820,3 +820,53 @@ body.reel-open{overflow:hidden}
 .dl-row b{display:block;font-size:14.5px;font-weight:700}
 .dl-row span{display:block;color:var(--ink-dim);font-size:11.5px;font-family:ui-monospace,Menlo,monospace;margin-top:2px}
 .dl-row:active{background:var(--navy3)}
+
+/* ===== CAMERA LIST v46 — organised, readable, no overlap =====
+   The scroll container is a plain block (.cl-scroll); the grids inside it
+   size to their content, so rows can never be squeezed on top of each other. */
+.reel-gridview{display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden}
+.reel-gridview.hidden{display:none}
+#osReel .reel-gridview:not(.hidden) ~ .reel-hint{display:none}
+.cl-bar{flex:0 0 auto;padding:8px 12px 4px;background:rgba(5,9,18,.96);border-bottom:1px solid rgba(120,150,200,.16)}
+.cl-search{width:100%;padding:11px 13px;border-radius:11px;border:1px solid rgba(120,150,200,.3);background:#0d1a30;color:#eef3fb;font:16px/1.2 system-ui,-apple-system,Roboto,sans-serif}
+.cl-search:focus{outline:none;border-color:#d4af37}
+.cl-chips{display:flex;gap:7px;overflow-x:auto;padding:9px 0 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.cl-chips::-webkit-scrollbar{display:none}
+.cl-chip{flex:0 0 auto;border:1px solid rgba(120,150,200,.32);background:#0f1f38;color:#cfe0f5;border-radius:99px;padding:8px 13px;font:700 13px/1 system-ui,-apple-system,Roboto,sans-serif;cursor:pointer}
+.cl-chip em{font-style:normal;font-weight:600;opacity:.7;margin-left:3px}
+.cl-chip.on{background:#d4af37;border-color:#d4af37;color:#0a1930}
+.cl-chip.on em{opacity:.85}
+.cl-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:2px 12px calc(28px + var(--safe-b))}
+.cl-sec{margin:14px 0 2px}
+.cl-h{display:flex;align-items:center;gap:9px;margin:0 2px 9px;font:800 12px/1.2 ui-monospace,Menlo,monospace;letter-spacing:1.1px;text-transform:uppercase;color:#d4af37}
+.cl-hico{font-size:17px;letter-spacing:0}
+.cl-ht{flex:1;min-width:0}
+.cl-ht small{display:block;margin-top:3px;font:500 11.5px/1.3 system-ui,-apple-system,Roboto,sans-serif;letter-spacing:0;text-transform:none;color:#8fa6c4}
+.cl-h em{flex:0 0 auto;font-style:normal;color:#0a1930;background:#d4af37;border-radius:99px;padding:3px 9px;font-size:11px;letter-spacing:0}
+.cl-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start}
+@media (min-width:700px){.cl-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1100px){.cl-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.cl-tile{display:flex;flex-direction:column;min-width:0;padding:0;margin:0;border:1px solid rgba(120,150,200,.22);background:#0c182c;border-radius:12px;overflow:hidden;text-align:left;cursor:pointer;color:#eef3fb;font-family:inherit;transition:transform .12s,border-color .12s}
+.cl-tile:active{transform:scale(.98);border-color:#d4af37}
+.cl-thumb{position:relative;display:block;width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#0d1d36,#07101f)}
+.cl-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.cl-thumb.err::after{content:'no picture right now';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#7f95b4}
+.cl-badge{position:absolute;top:6px;left:6px;z-index:1;font:800 9.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.5px;padding:4px 6px;border-radius:5px;font-style:normal}
+.cl-badge.live{background:#e0231b;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.cl-badge.snap{background:rgba(6,11,22,.86);color:#d8e6f7;border:1px solid rgba(120,150,200,.4)}
+.cl-cap{display:block;padding:8px 9px 10px;min-width:0}
+.cl-cap b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13.5px;line-height:1.25;font-weight:800;color:#f2f6fc}
+.cl-cap small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:3px;font-size:11.3px;line-height:1.3;color:#9fb0c8}
+.cl-empty{padding:34px 10px;text-align:center;color:#9fb0c8}
+.cl-foot{margin:18px 4px 4px;font-size:11px;line-height:1.45;color:#6f86a6;text-align:center}
+.os-snaptag{color:#d8e6f7;font-weight:700}
+/* Street View pin mode */
+#osmap.svpick,#osmap.svpick .leaflet-interactive{cursor:crosshair}
+#osCam.on{border-color:#d4af37;box-shadow:0 0 0 2px rgba(212,175,55,.35)}
+/* reel hint: under the header, never over the camera name */
+#osReel .reel-hint{bottom:auto;top:calc(70px + var(--safe-t,0px))}
+/* v46: officer logo in the header */
+.brand .brandlogo{height:34px;width:auto;flex:0 0 auto;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+/* v46: search box + A–Z rail scroll away with the page (no longer follow you down) */
+.searchbox{position:static}
+.alpharail{position:static}

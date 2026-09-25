@@ -134,12 +134,12 @@ function homeQuick(){
   ${lp?`<button class="hit ixhit contbtn" id="contBtn"><div class="h-title">▶ Continue reading</div><div class="h-loc">${esc(titleFor(lp))} — ${esc(pageLabel(lp))}</div></button>`:''}
   ${recentHtml}
 
-  <button class="qbtn osintHero" id="hOsint">🛰️ OSINT field map<small>satellite · live flights · CCTV canvass log · draw & measure · links launcher</small></button>
+  <button class="qbtn osintHero" id="hOsint">🛰️ OSINT field map<small>Street View pin · every camera · DCC CCTV · canvass log · draw & measure · satellite</small></button>
   <h2 class="sec">📹 Live cameras <span class="livepip">● LIVE</span></h2><div class="quick">
-    <button class="qbtn camHero" id="hCamDist">📷 Fitzgibbon St / Mountjoy<small>local street cams · flick up for next</small></button>
-    <button class="qbtn camHero" id="hCamM50">🛣️ M50 motorway<small>TII CCTV · live snapshots</small></button>
+    <button class="qbtn camHero" id="hCamDist">📷 Fitzgibbon St / Mountjoy<small>street cams · your district + north city</small></button>
+    <button class="qbtn camHero" id="hCamM50">🛣️ M50 motorway<small>every TII camera · J3 → J17</small></button>
     <button class="qbtn camHero" id="hCamPort">⚓ Dublin Port<small>ships · Liffey · Poolbeg</small></button>
-    <button class="qbtn camHero" id="hCamAll">🎥 All cameras<small>every feed · one reel</small></button>
+    <button class="qbtn camHero" id="hCamAll">🎥 All cameras<small>organised list · M1 · N4 · N7 too</small></button>
     <button class="qbtn camHero" id="hDccList">🎥 City CCTV list<small>241 DCC cameras · search & locate</small></button>
   </div>
 
