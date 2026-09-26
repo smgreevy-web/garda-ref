@@ -230,7 +230,6 @@ function pointActionsHtml(ll){
   return '<button class="oscopy" data-c="'+la+', '+lo+'">⧉ copy coords</button>'
    +'<button class="osact" data-act="sv" data-la="'+ll.lat+'" data-lo="'+ll.lng+'">🧍 Street View here</button>'
    +'<button class="osact" data-act="sat" data-la="'+ll.lat+'" data-lo="'+ll.lng+'">✦ Aerial (satellite) here</button>'
-   +'<button class="osact" data-act="cams" data-la="'+ll.lat+'" data-lo="'+ll.lng+'">📹 Public webcams near here</button>'
    +'<button class="oscam2" data-la="'+ll.lat+'" data-lo="'+ll.lng+'">📷 Log a camera here</button>';
 }
 function doAct(act,la,lo){
@@ -953,7 +952,7 @@ function camGroup(c){
   if(!c.img){
     if(camCat(c)==='port')return 'port';
     if(camCat(c)==='city'||/temple bar|earthcam/i.test(c.n||''))return 'city';
-    return camInHome(c)?'home':'north';
+    return (c.home||camInHome(c))?'home':'north';   // c.home: hand-set (e.g. Cabra — Fitzgibbon St patch)
   }
   return camLabel(c).sec||'n7';
 }
@@ -1152,4 +1151,5 @@ function closeReel(){
 }
 window.openCamReel=openCamReel;
 window.openOSINT=open;
+window.closeOSINT=close;
 })();

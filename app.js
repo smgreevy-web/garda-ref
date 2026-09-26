@@ -74,9 +74,10 @@ function bindUI(){
     rdBody.addEventListener('scroll',()=>{const el=rdBody;const max=el.scrollHeight-el.clientHeight;
       const p=max>0?(el.scrollTop/max*100):0;const bar=$('#rdProg');if(bar)bar.style.width=p+'%';},{passive:true});
   }
-  $('#loadState').insertAdjacentHTML('beforebegin','<button id="fsBtn" title="Text size">Aa</button>');
-  $('#fsBtn').addEventListener('click',()=>{const o=['s','m','l'],c=localStorage.getItem('gr_fs')||'m';
-    localStorage.setItem('gr_fs',o[(o.indexOf(c)+1)%3]);applyFS();});
+  $('#loadState').insertAdjacentHTML('beforebegin','<button id="fsBtn" title="Text size — tap to zoom" aria-label="Text size"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="13.5" cy="13.5" r="9.5"/><path d="m20.5 20.5 8 8"/><text x="13.5" y="18" text-anchor="middle">A</text></svg></button>');
+  $('#fsBtn').addEventListener('click',()=>{const o=['s','m','l','xl'],c=localStorage.getItem('gr_fs')||'m';
+    const n=o[(o.indexOf(c)+1)%o.length]; localStorage.setItem('gr_fs',n);applyFS();
+    const t=document.getElementById('osToast')||null; if(window.grToast)grToast('Text size: '+({s:'small',m:'normal',l:'large',xl:'extra large'})[n]);});
   $$('#tabbar .tab').forEach(b=>b.addEventListener('click',()=>{
     tab=b.dataset.tab; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x===b));
     closeReader(); render(); view.scrollTop=0;
@@ -103,15 +104,12 @@ const FILTERS=[['all','Everything'],['vols','Vols 1–11'],['v12','Vol 12'],['st
 const FRANGE={vols:[15,937],v12:[938,968],st:[969,992],pb:[986,992],man:[993,1478]};
 function renderSearch(){
   view.innerHTML=`
-  <div class="searchbox"><input id="q" type="search" placeholder="Ask Garda Reference — topic, case, statute…" value="${esc(lastQuery)}" autocomplete="off"></div>
-  <div class="chips">${FILTERS.map(([k,l])=>`<button class="chip ${k===lastFilter?'on':''}" data-f="${k}">${l}</button>`).join('')}</div>
-  <button id="askAI" class="askbtn">✦ Ask AI — plain-language answer from the manual</button>
-  <div id="aiPanel"></div><div id="results"></div>`;
+  <div class="searchbox sb-mag"><svg class="sb-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="q" type="search" placeholder="Search — topic, case, statute, offence…" value="${esc(lastQuery)}" autocomplete="off" enterkeyhint="search"></div>
+  <div id="results"></div>`;
   const q=$('#q'); let t;
   q.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(()=>doSearch(q.value,lastFilter),200);});
   q.addEventListener('keydown',e=>{if(e.key==='Enter'){q.blur();doSearch(q.value,lastFilter);}});
-  $$('.chip').forEach(c=>c.addEventListener('click',()=>{lastFilter=c.dataset.f;$$('.chip').forEach(x=>x.classList.toggle('on',x===c));doSearch($('#q').value,lastFilter);}));
-  $('#askAI').addEventListener('click',askAI);
+  lastFilter='all';
   if(lastQuery)doSearch(lastQuery,lastFilter,true); else homeQuick();
 }
 function homeQuick(){
@@ -120,41 +118,47 @@ function homeQuick(){
   const nGuides=(G3&&G3.length)||0;
   const online=navigator.onLine;
   let recent=[]; try{recent=JSON.parse(localStorage.getItem('gr_recent')||'[]');}catch(e){}
-  const recentHtml = recent.length? `<h2 class="sec">↺ Recent</h2><div class="recentwrap">`+
-    recent.slice(0,2).map(r=>`<button class="recentrow" data-k="${r.k}" data-id="${esc(String(r.id))}"><div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${relTime(r.ts)}</div></button>`).join('')+`</div>` : '';
+  // Recent + Continue reading, merged: the page you were reading comes first, then your latest items (2 rows max)
+  let rows=recent.slice();
+  if(lp){ rows=rows.filter(r=>!(r.k!=='guide'&&+r.id===lp)); rows.unshift({k:'page',id:lp,t:'▶ '+titleFor(lp),s:pageLabel(lp)+' · continue reading',ts:0,cont:1}); }
+  const recentHtml = rows.length? `<h2 class="sec">↺ Recent</h2><div class="recentwrap">`+
+    rows.slice(0,2).map(r=>`<button class="recentrow${r.cont?' cont':''}" data-k="${r.k}" data-id="${esc(String(r.id))}"><div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${r.cont?'':relTime(r.ts)}</div></button>`).join('')+`</div>` : '';
   $('#results').innerHTML=`
-  <div class="statstrip" role="group" aria-label="System status">
-    <div class="stat"><span class="dot ${online?'on':'off'}"></span><b>${online?'ONLINE':'OFFLINE'}</b><small>${online?'links live':'local content'}</small></div>
-    <div class="stat"><b>1,478</b><small>pages</small></div>
-    <div class="stat"><b>12</b><small>volumes</small></div>
-    <div class="stat"><b>${nCases}</b><small>cases</small></div>
-    <div class="stat"><b>${nGuides}</b><small>guides</small></div>
-    <div class="stat"><b>✓</b><small>offline-ready</small></div>
-  </div>
+  <div id="homeRoster"></div>
+  <div id="homeDet"></div>
+  <div id="homeTasks"></div>
   <div id="homeNews"></div>
-  ${lp?`<button class="hit ixhit contbtn" id="contBtn"><div class="h-title">▶ Continue reading</div><div class="h-loc">${esc(titleFor(lp))} — ${esc(pageLabel(lp))}</div></button>`:''}
   ${recentHtml}
 
   <button class="qbtn osintHero" id="hOsint">🗺️ Map<small>stations · districts · cameras · DCC CCTV · Street View pin · draw & measure — you choose what's on</small></button>
+  <button class="qbtn osintHero tbxHero" id="hTools">🧰 Toolbox<small>ruler · measure with evidence photo · evidence camera · level · compass · torch · timers · 21 tools</small></button>
   <h2 class="sec">📹 Live cameras <span class="livepip">● LIVE</span></h2><div class="quick">
     <button class="qbtn camHero" id="hCamDist">📷 Fitzgibbon St / Mountjoy<small>street cams · your district + north city</small></button>
     <button class="qbtn camHero" id="hCamM50">🛣️ M50 motorway<small>every TII camera · J3 → J17</small></button>
     <button class="qbtn camHero" id="hCamPort">⚓ Dublin Port<small>ships · Liffey · Poolbeg</small></button>
     <button class="qbtn camHero" id="hCamAll">🎥 All cameras<small>organised list · M1 · N4 · N7 too</small></button>
-    <button class="qbtn camHero" id="hDccList">🎥 City CCTV list<small>241 DCC cameras · search & locate</small></button>
+    <button class="qbtn dccHero" id="hDccList">🗂️ DCC City CCTV list<small>241 Dublin City Council cameras · search a street → pinpoint it on the map · locations only, no live feed</small></button>
   </div>
 
   <h2 class="sec">📡 Live TV & radio</h2><div class="quick">
-    <button class="qbtn camHero" id="hSky">📺 Sky News<small>24/7 live · plays in the app</small></button>
-    <button class="qbtn camHero" id="hRte">📰 RTÉ News<small>latest reports · in the app</small></button>
-    <button class="qbtn camHero" id="hRadio">📻 Irish radio<small>RTÉ · Newstalk · 98 · FM104 · all stations</small></button>
+    <button class="qbtn camHero" id="hLiveNews">📺 Live news<small>Sky News live · RTÉ News latest · in the app</small></button>
+    <button class="qbtn camHero" id="hRadio">📻 Irish radio<small>favourites · RTÉ · Newstalk · 98 · FM104 · all</small></button>
   </div>
 
   <h2 class="sec">⚡ On the job</h2><div class="quick">
     <button class="qbtn" id="qbOff">📕 Offences<small>elements · arrest · statement</small></button>
-    <button class="qbtn" id="hClock">⏱ Detention clock<small>live deadlines</small></button>
+    <button class="qbtn" id="hClock">⏱ Detention clock<small>deadlines · extensions · alerts</small></button>
     <button class="qbtn" id="hCaution">⚠️ Cautions<small>wording · declarations</small></button>
     <button class="qbtn" id="hScene">🚔 First at scene<small>golden hour</small></button>
+  </div>
+
+  <h2 class="sec">🗂️ My work</h2><div class="quick">
+    <button class="qbtn" id="hRoster">🗓️ My roster<small>today · next tour · leave · court · swaps</small></button>
+    <button class="qbtn" id="hTasks">✅ Tasks<small>CCTV · statements · nights · deadlines</small></button>
+    <button class="qbtn" id="hNotes">📓 Notes<small>sketches · photos · checklists · lock</small></button>
+    <button class="qbtn" id="hRec">🎙️ Voice recorder<small>markers · crash-safe · stays on phone</small></button>
+    <button class="qbtn" id="hScan">📄 Scanner<small>documents → PDF · saved to phone only</small></button>
+    <button class="qbtn" id="hPres">📺 Present to TV<small>photos & CCTV on the TV · Smart View · DeX</small></button>
   </div>
 
   <h2 class="sec">🔎 In-depth investigation guides</h2><div class="quick">
@@ -206,7 +210,6 @@ function homeQuick(){
   </div>
   <div class="empty">Or type anything above — all 1,478 pages are searchable.</div>`;
 
-  const cb=$('#contBtn'); if(cb)cb.addEventListener('click',()=>openPage(lp));
   $$('#results .recentrow').forEach(b=>b.addEventListener('click',()=>{
     const k=b.dataset.k, id=b.dataset.id;
     if(k==='guide')openGuide3(id); else openPage(+id);
@@ -215,7 +218,7 @@ function homeQuick(){
   go('qbOff',()=>renderOffences());
   go('qbEss',renderEssentials);
   go('qbCases',()=>{ixKind='case';tab='index';$$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='index'));render();});
-  go('hClock',renderClock);
+  go('hClock',()=>{ if(window.openDetention) openDetention(); else renderClock(); });
   go('hCaution',renderCautions);
   go('hScene',renderMajor);
   go('hOsint',()=>{ if(window.openOSINT) window.openOSINT(); });
@@ -224,9 +227,18 @@ function homeQuick(){
   go('hCamPort',()=>{ if(window.openCamReel) window.openCamReel(0,'port',true); });
   go('hCamAll',()=>{ if(window.openCamReel) window.openCamReel(0,null,true); });
   go('hDccList',()=>{ if(window.openDccList) window.openDccList(); });
-  go('hSky',()=>{ if(window.GRMedia) GRMedia.openTV('sky'); });
-  go('hRte',()=>{ if(window.GRMedia) GRMedia.openTV('rte'); });
+  go('hTools',()=>{ if(window.openToolbox) window.openToolbox(); });
+  go('hLiveNews',()=>{ if(window.GRMedia) GRMedia.openTV('sky'); });
   go('hRadio',()=>{ if(window.GRMedia) GRMedia.openRadio(); });
+  if(window.GRDet) GRDet.mountStrip($('#homeDet'));
+  if(window.GRRoster) GRRoster.mountStrip($('#homeRoster'));
+  if(window.GRTasks) GRTasks.mountStrip($('#homeTasks'));
+  go('hRoster',()=>{ if(window.openRoster) openRoster(); });
+  go('hTasks',()=>{ if(window.openTasks) openTasks(); });
+  go('hNotes',()=>{ if(window.openNotes) openNotes(); });
+  go('hRec',()=>{ if(window.openRecorder) openRecorder(); });
+  go('hScan',()=>{ if(window.openScanner) openScanner(); });
+  go('hPres',()=>{ if(window.openPresent) openPresent(); });
   if(window.GRMedia) GRMedia.mountNewsStrip($('#homeNews'));
   go('hBail',()=>openGuide3('bail'));
   go('hOcall',()=>openGuide3('ocall'));
@@ -456,17 +468,32 @@ function renderStencils(){
   $$('#view .hit').forEach(b=>b.addEventListener('click',()=>openStencil(+b.dataset.i)));
   view.scrollTop=0;
 }
+
+/* ---------- reflow hard-wrapped text into normal paragraphs (stencils, templates, exports) ---------- */
+function reflow(txt){
+  return String(txt||'').replace(/\r/g,'').replace(/([.!?])"(?=[A-Z])/g,'$1 "').split(/\n\s*\n/).map(block=>{
+    const L=block.split('\n').map(x=>x.trim()).filter(Boolean); if(!L.length)return '';
+    const out=[]; let cur=L[0];
+    for(let i=1;i<L.length;i++){ const t=L[i];
+      const brk=/^([-•▪◦*]|\(?[a-z0-9ivx]{1,3}[.)])\s+/i.test(t) || /^[A-Z][A-Za-z\s\/()'’&-]{1,24}:\s/.test(t) || (cur.length<38 && /[.:!?]$/.test(cur));
+      if(brk){ out.push(cur); cur=t; } else cur+=(/-$/.test(cur)&&!/\s-$/.test(cur)?'':' ')+t;
+    }
+    out.push(cur); return out.join('\n');
+  }).filter(Boolean).join('\n\n');
+}
+function paraHtml(txtEsc){ return txtEsc.split(/\n\n/).map(b=>'<p>'+b.replace(/\n/g,'<br>')+'</p>').join(''); }
 function openStencil(i){
   const st=STEN[i];
   reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
   $('#rdTitle').textContent=st.t; $('#rdPage').textContent='Stencil · '+st.cat;
   const star=$('#rdStar'); star.textContent='⧉';
-  star.onclick=()=>{navigator.clipboard.writeText(st.b).then(()=>{$('#rdPage').textContent='Copied ✓';setTimeout(()=>$('#rdPage').textContent='Stencil · '+st.cat,1500);}).catch(()=>{$('#rdPage').textContent='Copy failed';});};
+  const body=reflow(String(st.b).replace(/^\s*\.\s*\n/,''));
+  star.onclick=()=>{navigator.clipboard.writeText(body).then(()=>{$('#rdPage').textContent='Copied ✓';setTimeout(()=>$('#rdPage').textContent='Stencil · '+st.cat,1500);}).catch(()=>{$('#rdPage').textContent='Copy failed';});};
   $('#rdFlag').classList.add('hidden');
-  let h=esc(st.b);
+  let h=esc(body);
   h=h.replace(/(\[[^\]\n]{1,60}\]|_{3,}|\bXXXX?\b|\bTIME\b|\bDATE\b|\bLOCATION\b|\bNAME\b|\bSTATION\b|\bOFFENCE\b)/g,'<mark class="ph">$1</mark>');
-  h=h.split(/\n/).map(l=>l.trim()?('<p>'+l+'</p>'):'').join('');
-  curDoc={title:st.t,text:st.b}; rdBody.innerHTML=h; rdBody.scrollTop=0; updateDlBtn();
+  h=paraHtml(h);
+  curDoc={title:st.t,text:body}; rdBody.innerHTML=h; rdBody.scrollTop=0; updateDlBtn();
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
 }
 function renderLive(){
@@ -741,7 +768,14 @@ TOOLS.push(
   'Referral: support services offered']});
 function renderTools(){
   view.innerHTML=`<h2 class="sec">Tools</h2><div class="toolmenu">
-    <button class="tmenu" data-v="clock"><b>⏱ Detention clock</b><small>live deadlines — s.4 · 1996 Act · s.30 · s.50</small></button>
+    <button class="tmenu" data-v="toolbox"><b>🧰 Toolbox</b><small>ruler · measure · evidence camera · level · compass · torch · timers · QR · more</small></button>
+    <button class="tmenu" data-v="roster"><b>🗓️ My roster</b><small>your shift pattern · today & next tour · leave, court, swaps, overtime</small></button>
+    <button class="tmenu" data-v="tasks"><b>✅ Tasks</b><small>to-do scheduler — CCTV · statements · nights · deadlines · reminders</small></button>
+    <button class="tmenu" data-v="notes"><b>📓 Notes</b><small>notes like Samsung Notes — sketches · photos · checklists · lock</small></button>
+    <button class="tmenu" data-v="rec"><b>🎙️ Voice recorder</b><small>record with markers — kept on this phone only</small></button>
+    <button class="tmenu" data-v="scan"><b>📄 Document scanner</b><small>flatten · clean up · multi-page PDF saved to your phone</small></button>
+    <button class="tmenu" data-v="pres"><b>📺 Present to TV</b><small>show photos & CCTV clips via Smart View / DeX / cast</small></button>
+    <button class="tmenu" data-v="clock"><b>⏱ Detention clock</b><small>s.4 · s.30 · DTA 1996 · s.50 — extensions, excluded periods, alerts</small></button>
     <button class="tmenu" data-v="ptp"><b>Points to prove</b><small>20 offence cards — elements & arrest power</small></button>
     <button class="tmenu" data-v="guides"><b>📝 Statement guides</b><small>what to capture, per offence</small></button>
     <button class="tmenu" data-v="sten"><b>📄 My stencils</b><small>your templates — tap to copy</small></button>
@@ -757,7 +791,7 @@ function renderTools(){
     <button class="tmenu" data-v="seizure"><b>📦 Seizure powers</b><small>quick reference</small></button>
     <button class="tmenu" data-v="latin"><b>📜 Latin & legal terms</b><small>meaning & Garda use</small></button>
     <button class="tmenu" data-v="acronyms"><b>🔤 Acronyms</b><small>ABC · MMO · ADVOKATE …</small></button>
-    <button class="tmenu" data-v="caution"><b>⚠️ Cautions & declarations</b><small>caution wording · pre-caution questioning · declarations</small></button>
+    <button class="tmenu" data-v="cautions"><b>⚠️ Cautions & declarations</b><small>caution wording · pre-caution questioning · declarations</small></button>
     <button class="tmenu" data-v="tpl"><b>📧 Templates & forms</b><small>CCTV preservation · s.41 DP · passport · welfare · blank forms</small></button>
     <button class="tmenu" data-v="lang"><b>⚖️ Latin & acronyms</b><small>legal terms · ABC · MMO · ADVOKATE · PEACE</small></button>
     <button class="tmenu" data-v="guides2"><b>📚 Deep guides</b><small>searches · weapons · RTC & e-scooters · précis · missing person</small></button>
@@ -766,7 +800,14 @@ function renderTools(){
   </div>`;
   $$('.tmenu').forEach(b=>b.addEventListener('click',()=>{
     const v=b.dataset.v;
-    if(v==='clock'){tab='search';renderSearch();renderClock();}
+    if(v==='toolbox'){ if(window.openToolbox) openToolbox(); return; }
+    if(v==='tasks'){ if(window.openTasks) openTasks(); return; }
+    if(v==='roster'){ if(window.openRoster) openRoster(); return; }
+    if(v==='notes'){ if(window.openNotes) openNotes(); return; }
+    if(v==='rec'){ if(window.openRecorder) openRecorder(); return; }
+    if(v==='scan'){ if(window.openScanner) openScanner(); return; }
+    if(v==='pres'){ if(window.openPresent) openPresent(); return; }
+    if(v==='clock'){ if(window.openDetention){ openDetention(); return; } tab='search';renderSearch();renderClock();}
     else if(v==='ptp'){tab='search';renderSearch();renderPTP();}
     else if(v==='guides')renderGuides();
     else if(v==='sten')renderStencils();
@@ -778,7 +819,7 @@ function renderTools(){
     else if(['weapons','searches','rtc','escooter','seizure'].includes(v))renderKBtopic(v);
     else if(v==='latin')renderLatin();
     else if(v==='acronyms')renderAcronyms();
-    else if(v==='caution')renderCautions();
+    else if(v==='cautions')renderCautions();
     else if(v==='tpl')renderTemplates();
     else if(v==='lang')renderLang();
     else if(v==='guides2')renderDeep();
@@ -885,10 +926,10 @@ function renderTemplates(){
   view.scrollTop=0;
 }
 function openTemplate(i){
-  const t=TPL[i];
+  const t0=TPL[i], t=Object.assign({},t0,{b:reflow(t0.b)});
   view.innerHTML=`<button class="chip" id="backT2">‹ Templates</button><h2 class="sec">${esc(t.t)}</h2>
   ${t.sub?`<div class="tool"><h3>Subject</h3><div class="gtxt">${esc(t.sub)}</div><button class="csall" id="cs">⧉ Copy subject</button></div>`:''}
-  <div class="tool"><div class="gtxt tplbody">${esc(t.b).replace(/\n/g,'<br>')}</div></div>
+  <div class="tool"><div class="gtxt tplbody">${paraHtml(esc(t.b))}</div></div>
   <button class="csall" id="cb">⧉ Copy full text</button>
   <button class="csall" id="dlw">⬇ Download as Word</button>
   ${t.sub?'<button class="csall" id="mb">✉️ Open in email app</button>':''}`;
@@ -1322,4 +1363,42 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
   tick(); setInterval(tick,250); window.grHudTick=tick;   // 4×/s so new screens never show a blank clock
   window.grToast=function(m){let t=document.getElementById('osToast');if(!t){t=document.createElement('div');t.id='osToast';document.body.appendChild(t);}
     t.textContent=m;t.className='show';clearTimeout(t._h);t._h=setTimeout(()=>t.className='',3200);};
+})();
+
+/* ---------- phone Back button → previous screen (closes the top layer; never drops you out mid-task) ---------- */
+(function(){
+  const vis=el=>!!el&&!el.classList.contains('hidden')&&getComputedStyle(el).display!=='none';
+  const clk=sel=>{const b=document.querySelector(sel); if(b){b.click(); return true;} return false;};
+  function closeTop(){
+    if(document.getElementById('boot'))return true;                       // opening screen: stay put
+    for(const id of ['mStory','mTV','mRadio']){ const el=document.getElementById(id); if(vis(el)){ el.querySelector('.m-x').click(); return true; } }
+    if(window.prsBack&&window.prsBack())return true;                      // present to TV: blank → show → grid → closed
+    if(window.scnBack&&window.scnBack())return true;                      // scanner: sheet → crop/enhance → pages → camera → closed
+    if(window.recBack&&window.recBack())return true;                      // recorder: sheet → player → list → closed
+    if(window.detBack&&window.detBack())return true;                      // detention clock: desk → sheet → clock → list → closed
+    if(window.tskBack&&window.tskBack())return true;                      // tasks: sheet → editor → list → closed
+    if(window.rstBack&&window.rstBack())return true;                      // roster: sheet → wizard step → main → closed
+    if(window.ntsBack&&window.ntsBack())return true;                      // notes: sheet → sketch → editor → list → closed
+    if(window.tbxBack&&window.tbxBack())return true;                      // toolbox: tool → grid → closed
+    const reel=document.getElementById('osReel');
+    if(vis(reel)){ const gv=document.getElementById('reelGridView');
+      if(gv&&gv.classList.contains('hidden'))clk('#reelGridBtn'); else clk('#reelClose'); return true; }   // reel → list → closed
+    if(vis(document.getElementById('dccList'))) return clk('#dclClose');
+    const osint=document.getElementById('osint');
+    if(vis(osint)){ const p=document.getElementById('osPanel');
+      if(vis(p)){ if(!clk('#osPanel #ospClose'))p.classList.add('hidden'); return true; }
+      if(window.closeOSINT){ closeOSINT(); return true; } }
+    if(!reader.classList.contains('hidden')){ closeReader(); return true; }
+    if(tab!=='search'){ tab='search'; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='search')); render(); view.scrollTop=0; return true; }
+    if(lastQuery||!document.getElementById('homeNews')){ lastQuery=''; renderSearch(); view.scrollTop=0; return true; }
+    return false;
+  }
+  try{ history.replaceState({gr:'base'},''); history.pushState({gr:'guard'},''); }catch(e){}
+  let armed=false, leaving=false;
+  addEventListener('popstate',()=>{
+    if(leaving)return;
+    if(closeTop()){ armed=false; history.pushState({gr:'guard'},''); return; }
+    if(!armed){ armed=true; history.pushState({gr:'guard'},''); if(window.grToast)grToast('Press back again to exit'); setTimeout(()=>{armed=false;},2500); return; }
+    leaving=true; history.back();                                          // second Back within 2.5 s → close the app
+  });
 })();

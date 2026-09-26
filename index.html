@@ -15,63 +15,71 @@
 <link rel="stylesheet" href="vendor/leaflet.css">
 <link rel="stylesheet" href="vendor/leaflet-geoman.css">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="toolbox.css">
+<link rel="stylesheet" href="custody.css">
+<link rel="stylesheet" href="notes.css">
+<link rel="stylesheet" href="tasks.css">
+<link rel="stylesheet" href="roster.css">
+<link rel="stylesheet" href="recorder.css">
+<link rel="stylesheet" href="scanner.css">
+<link rel="stylesheet" href="present.css">
 </head>
 <body>
 <div id="boot" aria-hidden="true">
 <style>
-#boot{position:fixed;inset:0;z-index:99999;background:#06060C;color:#e9dcb0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;transition:opacity .5s ease,transform .5s ease;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#boot{position:fixed;inset:0;z-index:99999;background:#04060a;color:#e9dcb0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;transition:opacity .5s ease,transform .5s ease;cursor:pointer;-webkit-tap-highlight-color:transparent;perspective:900px}
 #boot.out{opacity:0;transform:scale(1.05);pointer-events:none}
-#boot::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(212,175,55,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(212,175,55,.06) 1px,transparent 1px);background-size:30px 30px;-webkit-mask-image:radial-gradient(circle at 50% 42%,#000,transparent 74%);mask-image:radial-gradient(circle at 50% 42%,#000,transparent 74%)}
-#boot::after{content:'';position:absolute;left:0;right:0;height:120px;top:-120px;background:linear-gradient(180deg,transparent,rgba(212,175,55,.07),transparent);animation:bscan 2.6s linear infinite;pointer-events:none}
-@keyframes bscan{to{top:100%}}
-#boot .bk-top{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:16px;right:16px;display:flex;justify-content:space-between;align-items:center;font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:1.4px;color:#8a7a45}
+#boot canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.22}
+#boot::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,transparent 0,rgba(4,6,10,.55) 55%,#04060a 88%);pointer-events:none}
+#boot .bk-top{position:absolute;z-index:3;top:calc(14px + env(safe-area-inset-top,0px));left:16px;right:16px;display:flex;justify-content:space-between;align-items:center;font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:1.4px;color:#8a7a45}
 #boot .bk-top b{color:#D4AF37;font-weight:800}
 #boot .bk-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:#3fe07a;box-shadow:0 0 8px #3fe07a;vertical-align:1px}
 #boot .bk-dot.off{background:#e0a33f;box-shadow:0 0 8px #e0a33f}
-#boot .bk-ring{position:relative;width:138px;height:138px;display:flex;align-items:center;justify-content:center}
-#boot .bk-ring i{position:absolute;inset:0;border-radius:50%;border:2px solid transparent;border-top-color:#D4AF37;border-right-color:rgba(212,175,55,.35);animation:bspin 1.3s linear infinite}
-#boot .bk-ring i+i{inset:10px;border-top-color:transparent;border-right-color:transparent;border-bottom-color:rgba(212,175,55,.8);border-left-color:rgba(212,175,55,.25);animation:bspin 1.9s linear infinite reverse}
-#boot .bk-ring img{width:58px;height:auto;filter:drop-shadow(0 0 14px rgba(212,175,55,.35));animation:bpulse 1.8s ease-in-out infinite}
-@keyframes bspin{to{transform:rotate(360deg)}}
-@keyframes bpulse{50%{transform:scale(1.05)}}
-#boot .bk-word{margin:20px 0 0;height:40px;display:flex;gap:14px;font:800 34px/1 system-ui,-apple-system,Roboto,sans-serif;letter-spacing:0}
-#boot .bk-word span{background:linear-gradient(180deg,#f3e3a6,#D4AF37 60%,#9a7f2a);-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0;transform:translateY(8px);transition:opacity .28s ease,transform .28s ease}
-#boot .bk-word span.in{opacity:1;transform:none}
-#boot .bk-ref{margin-top:8px;font:700 12px/1 ui-monospace,Menlo,monospace;letter-spacing:9px;text-indent:9px;color:#b9a970;opacity:0;transition:opacity .5s ease}
-#boot .bk-sub{margin-top:14px;font:700 10.5px/1.5 ui-monospace,Menlo,monospace;letter-spacing:2.2px;color:#8a7a45;text-align:center;opacity:0;transition:opacity .5s ease}
-#boot .bk-sub b{display:block;color:#D4AF37;letter-spacing:3px;font-size:12px}
-#boot.shown .bk-ref,#boot.shown .bk-sub{opacity:1}
-#boot .bk-log{margin-top:18px;width:min(300px,82vw);min-height:0;font:600 11px/1.65 ui-monospace,Menlo,monospace;color:#b9a970;letter-spacing:.4px}
-#boot .bk-log div{white-space:nowrap;overflow:hidden;opacity:0;animation:bline .22s ease forwards}
+#boot .bk-core{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;width:min(360px,90vw)}
+#boot .bk-emb{position:absolute;left:50%;top:50%;width:min(330px,82vw);height:min(330px,82vw);margin:calc(min(330px,82vw)/-2) 0 0 calc(min(330px,82vw)/-2);z-index:0;opacity:0;transform:scale(.55);transition:opacity 1.2s ease,transform 1.2s cubic-bezier(.2,.7,.2,1);pointer-events:none}
+#boot.emb .bk-emb{opacity:.24;transform:scale(1)}
+#boot .bk-emb svg{width:100%;height:100%;animation:bspinY 9s linear infinite;filter:drop-shadow(0 0 18px rgba(212,175,55,.45))}
+@keyframes bspinY{to{transform:rotateY(360deg)}}
+#boot .bk-title{position:relative;z-index:1;margin:0;text-align:center;font:800 26px/1.18 ui-monospace,"SF Mono",Menlo,Consolas,monospace;letter-spacing:2px;color:#f1dc8f;text-shadow:0 0 14px rgba(212,175,55,.55),0 0 2px #fff6d0;min-height:62px}
+#boot .bk-desc{position:relative;z-index:1;margin-top:14px;text-align:center;font:600 11.5px/1.55 ui-monospace,Menlo,monospace;letter-spacing:.6px;color:#9fd6a8;text-shadow:0 0 8px rgba(63,224,122,.35);min-height:36px;max-width:330px}
+#boot .bk-log{position:relative;z-index:1;margin-top:18px;width:min(320px,86vw);font:600 11px/1.62 ui-monospace,Menlo,monospace;color:#b9a970;letter-spacing:.3px}
+#boot .bk-log div{white-space:nowrap;overflow:hidden;opacity:0;animation:bline .18s ease forwards}
 #boot .bk-log div span{float:right;color:#3fe07a}
 #boot .bk-log div.rdy{color:#D4AF37;font-weight:800;letter-spacing:2px}
 @keyframes bline{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
-#boot .bk-bar{margin-top:12px;width:min(300px,82vw);height:2px;background:rgba(212,175,55,.15);border-radius:2px;overflow:hidden;visibility:hidden}
-#boot.run .bk-bar{visibility:visible}
-#boot .bk-bar b{display:block;height:100%;width:0;background:linear-gradient(90deg,#9a7f2a,#D4AF37,#f3e3a6);box-shadow:0 0 10px #D4AF37;transition:width 1.7s cubic-bezier(.3,.7,.3,1)}
-#boot .bk-go{margin-top:26px;min-width:220px;padding:15px 26px;border-radius:99px;border:1.5px solid #D4AF37;background:rgba(212,175,55,.08);color:#f3e3a6;font:800 14px/1 ui-monospace,Menlo,monospace;letter-spacing:3px;cursor:pointer;animation:bglow 1.6s ease-in-out infinite;opacity:0;transition:opacity .4s ease}
+#boot .bk-bar{position:relative;z-index:1;margin-top:10px;width:min(320px,86vw);height:2px;background:rgba(212,175,55,.15);border-radius:2px;overflow:hidden;visibility:hidden}
+#boot.run .bk-bar,#boot.ready .bk-bar{visibility:visible}
+#boot .bk-bar b{display:block;height:100%;width:0;background:linear-gradient(90deg,#9a7f2a,#D4AF37,#f3e3a6);box-shadow:0 0 10px #D4AF37;transition:width 1.1s cubic-bezier(.3,.7,.3,1)}
+#boot .bk-go{position:relative;z-index:1;margin-top:24px;min-width:230px;padding:15px 26px;border-radius:99px;border:1.5px solid #D4AF37;background:rgba(212,175,55,.08);color:#f3e3a6;font:800 14px/1 ui-monospace,Menlo,monospace;letter-spacing:3px;cursor:pointer;animation:bglow 1.6s ease-in-out infinite;opacity:0;transition:opacity .4s ease}
 #boot.shown .bk-go{opacity:1}
 #boot .bk-go.enter{background:linear-gradient(180deg,#e6c65a,#D4AF37);color:#0a1930;border-color:#f3e3a6}
 #boot.run .bk-go{visibility:hidden}
 #boot.ready .bk-go{visibility:visible}
 @keyframes bglow{50%{box-shadow:0 0 22px rgba(212,175,55,.55)}}
-#boot .bk-foot{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom,0px));font:600 10px/1 ui-monospace,Menlo,monospace;letter-spacing:2px;color:#5d5230}
-@media (prefers-reduced-motion:reduce){#boot::after,#boot .bk-ring i,#boot .bk-ring img,#boot .bk-go{animation:none}}
+@media (prefers-reduced-motion:reduce){#boot .bk-emb svg,#boot .bk-go{animation:none}}
 </style>
+<canvas id="bkRain" aria-hidden="true"></canvas>
 <div class="bk-top"><span><b id="bkClock">--:--:--</b> · <span id="bkDate"></span></span><span><i class="bk-dot" id="bkDot"></i><b id="bkNet">ONLINE</b></span></div>
-<div class="bk-ring"><i></i><i></i><img src="icons/officer.png" alt=""></div>
-<div class="bk-word" id="bkWord"><span>G</span><span>A</span><span>R</span><span>D</span><span>A</span></div>
-<div class="bk-ref">REFERENCE</div>
-<div class="bk-sub"><b>DMR</b>DUBLIN METROPOLITAN REGION</div>
-<div class="bk-log" id="bkLog"></div>
-<div class="bk-bar"><b id="bkBar"></b></div>
-<button class="bk-go" id="bkGo" type="button">▶ TAP TO START</button>
-<div class="bk-foot">v47 · OFFLINE REFERENCE</div>
+<div class="bk-core">
+  <div class="bk-emb" aria-hidden="true"><svg viewBox="0 0 200 200"><defs><linearGradient id="bkg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7e7a8"/><stop offset=".55" stop-color="#D4AF37"/><stop offset="1" stop-color="#8a6d1f"/></linearGradient></defs>
+    <g fill="none" stroke="url(#bkg)" stroke-linejoin="round">
+      <circle cx="100" cy="100" r="92" stroke-width="2.2"/><circle cx="100" cy="100" r="84" stroke-width="1" stroke-dasharray="2 4"/>
+      <path d="M100 30 150 48v44c0 34-21 58-50 72-29-14-50-38-50-72V48Z" stroke-width="3.2"/>
+      <path d="M100 41 140 55v37c0 28-17 48-40 60-23-12-40-32-40-60V55Z" stroke-width="1.4"/>
+      <path d="M100 62 106 88 132 94 106 100 100 126 94 100 68 94 94 88Z" fill="url(#bkg)" stroke-width="1"/>
+      <circle cx="100" cy="94" r="7" stroke-width="1.6"/>
+    </g></svg></div>
+  <h1 class="bk-title" id="bkTitle"></h1>
+  <div class="bk-desc" id="bkDesc"></div>
+  <div class="bk-log" id="bkLog"></div>
+  <div class="bk-bar"><b id="bkBar"></b></div>
+  <button class="bk-go" id="bkGo" type="button">▶ TAP TO START</button>
+</div>
 <script>
 (function(){
   var b=document.getElementById('boot'); if(!b)return;
   var seen=false; try{seen=sessionStorage.getItem('gr_boot')==='1';}catch(e){}
-  if(seen){ b.parentNode.removeChild(b); return; }        // once per launch
+  if(seen||/[?&]open=/.test(location.search)){ b.parentNode.removeChild(b); return; }        // once per launch; never when opened from a notification
   var calm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   var on=navigator.onLine!==false;
   document.getElementById('bkNet').textContent=on?'ONLINE':'OFFLINE';
@@ -81,20 +89,37 @@
   function tick(){var d=new Date(); document.getElementById('bkClock').textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
     document.getElementById('bkDate').textContent=D[d.getDay()]+' '+p(d.getDate())+' '+M[d.getMonth()]+' '+d.getFullYear();}
   tick(); var ct=setInterval(tick,1000);
-  var letters=document.querySelectorAll('#bkWord span');
-  letters.forEach(function(s,i){ setTimeout(function(){s.className='in';}, calm?0:150+i*130); });
-  setTimeout(function(){ b.classList.add('shown'); }, calm?0:150+letters.length*130+120);
+  // matrix rain (faint, stops when the screen closes)
+  var cv=document.getElementById('bkRain'), cx=cv.getContext('2d'), cols=[], G='ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ0123456789ABCDEFGHJKLMNPRSTUVWXYZ#$%&*+=<>';
+  function size(){ cv.width=innerWidth; cv.height=innerHeight; var n=Math.ceil(cv.width/14); cols=[]; for(var i=0;i<n;i++)cols.push(Math.random()*-60); }
+  size(); var raining=!calm, last=0;
+  function rain(t){ if(!raining)return; requestAnimationFrame(rain); if(t-last<55)return; last=t;
+    cx.fillStyle='rgba(4,6,10,.18)'; cx.fillRect(0,0,cv.width,cv.height); cx.font='13px monospace';
+    for(var i=0;i<cols.length;i++){ var y=cols[i]*15; cx.fillStyle=Math.random()<.08?'#f3e3a6':'#3fae62'; cx.fillText(G[(Math.random()*G.length)|0],i*14,y);
+      cols[i]=(y>cv.height&&Math.random()>.975)?0:cols[i]+1; } }
+  if(!calm)requestAnimationFrame(rain);
+  // matrix-style decode of the title + description
+  var GL='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&@$<>/|=+*';
+  function decode(el,text,dur,cb){ if(calm){el.textContent=text; cb&&cb(); return;}
+    var t0=performance.now(); (function f(now){ var q=Math.min(1,(now-t0)/dur), n=Math.floor(text.length*q), s=text.slice(0,n);
+      for(var i=n;i<text.length;i++) s+=(text[i]===' '||text[i]==='\n')?text[i]:GL[(Math.random()*GL.length)|0];
+      el.textContent=s; if(q<1)requestAnimationFrame(f); else cb&&cb(); })(t0); }
+  var T=document.getElementById('bkTitle'); T.style.whiteSpace='pre-line';
+  setTimeout(function(){ b.classList.add('emb'); },calm?0:120);
+  decode(T,'GARDA OPERATIONAL\nREFERENCE TOOL',calm?0:900,function(){
+    decode(document.getElementById('bkDesc'),'Designed for frontline members of An Garda Síochána — Ireland’s national police service',calm?0:800,function(){ b.classList.add('shown'); });
+  });
   var stage=0, go=document.getElementById('bkGo');
   function start(){
     if(stage!==0)return; stage=1; b.classList.add('run','shown');
-    var lines=[[on?'ESTABLISHING SECURE LINK':'OFFLINE MODE · LOCAL CACHE','OK'],['LOADING 12 VOLUMES + MANUAL','OK'],['INDEXING 397 CASES','OK'],['CAMERA GRID · 138 FEEDS','OK'],['568 STATIONS · 96 DISTRICTS · DCC 241','OK'],['SYSTEM READY','']];
+    var lines=[[on?'SECURE LINK · ONLINE':'OFFLINE MODE · LOCAL CACHE','OK'],['12 VOLUMES · 1,478 PAGES','OK'],['397 CASES · 15 GUIDES','OK'],['12 STENCILS · 8 TEMPLATES','OK'],['138 LIVE CAMERAS · 241 DCC','OK'],['568 STATIONS · 96 DISTRICTS','OK'],['11 NEWS SOURCES · 29 RADIO','OK'],['MAP · STREET VIEW · 21 TOOLS','OK'],['ROSTER · DETENTION CLOCK · NOTES · TASKS','OK'],['RECORDER · SCANNER · PRESENT TO TV','OK'],['SYSTEM READY','']];
     var log=document.getElementById('bkLog');
     lines.forEach(function(l,i){ setTimeout(function(){ var d=document.createElement('div'); if(!l[1])d.className='rdy';
-      d.innerHTML='&rsaquo; '+l[0]+(l[1]?'<span>'+l[1]+'</span>':''); log.appendChild(d); }, calm?0:120+i*260); });
+      d.innerHTML='&rsaquo; '+l[0]+(l[1]?'<span>'+l[1]+'</span>':''); log.appendChild(d); }, calm?0:60+i*115); });
     requestAnimationFrame(function(){ document.getElementById('bkBar').style.width='100%'; });
-    setTimeout(function(){ stage=2; go.textContent='ENTER ▸'; go.classList.add('enter'); b.classList.remove('run'); b.classList.add('ready'); }, calm?50:1800);
+    setTimeout(function(){ stage=2; go.textContent='ENTER ▸'; go.classList.add('enter'); b.classList.remove('run'); b.classList.add('ready'); }, calm?50:1150);
   }
-  function enter(){ if(stage!==2)return; stage=3; clearInterval(ct); try{sessionStorage.setItem('gr_boot','1');}catch(e){}
+  function enter(){ if(stage!==2)return; stage=3; clearInterval(ct); raining=false; try{sessionStorage.setItem('gr_boot','1');}catch(e){}
     b.classList.add('out'); setTimeout(function(){ if(b.parentNode)b.parentNode.removeChild(b); },520); }
   b.addEventListener('click',function(){ if(stage===0)start(); else if(stage===2)enter(); });
 })();
@@ -104,7 +129,7 @@
   <header id="topbar">
     <div class="brand" id="brandBtn">
       <img class="brandlogo" src="icons/officer.png" alt="" width="26" height="42">
-      <div><b>Garda Reference</b><small>DMR · Dublin Metropolitan Region</small></div>
+      <div><b>Garda Reference</b><small>Operational reference tool</small></div>
     </div>
     <div class="tb-right"><div class="hudclock tb-clock"></div><div id="loadState" class="loadstate" title="Content load status"></div></div>
   </header>
@@ -138,12 +163,20 @@
     <button data-tab="saved" class="tab" role="tab"><span class="ti">★</span>Saved</button>
   </nav>
 
-  <footer id="banner">Working reference — not legal advice — verify current wording · <span id="verinfo"></span></footer>
+  <footer id="banner">Independent reference tool — not an official Garda system · not legal advice · verify current wording · <span id="verinfo"></span></footer>
 </div>
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/leaflet-geoman.min.js"></script>
 <script src="app.js"></script>
 <script src="osint.js"></script>
 <script src="media.js"></script>
+<script src="toolbox.js"></script>
+<script src="custody.js"></script>
+<script src="notes.js"></script>
+<script src="tasks.js"></script>
+<script src="roster.js"></script>
+<script src="recorder.js"></script>
+<script src="scanner.js"></script>
+<script src="present.js"></script>
 </body>
 </html>

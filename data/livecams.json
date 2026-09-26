@@ -34,7 +34,8 @@
 "lon": -6.2816,
 "u": "https://www.youtube.com/watch?v=8bqXtRoleVw",
 "yt": "8bqXtRoleVw",
-"cat": "district"
+"cat": "district",
+"home": true
 },
 {
 "n": "Cabra (facing North-West)",
@@ -43,7 +44,8 @@
 "lon": -6.2905,
 "u": "https://www.youtube.com/watch?v=f43rKPCALls",
 "yt": "f43rKPCALls",
-"cat": "district"
+"cat": "district",
+"home": true
 },
 {
 "n": "Brian Boru Pub, Glasnevin",

@@ -968,3 +968,59 @@ body.os-open #mMini{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 .os-clk b{font-size:12px!important}
 .os-statusline .sdot{flex:0 0 auto;width:7px;height:7px}
 .rd-clock{margin-top:2px;font-size:9.5px}
+
+/* ===== v48 — search with magnifier (Ask AI + scope chips removed) ===== */
+.searchbox.sb-mag{position:relative}
+.sb-ico{position:absolute;left:15px;top:calc(50% - 4px);transform:translateY(-50%);width:21px;height:21px;fill:none;stroke:#d4af37;stroke-width:2.2;stroke-linecap:round;pointer-events:none;z-index:1}
+.searchbox.sb-mag input{padding-left:46px}
+
+/* ===== v48 — zoom-style text size: a capital A that grows ===== */
+#fsBtn{width:44px;height:40px;padding:0;display:flex;align-items:center;justify-content:center;background:rgba(18,37,68,.6);border:1px solid rgba(212,175,55,.35);border-radius:10px;cursor:pointer}
+#fsBtn svg{width:30px;height:30px;fill:none;stroke:#d4af37;stroke-width:2.2;stroke-linecap:round}
+#fsBtn svg text{fill:#f3e3a6;stroke:none;font:800 10px/1 system-ui,sans-serif;transition:font-size .2s}
+html[data-fs="s"] #fsBtn svg text{font-size:8px}
+html[data-fs="l"] #fsBtn svg text{font-size:12.5px}
+html[data-fs="xl"] #fsBtn svg text{font-size:15px}
+html[data-fs="xl"] #view{font-size:18px}
+html[data-fs="xl"] .rd-body{font-size:19.5px;line-height:1.65}
+html[data-fs="xl"] .qbtn{font-size:15.5px}
+html[data-fs="xl"] .ns-t{font-size:16px}
+
+/* ===== v48 — merged Recent / continue reading ===== */
+.recentrow.cont{border-color:rgba(212,175,55,.45)}
+.recentrow.cont .rr-t{color:#f0dd9a}
+
+/* ===== v48 — need-to-know news (under the search box) ===== */
+.nstrip{margin:4px 0 8px}
+.ns-bell{margin-left:8px;border:0;background:none;font-size:16px;cursor:pointer;padding:2px 4px}
+.ns-list{max-height:372px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.ns-list .ns-row,.m-list1 .ns-row,.m-story .ns-row{display:block;padding:9px 12px 10px}
+.ns-row .ns-meta{display:flex;gap:8px;align-items:center;margin-bottom:3px;font:700 10px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.5px}
+.ns-srcs{color:#d4af37;text-transform:uppercase}
+.ns-when{color:#8196b3;margin-left:auto}
+.ns-row .ns-t{display:block;font-size:14px;line-height:1.33;font-weight:650}
+.ns-urg{background:#e0231b;color:#fff;padding:2px 5px;border-radius:4px;letter-spacing:.8px}
+.ns-row.urg{background:linear-gradient(90deg,rgba(224,35,27,.14),transparent 60%)}
+.ns-foot{border-top:1px solid rgba(120,150,200,.1);padding-top:7px}
+.m-persp{border-left:3px solid rgba(212,175,55,.5);padding:6px 0 4px 11px;margin:10px 2px}
+.m-persp b{display:block;font-size:14.5px;line-height:1.35;color:#eef3fb}
+.m-persp p{font-size:13.5px!important;margin:5px 0 0!important;color:#b9c7da!important}
+.m-srcbtn{border:0;background:none;color:#d4af37;font:inherit;padding:0;cursor:pointer;text-decoration:underline}
+.m-tog{display:flex;align-items:center;gap:10px;padding:11px 12px;margin:7px 0;border-radius:10px;border:1px solid rgba(120,150,200,.2);background:#0c182c;font-size:14.5px}
+.m-tog input{width:20px;height:20px;accent-color:#d4af37}
+.m-list1{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.m-list1 .ns-row{border:1px solid rgba(120,150,200,.16);border-radius:10px}
+
+/* ===== v48 — radio favourites ===== */
+.m-st{padding:3px 5px 3px 3px;gap:4px}
+.m-stp{display:flex;align-items:center;gap:12px;flex:1;min-width:0;background:none;border:0;color:inherit;text-align:left;padding:8px 6px;cursor:pointer;font-family:inherit}
+.m-fav{flex:0 0 42px;height:42px;border-radius:50%;border:1px solid rgba(212,175,55,.3);background:none;color:#8a7a45;font-size:19px;cursor:pointer}
+.m-fav.on{color:#f3d36b;border-color:#d4af37;background:rgba(212,175,55,.12)}
+
+/* ===== v49: DCC list button (locations, not live) + Toolbox hero ===== */
+.dccHero{grid-column:1/-1;position:relative;text-align:left;
+  background:linear-gradient(135deg,rgba(212,175,55,.09),rgba(18,37,68,.62))!important;border:1px solid rgba(212,175,55,.38)!important}
+.dccHero::after{content:'LOCATIONS';position:absolute;top:10px;right:12px;font-size:10px;font-weight:700;color:var(--ink-dim);letter-spacing:1px}
+.dccHero small{padding-right:4px}
+.tbxHero{margin-top:10px}
+.tbxHero::after{animation-delay:2.5s}
