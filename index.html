@@ -23,6 +23,8 @@
 <link rel="stylesheet" href="recorder.css">
 <link rel="stylesheet" href="scanner.css">
 <link rel="stylesheet" href="present.css">
+<link rel="stylesheet" href="firstaid.css">
+<link rel="stylesheet" href="social.css">
 </head>
 <body>
 <div id="boot" aria-hidden="true">
@@ -112,7 +114,7 @@
   var stage=0, go=document.getElementById('bkGo');
   function start(){
     if(stage!==0)return; stage=1; b.classList.add('run','shown');
-    var lines=[[on?'SECURE LINK · ONLINE':'OFFLINE MODE · LOCAL CACHE','OK'],['12 VOLUMES · 1,478 PAGES','OK'],['397 CASES · 15 GUIDES','OK'],['12 STENCILS · 8 TEMPLATES','OK'],['138 LIVE CAMERAS · 241 DCC','OK'],['568 STATIONS · 96 DISTRICTS','OK'],['11 NEWS SOURCES · 29 RADIO','OK'],['MAP · STREET VIEW · 21 TOOLS','OK'],['ROSTER · DETENTION CLOCK · NOTES · TASKS','OK'],['RECORDER · SCANNER · PRESENT TO TV','OK'],['SYSTEM READY','']];
+    var lines=[[on?'SECURE LINK · ONLINE':'OFFLINE MODE · LOCAL CACHE','OK'],['12 VOLUMES · 1,478 PAGES','OK'],['397 CASES · 15 GUIDES','OK'],['12 STENCILS · 8 TEMPLATES','OK'],['138 LIVE CAMERAS · 241 DCC','OK'],['568 STATIONS · 96 DISTRICTS','OK'],['11 NEWS SOURCES · 29 RADIO','OK'],['MAP · STREET VIEW · 21 TOOLS','OK'],['ROSTER · DETENTION CLOCK · NOTES · TASKS','OK'],['RECORDER · SCANNER · PRESENT TO TV','OK'],['FIRST AID · 22 CONDITIONS · CPR','OK'],['SYSTEM READY','']];
     var log=document.getElementById('bkLog');
     lines.forEach(function(l,i){ setTimeout(function(){ var d=document.createElement('div'); if(!l[1])d.className='rdy';
       d.innerHTML='&rsaquo; '+l[0]+(l[1]?'<span>'+l[1]+'</span>':''); log.appendChild(d); }, calm?0:60+i*115); });
@@ -178,5 +180,7 @@
 <script src="recorder.js"></script>
 <script src="scanner.js"></script>
 <script src="present.js"></script>
+<script src="firstaid.js"></script>
+<script src="social.js"></script>
 </body>
 </html>

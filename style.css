@@ -1024,3 +1024,24 @@ html[data-fs="xl"] .ns-t{font-size:16px}
 .dccHero small{padding-right:4px}
 .tbxHero{margin-top:10px}
 .tbxHero::after{animation-delay:2.5s}
+
+/* ===== v54: medical emergency button ===== */
+.faHero{display:block;width:100%;margin:10px 0 4px;padding:14px 16px;text-align:left;border-radius:var(--radius);cursor:pointer;
+  background:linear-gradient(135deg,#7a1115,#b3242a 55%,#5a0c10)!important;border:1px solid #ff6b6b!important;color:#fff!important;font-size:16px;font-weight:800}
+.faHero small{display:block;color:#ffd9d9!important;font-weight:400;font-size:12px;margin-top:4px}
+.socHero{grid-column:1/-1;position:relative;text-align:left;background:linear-gradient(135deg,rgba(29,155,240,.14),rgba(18,37,68,.6))!important;border:1px solid rgba(29,155,240,.45)!important}
+.socHero::after{content:'READ-ONLY';position:absolute;top:10px;right:12px;font-size:10px;font-weight:700;color:var(--ink-dim);letter-spacing:1px}
+
+/* ===== v56: map photos layer ===== */
+.os-phm{background:none;border:0}
+.os-phm img{width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.55);background:#1b3a66}
+#osPhoto{position:absolute;inset:0;z-index:1200;display:flex;flex-direction:column;background:rgba(3,7,15,.97)}
+#osPhoto.hidden{display:none}
+#osPhoto .oph-top{display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 8px}
+#osPhoto .oph-top b{flex:1;min-width:0;color:var(--gold);font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#osPhoto .oph-img{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 6px}
+#osPhoto .oph-img img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
+#osPhoto .oph-meta{flex:0 0 auto;padding:10px 14px calc(14px + env(safe-area-inset-bottom,0px));color:var(--ink);font-size:13.5px}
+#osPhoto .oph-date{display:inline-block;padding:4px 10px;border-radius:99px;background:rgba(212,175,55,.15);color:var(--gold);font-weight:700;font-size:13px}
+#osPhoto .oph-meta p{margin:6px 0 0;line-height:1.45}
+#osPhoto .oph-cr{color:var(--ink-dim);font-size:12px}

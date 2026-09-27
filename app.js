@@ -131,6 +131,7 @@ function homeQuick(){
   ${recentHtml}
 
   <button class="qbtn osintHero" id="hOsint">🗺️ Map<small>stations · districts · cameras · DCC CCTV · Street View pin · draw & measure — you choose what's on</small></button>
+  <button class="qbtn faHero" id="hFirstAid">🚑 Medical emergency<small>call 112/999 · CPR metronome · choking · bleeding · overdose · 22 conditions · step by step</small></button>
   <button class="qbtn osintHero tbxHero" id="hTools">🧰 Toolbox<small>ruler · measure with evidence photo · evidence camera · level · compass · torch · timers · 21 tools</small></button>
   <h2 class="sec">📹 Live cameras <span class="livepip">● LIVE</span></h2><div class="quick">
     <button class="qbtn camHero" id="hCamDist">📷 Fitzgibbon St / Mountjoy<small>street cams · your district + north city</small></button>
@@ -143,6 +144,7 @@ function homeQuick(){
   <h2 class="sec">📡 Live TV & radio</h2><div class="quick">
     <button class="qbtn camHero" id="hLiveNews">📺 Live news<small>Sky News live · RTÉ News latest · in the app</small></button>
     <button class="qbtn camHero" id="hRadio">📻 Irish radio<small>favourites · RTÉ · Newstalk · 98 · FM104 · all</small></button>
+    <button class="qbtn socHero" id="hSocial">📱 Social media<small>official Garda accounts · Garda Info · Garda Traffic · DMR Facebook · TikTok · read-only</small></button>
   </div>
 
   <h2 class="sec">⚡ On the job</h2><div class="quick">
@@ -228,8 +230,10 @@ function homeQuick(){
   go('hCamAll',()=>{ if(window.openCamReel) window.openCamReel(0,null,true); });
   go('hDccList',()=>{ if(window.openDccList) window.openDccList(); });
   go('hTools',()=>{ if(window.openToolbox) window.openToolbox(); });
+  go('hFirstAid',()=>{ if(window.openFirstAid) openFirstAid(); });
   go('hLiveNews',()=>{ if(window.GRMedia) GRMedia.openTV('sky'); });
   go('hRadio',()=>{ if(window.GRMedia) GRMedia.openRadio(); });
+  go('hSocial',()=>{ if(window.openSocial) openSocial(); });
   if(window.GRDet) GRDet.mountStrip($('#homeDet'));
   if(window.GRRoster) GRRoster.mountStrip($('#homeRoster'));
   if(window.GRTasks) GRTasks.mountStrip($('#homeTasks'));
@@ -768,6 +772,8 @@ TOOLS.push(
   'Referral: support services offered']});
 function renderTools(){
   view.innerHTML=`<h2 class="sec">Tools</h2><div class="toolmenu">
+    <button class="tmenu" data-v="firstaid"><b>🚑 Medical emergency</b><small>112/999 · CPR metronome · first aid for 22 conditions · incident log</small></button>
+    <button class="tmenu" data-v="social"><b>📱 Social media</b><small>official accounts on X, Facebook, TikTok — read-only, in the app</small></button>
     <button class="tmenu" data-v="toolbox"><b>🧰 Toolbox</b><small>ruler · measure · evidence camera · level · compass · torch · timers · QR · more</small></button>
     <button class="tmenu" data-v="roster"><b>🗓️ My roster</b><small>your shift pattern · today & next tour · leave, court, swaps, overtime</small></button>
     <button class="tmenu" data-v="tasks"><b>✅ Tasks</b><small>to-do scheduler — CCTV · statements · nights · deadlines · reminders</small></button>
@@ -801,6 +807,8 @@ function renderTools(){
   $$('.tmenu').forEach(b=>b.addEventListener('click',()=>{
     const v=b.dataset.v;
     if(v==='toolbox'){ if(window.openToolbox) openToolbox(); return; }
+    if(v==='social'){ if(window.openSocial) openSocial(); return; }
+    if(v==='firstaid'){ if(window.openFirstAid) openFirstAid(); return; }
     if(v==='tasks'){ if(window.openTasks) openTasks(); return; }
     if(v==='roster'){ if(window.openRoster) openRoster(); return; }
     if(v==='notes'){ if(window.openNotes) openNotes(); return; }
@@ -1372,20 +1380,23 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
   function closeTop(){
     if(document.getElementById('boot'))return true;                       // opening screen: stay put
     for(const id of ['mStory','mTV','mRadio']){ const el=document.getElementById(id); if(vis(el)){ el.querySelector('.m-x').click(); return true; } }
+    if(window.faBack&&window.faBack())return true;                        // first aid: step/CPR → list → closed
     if(window.prsBack&&window.prsBack())return true;                      // present to TV: blank → show → grid → closed
     if(window.scnBack&&window.scnBack())return true;                      // scanner: sheet → crop/enhance → pages → camera → closed
     if(window.recBack&&window.recBack())return true;                      // recorder: sheet → player → list → closed
     if(window.detBack&&window.detBack())return true;                      // detention clock: desk → sheet → clock → list → closed
     if(window.tskBack&&window.tskBack())return true;                      // tasks: sheet → editor → list → closed
     if(window.rstBack&&window.rstBack())return true;                      // roster: sheet → wizard step → main → closed
-    if(window.ntsBack&&window.ntsBack())return true;                      // notes: sheet → sketch → editor → list → closed
+    if(window.ntsBack&&window.ntsBack())return true;
+    if(window.socBack&&window.socBack())return true;                      // social media → closed                      // notes: sheet → sketch → editor → list → closed
     if(window.tbxBack&&window.tbxBack())return true;                      // toolbox: tool → grid → closed
     const reel=document.getElementById('osReel');
     if(vis(reel)){ const gv=document.getElementById('reelGridView');
       if(gv&&gv.classList.contains('hidden'))clk('#reelGridBtn'); else clk('#reelClose'); return true; }   // reel → list → closed
     if(vis(document.getElementById('dccList'))) return clk('#dclClose');
     const osint=document.getElementById('osint');
-    if(vis(osint)){ const p=document.getElementById('osPanel');
+    if(vis(osint)){ if(window.osPhotoOpen&&window.osPhotoOpen()){ window.osPhotoClose(); return true; }
+      const p=document.getElementById('osPanel');
       if(vis(p)){ if(!clk('#osPanel #ospClose'))p.classList.add('hidden'); return true; }
       if(window.closeOSINT){ closeOSINT(); return true; } }
     if(!reader.classList.contains('hidden')){ closeReader(); return true; }

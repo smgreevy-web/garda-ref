@@ -26,6 +26,7 @@ const RIC={
   pin:_sv('<path d="M12 21s7-6.3 7-11.3A7 7 0 0 0 5 9.7C5 14.7 12 21 12 21Z"/><circle cx="12" cy="9.6" r="2.3"/>'),
   me:_sv('<circle cx="12" cy="12" r="7"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>'),
   traffic:_sv('<path d="M12 3v18" stroke-dasharray="0 0"/><rect x="4.5" y="4.5" width="9" height="3.6" rx="1"/><rect x="10.5" y="10.2" width="9" height="3.6" rx="1"/><rect x="4.5" y="15.9" width="9" height="3.6" rx="1"/>'),
+  photo:_sv('<rect x="3" y="5" width="18" height="14" rx="2.2"/><circle cx="8.5" cy="10" r="1.8"/><path d="m21 16-5.2-5.2L7 19"/>'),
   cctv:_sv('<rect x="2.5" y="7" width="11" height="5.5" rx="1.2"/><path d="M13.5 8.6 20.5 6.5v7.5l-7-2.1Z"/><path d="M7.5 12.5v4.5"/><path d="M4.5 17h6"/>')
 };
 // ---- build overlay once ----
@@ -49,6 +50,7 @@ function build(){
        <button class="os-r" id="osCams">${RIC.cam}<em>CAMS</em><i class="rbadge" id="bCams">7</i></button>
        <button class="os-r" id="osDcc">${RIC.cctv}<em>DCC</em><i class="rbadge" id="bDcc">241</i></button>
        <button class="os-r" id="osTraffic">${RIC.traffic}<em>TRAFFIC</em></button>
+       <button class="os-r" id="osPhotos">${RIC.photo}<em>PHOTOS</em><i class="rbadge" id="bPhotos" hidden></i></button>
        <button class="os-r" id="osList">${RIC.log}<em>LOG</em><i class="rbadge" id="bLog">${cctv.length}</i></button>
        <button class="os-r" id="osCam" title="Street View: tap PIN, then tap the map">${RIC.pin}<em>PIN</em></button>
        <button class="os-r" id="osLoc">${RIC.me}<em>ME</em></button>
@@ -81,6 +83,7 @@ function build(){
   $('#osCams').addEventListener('click',toggleCams);
   $('#osDcc').addEventListener('click',toggleDcc);
   $('#osTraffic').addEventListener('click',toggleTraffic);
+  $('#osPhotos').addEventListener('click',togglePhotos);
   startClock();
   built=true;
 }
@@ -92,7 +95,7 @@ function startClock(){
     const z=d.toISOString().substr(11,8);
     const on=navigator.onLine;
     const st=$('#osStatus');
-    const nly=(distOn?1:0)+(gardaOn?1:0)+(camsOn?1:0)+(flightsOn?1:0)+(cctv&&cctv.length?1:0);
+    const nly=(distOn?1:0)+(gardaOn?1:0)+(camsOn?1:0)+(flightsOn?1:0)+(photosOn?1:0)+(cctv&&cctv.length?1:0);
     if(st){ if(!st._init){st.innerHTML='<span class="sdot"></span><span class="hudclock os-clk" data-f="noyear"></span>';st._init=1;if(window.grHudTick)grHudTick();}
       st.firstChild.className='sdot '+(on?'live':'off'); st.title=(on?'Online':'Offline')+' · '+nly+' layer(s) on'; }
   };
@@ -269,6 +272,73 @@ function drawCameras(){
 }
 // ---- PIN = Street View: tap PIN, then tap the map → Street View opens right there, in the app
 let svPick=false;
+/* ---------- PHOTOS: geotagged photos from Wikimedia Commons (keyless, CORS) ---------- */
+let photoLayer=null, photosOn=false, photoTimer=null, photoReq=0; const photoSeen=new Map();
+const PH_API='https://commons.wikimedia.org/w/api.php';
+function togglePhotos(){
+  photosOn=!photosOn; $('#osPhotos').classList.toggle('on',photosOn);
+  if(!map)return;
+  if(!photoLayer)photoLayer=L.layerGroup();
+  if(photosOn){ photoLayer.addTo(map); map.on('moveend',photoMove); loadPhotos(true);
+    toast('Photos: geotagged pictures from Wikimedia Commons — dates vary, not live'); }
+  else { map.off('moveend',photoMove); photoLayer.clearLayers(); map.removeLayer(photoLayer); photoSeen.clear(); const b=$('#bPhotos'); if(b)b.hidden=true; }
+}
+function photoMove(){ clearTimeout(photoTimer); photoTimer=setTimeout(()=>loadPhotos(false),450); }
+function stripTags(h){ const d=document.createElement('div'); d.innerHTML=String(h||''); return (d.textContent||'').replace(/\s+/g,' ').trim(); }
+function phDate(s){ // "2019-06-12 14:03:22" / "2019:06:12" / free text → "12 Jun 2019"
+  const t=stripTags(s); const m=/(\d{4})[-:](\d{2})[-:](\d{2})/.exec(t); if(!m)return t.slice(0,40);
+  const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return (+m[3])+' '+M[(+m[2])-1]+' '+m[1]; }
+async function loadPhotos(first){
+  if(!photosOn||!map)return;
+  const b=$('#bPhotos');
+  if(map.getZoom()<13){ photoLayer.clearLayers(); photoSeen.clear(); if(b)b.hidden=true; if(first)toast('Zoom in to see photos'); return; }
+  if(!navigator.onLine){ toast('Photos need signal'); return; }
+  const c=map.getCenter(), ne=map.getBounds().getNorthEast();
+  const r=Math.min(10000,Math.max(100,Math.round(map.distance(c,ne))));
+  const q=PH_API+'?action=query&format=json&origin=*&generator=geosearch&ggscoord='+c.lat.toFixed(5)+'%7C'+c.lng.toFixed(5)+'&ggsradius='+r+'&ggslimit=50&ggsnamespace=6&colimit=max'
+    +'&prop=imageinfo%7Ccoordinates&iiprop=url%7Cextmetadata&iiurlwidth=160&iiextmetadatafilter=DateTimeOriginal%7CArtist%7CLicenseShortName%7CImageDescription%7CObjectName';
+  const my=++photoReq;
+  try{
+    const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),12000);
+    const j=await fetch(q,{signal:ctl.signal}).then(x=>x.json()); clearTimeout(to);
+    if(my!==photoReq||!photosOn)return;
+    const pages=Object.values((j.query&&j.query.pages)||{});
+    let added=0;
+    pages.forEach(pg=>{
+      if(photoSeen.has(pg.pageid))return;
+      const ii=pg.imageinfo&&pg.imageinfo[0], co=pg.coordinates&&pg.coordinates[0];
+      if(!ii||!co||!ii.thumburl||!/\.(jpe?g|png|webp)$/i.test(pg.title||''))return;
+      const em=ii.extmetadata||{}, g=k=>em[k]&&em[k].value||'';
+      const ph={id:pg.pageid,lat:co.lat,lon:co.lon,thumb:ii.thumburl,big:ii.thumburl.replace(/\/\d+px-/,'/1280px-'),page:ii.descriptionurl,
+        title:stripTags(g('ObjectName'))||String(pg.title).replace(/^File:/,'').replace(/\.[a-z]+$/i,'').replace(/_/g,' '),
+        desc:stripTags(g('ImageDescription')).slice(0,300),date:g('DateTimeOriginal')?phDate(g('DateTimeOriginal')):'',by:stripTags(g('Artist')).slice(0,80),lic:stripTags(g('LicenseShortName'))};
+      const icon=L.divIcon({className:'os-phm',html:'<img src="'+esc(ph.thumb)+'" alt="" loading="lazy">',iconSize:[38,38],iconAnchor:[19,19]});
+      const mk=L.marker([ph.lat,ph.lon],{icon,keyboard:false}).on('click',()=>showPhoto(ph));
+      photoLayer.addLayer(mk); photoSeen.set(ph.id,mk); added++;
+    });
+    // keep the layer light: drop markers far outside the view
+    if(photoSeen.size>300){ const vb=map.getBounds().pad(0.5); photoSeen.forEach((mk,id)=>{ if(!vb.contains(mk.getLatLng())){ photoLayer.removeLayer(mk); photoSeen.delete(id);} }); }
+    if(b){ b.textContent=photoSeen.size; b.hidden=!photoSeen.size; }
+    if(first&&!pages.length)toast('No geotagged photos here yet');
+  }catch(e){ if(my===photoReq)toast('Couldn’t load photos — check signal'); }
+}
+function showPhoto(ph){
+  let lb=$('#osPhoto'); if(!lb){ lb=document.createElement('div'); lb.id='osPhoto'; $('#osint').appendChild(lb); }
+  lb.className='';
+  lb.innerHTML='<div class="oph-top"><button class="osbtn" id="ophClose">‹ Map</button><b>'+esc(ph.title)+'</b></div>'
+    +'<div class="oph-img"><img src="'+esc(ph.big)+'" alt="'+esc(ph.title)+'"></div>'
+    +'<div class="oph-meta">'+(ph.date?'<span class="oph-date">📅 Taken '+esc(ph.date)+'</span>':'<span class="oph-date">📅 Date not recorded</span>')
+    +(ph.desc&&ph.desc!==ph.title?'<p>'+esc(ph.desc)+'</p>':'')
+    +'<p class="oph-cr">Photo: '+esc(ph.by||'unknown')+(ph.lic?' · '+esc(ph.lic):'')+' · Wikimedia Commons</p>'
+    +'<p class="oph-cr">'+ph.lat.toFixed(5)+', '+ph.lon.toFixed(5)+' — where the photographer recorded it; may be approximate.</p>'
+    +'<div class="osp-btns"><button class="osbtn wide" id="ophSv">📍 Street View here</button><button class="osbtn" id="ophGo">Centre map</button></div></div>';
+  $('#ophClose').onclick=closePhoto;
+  $('#ophSv').onclick=()=>{ closePhoto(); openStreetView(L.latLng(ph.lat,ph.lon)); };
+  $('#ophGo').onclick=()=>{ closePhoto(); map.setView([ph.lat,ph.lon],Math.max(map.getZoom(),17)); };
+}
+function closePhoto(){ const lb=$('#osPhoto'); if(lb){ lb.className='hidden'; lb.innerHTML=''; } }
+window.osPhotoOpen=()=>{ const lb=document.getElementById('osPhoto'); return !!lb&&lb.className!=='hidden'&&!!lb.innerHTML; };
+window.osPhotoClose=closePhoto;
 function togglePin(){
   svPick=!svPick; const b=$('#osCam'); if(b)b.classList.toggle('on',svPick);
   if(map&&map.getContainer())map.getContainer().classList.toggle('svpick',svPick);
