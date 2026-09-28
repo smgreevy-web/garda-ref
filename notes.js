@@ -1,4 +1,4 @@
-/* Garda Reference — Notes (Samsung Notes style): rich-text notes, checklists, photos, sketches, folders,
+/* Assisting — Notes (Samsung Notes style): rich-text notes, checklists, photos, sketches, folders,
    per-note encryption (AES-GCM, PBKDF2) and JSON backup. Self-contained IIFE: no dependencies, no network.
    Content lives only in IndexedDB "gr_notes" on this phone. Styles in notes.css (#nts / .nts scoped). */
 (function(){
@@ -489,7 +489,7 @@ function emptyHtml(){
   if(f==='trash')return e('Nothing in Recently deleted','Deleted notes stay here for '+TRASH_DAYS+' days so you can restore them, then they are removed for good.');
   if(f==='fav')return e('No favourites yet','Pin a note to keep it at the top and here: open it and tap ★, or long-press a card and choose Pin.');
   if(f!=='all')return e('This folder is empty','Tap ＋ to write a note in this folder, or long-press notes elsewhere and choose Move. Tap the folder name again to rename or delete it.');
-  return e('No notes yet','Tap the gold ＋ to write your first note. Add checklists, photos and sketches from the toolbar. Long-press a note to pin, move, colour or delete it.');
+  return e('No notes yet','Tap ＋ to write your first note. Add checklists, photos and sketches from the toolbar. Long-press a note to pin, move, colour or delete it.');
 }
 /* thumbnails: loaded lazily from the small copy stored with each image */
 const THUMBS=new Map(), THUMBK=new Map(); let thumbIO=null;
@@ -1605,7 +1605,7 @@ async function exportAll(){
     await flush(); await saveQ; toast('Preparing backup…');
     const [notes,blobs]=await Promise.all([dbAll('notes'),dbAll('blobs')]), ids=new Set(notes.map(n=>n.id));
     const L=LOCK?{salt:LOCK.salt,iter:LOCK.iter,check:LOCK.check,kid:LOCK.kid,showTitles:!!LOCK.showTitles}:null;
-    const parts=['{"format":"gr-notes-backup","v":1,"app":"Garda Reference — Notes","exported":'+Date.now()+',"folders":'+JSON.stringify(FOLDERS)+',"lock":'+JSON.stringify(L)+',"notes":['];
+    const parts=['{"format":"gr-notes-backup","v":1,"app":"Assisting — Notes","exported":'+Date.now()+',"folders":'+JSON.stringify(FOLDERS)+',"lock":'+JSON.stringify(L)+',"notes":['];
     notes.forEach((n,i)=>parts.push((i?',':'')+JSON.stringify(n)));
     parts.push('],"blobs":['); let k=0;
     for(const b of blobs){ if(!ids.has(b.note))continue;

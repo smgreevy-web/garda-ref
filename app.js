@@ -1,4 +1,4 @@
-/* Garda Reference PWA — offline, no case data, no analytics */
+/* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const view=$('#view'), reader=$('#reader'), rdBody=$('#rdBody');
@@ -293,6 +293,44 @@ function openGuide3(id){
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
   curDoc={title:g.t,text:g.b}; rdBody.innerHTML=formatPage(g.b); applyRdScale(); rdBody.scrollTop=0; updateDlBtn();
 }
+/* synonym groups for full-text search — a word that isn't on the page is tried as its synonyms */
+const SYN=[
+ ['garda','gardai','gardaí','member','police'],
+ ['arrest','arrested','arresting','apprehend'],
+ ['detention','detained','custody','cell','prisoner'],
+ ['assault','assaulted','attack','attacked','harm'],
+ ['theft','steal','stole','stolen','shoplifting','shoplifter','larceny'],
+ ['burglary','burglar','break-in','housebreaking'],
+ ['robbery','robbed','mugging','mugged'],
+ ['drug','drugs','controlled drug','cannabis','cocaine','heroin','misuse of drugs'],
+ ['knife','blade','bladed','weapon','point'],
+ ['firearm','firearms','gun','shotgun','pistol','ammunition'],
+ ['car','vehicle','mechanically propelled','motor'],
+ ['drink','drunk','intoxicated','intoxicant','alcohol','breath','evidenzer'],
+ ['statement','memo','memorandum','deposition'],
+ ['interview','questioning','interrogation'],
+ ['search','searched','searching','warrant'],
+ ['bail','remand','recognisance','surety'],
+ ['court','district court','circuit court','judge'],
+ ['child','children','juvenile','minor','young person'],
+ ['domestic','domestic violence','domestic abuse','barring','safety order','protection order'],
+ ['cctv','footage','camera','video'],
+ ['exhibit','exhibits','evidence','continuity'],
+ ['disclosure','unused material'],
+ ['harassment','stalking','coercive control'],
+ ['rape','sexual assault','sexual','defilement'],
+ ['fraud','deception','counterfeit','forgery','forged'],
+ ['criminal damage','damage','vandalism','graffiti'],
+ ['immigration','visa','passport','deportation'],
+ ['mental health','mental illness','s.12'],
+ ['missing','missing person'],
+ ['collision','crash','accident','rtc','road traffic'],
+ ['scooter','e-scooter','powered personal transporter'],
+ ['identification','identify','advokate','id parade'],
+ ['inference','inferences','silence'],
+ ['overdose','od','opioid'],
+ ['caution','cautioned','cautioning']
+];
 function doSearch(q,filter,keep){
   lastQuery=q;
   const box=$('#results'); if(!box)return;
@@ -317,7 +355,7 @@ function doSearch(q,filter,keep){
     if(c.e<range[0]||c.s>range[1])continue;
     const ch=CHUNKS[c.f]; if(!ch)continue;
     for(let i=0;i<ch.pages.length;i++){
-      const abs=ch.s+i; if(abs<range[0]||abs>range[1])continue;
+      const abs=c.s+i; if(abs<range[0]||abs>range[1])continue;
       const low=ch.pages[i].toLowerCase();
       let score=0, first=-1, ok=true;
       for(const t of terms){
@@ -330,7 +368,11 @@ function doSearch(q,filter,keep){
         if(first<0||idx<first)first=idx;
         let n=0,p=idx; while(p>=0&&n<20){n++;p=low.indexOf(t,p+1);} score+=(syn?n*0.5:n);
       }
-      if(ok)hits.push({abs,score,first,txt:ch.pages[i]});
+      if(ok){ // boost exact phrase and title matches so the chapter itself beats tables that mention it
+        const tl=(titleFor(abs)||'').toLowerCase(), ph=terms.join(' ');
+        if(terms.length>1&&low.includes(ph))score+=8;
+        for(const t of terms)if(tl.includes(t))score+=4;
+        hits.push({abs,score,first,txt:ch.pages[i]}); }
     }
   }
   hits.sort((a,b)=>b.score-a.score);
@@ -1164,7 +1206,7 @@ function openPage(abs){ if(!window._pz){window._pz=1;setTimeout(pinchZoom,0);}
   curPage=Math.min(Math.max(1,abs),META.pages);
   const txt=pageText(curPage);
   reader.classList.remove('hidden'); reader.setAttribute('aria-hidden','false');
-  $('#rdTitle').textContent=titleFor(curPage);
+  { const tp=titleFor(curPage).split(' › '), last=tp.pop(); $('#rdTitle').innerHTML=(tp.length?'<small class="rd-path">'+esc(tp.join(' › '))+'</small>':'')+esc(last); }
   $('#rdPage').textContent=pageLabel(curPage)+'  ·  p.'+curPage+' of '+META.pages;
   $('#rdStar').textContent=favs.some(f=>f.a===curPage)?'★':'☆';
   const flag=$('#rdFlag');
@@ -1227,16 +1269,16 @@ function downloadDoc(title,text){
   const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'+
    '<head><meta charset="utf-8"><title>'+_wordEsc(title)+'</title><style>'+
    'body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#111;line-height:1.42}'+
-   'h1{font-size:19pt;color:#0a1930;margin:0 0 4pt}h2{font-size:13pt;color:#8a6d1d;border-bottom:1px solid #d8cba4;padding-bottom:2pt;margin:16pt 0 6pt}'+
+   'h1{font-size:19pt;color:#05090f;margin:0 0 4pt}h2{font-size:13pt;color:#8a6d1d;border-bottom:1px solid #d8cba4;padding-bottom:2pt;margin:16pt 0 6pt}'+
    'h3{font-size:11.5pt;color:#334;margin:11pt 0 4pt}ul{margin:6pt 0 6pt 0}li{margin:2pt 0}p{margin:6pt 0}'+
    '.sub{color:#666;font-size:9.5pt;margin:0 0 12pt}.disc{color:#888;font-size:9pt;margin-top:18pt;border-top:1px solid #ccc;padding-top:6pt}'+
    '</style></head><body><h1>'+_wordEsc(title)+'</h1>'+
-   '<p class="sub">Garda Reference — Mountjoy Garda Station, DMR North Central</p>'+body+
+   '<p class="sub">Assisting — Mountjoy Garda Station, DMR North Central</p>'+body+
    '<p class="disc">Working reference — not legal advice — verify current wording before relying. Generated '+new Date().toLocaleDateString('en-IE')+'.</p></body></html>';
   try{
     const blob=new Blob(['\ufeff'+html],{type:'application/msword'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-    a.download=(String(title).replace(/[^\w\s-]/g,'').trim().slice(0,60)||'garda-reference')+'.doc';
+    a.download=(String(title).replace(/[^\w\s-]/g,'').trim().slice(0,60)||'assisting')+'.doc';
     document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1200);
     if(typeof toast==='function')toast('Downloading Word document…');

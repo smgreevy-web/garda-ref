@@ -1,4 +1,4 @@
-/* Garda Reference — OSINT field-intelligence map.
+/* Assisting — OSINT field-intelligence map.
    Real, public-source tools only. No fake feeds, no private-system access.
    Everything here needs signal; the rest of the app stays offline. */
 'use strict';
@@ -418,7 +418,7 @@ function locate(){
   if(!navigator.geolocation){toast('No location on this device');return;}
   toast('Locating…');
   navigator.geolocation.getCurrentPosition(
-    p=>{const ll=[p.coords.latitude,p.coords.longitude];map.setView(ll,17);L.circleMarker(ll,{radius:8,color:'#d4af37'}).addTo(map);},
+    p=>{const ll=[p.coords.latitude,p.coords.longitude];map.setView(ll,17);L.circleMarker(ll,{radius:8,color:'#5cc8ff'}).addTo(map);},
     ()=>toast('Location unavailable'),{enableHighAccuracy:true,timeout:8000});
 }
 
@@ -714,9 +714,9 @@ function toggleGarda(){
     const m=L.marker([st.lat,st.lon],{icon:gardaIcon(hq)}).addTo(gardaLayer);
     const nm=String(st.n).replace(/^(.*?),\s*(.*)$/,'$1 ($2)');
     m.bindPopup('<div class="ospop"><b>🛡️ '+esc(nm)+' Garda Station</b>'+
-      '<div style="color:#20180a;font-size:11px;margin:2px 0 6px">'+esc(st.dv||'')+(st.ds?' · '+esc(st.ds)+' district':'')+(st.ty&&st.ty!=='Station'?' · <b>'+esc(st.ty)+'</b>':'')+'</div>'+
-      '<div style="color:#20180a;font-size:12px;margin-bottom:4px">'+esc(st.a||'')+'</div>'+
-      '<div style="color:#20180a;font-size:12px;margin-bottom:7px">🕘 '+(st.ft?'<b>Open 24 hours</b>':esc(st.hrs||'Contact station for hours'))+(st.id?' · <span style="opacity:.7">ID '+esc(st.id)+'</span>':'')+'</div>'+
+      '<div style="color:#071522;font-size:11px;margin:2px 0 6px">'+esc(st.dv||'')+(st.ds?' · '+esc(st.ds)+' district':'')+(st.ty&&st.ty!=='Station'?' · <b>'+esc(st.ty)+'</b>':'')+'</div>'+
+      '<div style="color:#071522;font-size:12px;margin-bottom:4px">'+esc(st.a||'')+'</div>'+
+      '<div style="color:#071522;font-size:12px;margin-bottom:7px">🕘 '+(st.ft?'<b>Open 24 hours</b>':esc(st.hrs||'Contact station for hours'))+(st.id?' · <span style="opacity:.7">ID '+esc(st.id)+'</span>':'')+'</div>'+
       (st.tel?'<a href="tel:'+esc(st.tel)+'">📞 '+esc(st.ph)+'</a>':'')+
       '<button class="osact" data-act="dir" data-la="'+st.lat+'" data-lo="'+st.lon+'">🧭 Directions</button></div>');
   });

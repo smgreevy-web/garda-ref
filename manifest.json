@@ -1,12 +1,12 @@
 {
- "name": "Garda Investigation Reference",
- "short_name": "Garda Ref",
- "description": "Searchable offline reference — Vols 1–12, 2007 Manual, statement suite. No case data.",
+ "name": "Assisting",
+ "short_name": "Assisting",
+ "description": "Offline operational reference for frontline Gardaí — independent tool, not an official Garda system.",
  "start_url": "./index.html",
  "scope": "./",
  "display": "standalone",
- "background_color": "#0a1930",
- "theme_color": "#0a1930",
+ "background_color": "#04070b",
+ "theme_color": "#04070b",
  "icons": [
   {
    "src": "icons/icon-192.png",

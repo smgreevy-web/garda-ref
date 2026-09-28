@@ -1,4 +1,4 @@
-/* Garda Reference — Detention clock: custody time limits, excluded periods, extensions and alerts.
+/* Assisting — Detention clock: custody time limits, excluded periods, extensions and alerts.
    Self-contained. Everything is saved only on this phone (localStorage). Nothing is uploaded.
    Periods checked against the revised Acts (Law Reform Commission): CJA 1984 s.4, OASA 1939 s.30,
    CJ(DT)A 1996 s.2, CJA 2007 s.50. */
@@ -589,7 +589,7 @@ function sheetAlerts(){
 }
 function sheetBlocked(){
   sheet('<h3>Notifications are blocked</h3><p class="det-note">Android is blocking notifications for this app, so the clock can only warn you while it is on screen.</p>'
-   +'<ol class="det-steps"><li>Open your phone’s <b>Settings → Apps</b>.</li><li>Choose <b>Garda Reference</b> (or <b>Chrome</b> if it isn’t listed).</li><li>Tap <b>Notifications</b> and allow them.</li><li>Come back and tap <b>Turn on alerts</b> again.</li></ol>'
+   +'<ol class="det-steps"><li>Open your phone’s <b>Settings → Apps</b>.</li><li>Choose <b>Assisting</b> (older installs: <b>Garda Reference</b>; or <b>Chrome</b> if neither is listed).</li><li>Tap <b>Notifications</b> and allow them.</li><li>Come back and tap <b>Turn on alerts</b> again.</li></ol>'
    +'<button type="button" class="det-sec-btn ds-x wide">OK</button>');
 }
 function copySummary(c){
@@ -602,7 +602,7 @@ function copySummary(c){
   L.push('Excluded periods: '+(ex.length?ex.map(e=>EXC[e.type].t+' '+((EXCITE[c.reg]||{})[e.type]||'')+' '+full(e.from)+' to '+(e.to==null?'ongoing':full(e.to))+' ('+durStr((e.to==null?now:e.to)-e.from)+')'+(e.note?' — '+e.note:'')).join('; '):'none'));
   if(c.ended)L.push(HOW[c.ended.how]+': '+full(c.ended.at)+' · time on the clock '+durStr(s.eff)+' · actual '+durStr(s.actual));
   else L.push('Current: '+R.stages[s.cur].name+' expires '+full(s.deadline)+(s.final?'':' · maximum '+full(s.max)));
-  L.push('Prepared '+full(now)+' with Garda Reference (aid only — the custody record governs).');
+  L.push('Prepared '+full(now)+' with Assisting (aid only — the custody record governs).');
   const txt=L.join('\n');
   (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Summary copied')).catch(()=>{
     sheet('<h3>Summary</h3><textarea class="det-in det-ta" readonly>'+esc(txt)+'</textarea><button type="button" class="det-sec-btn ds-x wide">Close</button>',r=>{const t=r.querySelector('textarea');t.focus();t.select();});});

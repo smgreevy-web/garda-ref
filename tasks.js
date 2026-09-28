@@ -1,4 +1,4 @@
-/* Garda Reference — Tasks: a to-do scheduler for the job.
+/* Assisting — Tasks: a to-do scheduler for the job.
    Types with their own icons (CCTV camera, statement paper, moon for nights…), time windows (business hours,
    early morning, lunchtime, nights…), deadlines with reminders, an urgent flag, and helpers for CCTV overwrite
    dates and the 6-month summary time limit. Saved only on this phone (localStorage). Nothing is uploaded. */

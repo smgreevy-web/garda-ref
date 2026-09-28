@@ -1,4 +1,4 @@
-/* Garda Reference — My roster: rotating shift pattern with an in-app setup, month calendar,
+/* Assisting — My roster: rotating shift pattern with an in-app setup, month calendar,
    leave/court/overtime overrides, today/next-shift status and optional shift reminders.
    Saved only on this phone (localStorage 'gr_roster'). Nothing is uploaded. */
 (function(){
@@ -29,7 +29,7 @@ const TYPES={
 const OVR={
  AL:{t:'Annual leave',ico:'🌴',off:1,c:'#34c768'}, RDW:{t:'Rest day working',ico:'💼',c:'#ff6b6b'}, OT:{t:'Overtime',ico:'⏱️',c:'#ff6b6b'},
  CT:{t:'Court',ico:'⚖️',c:'#ffcf6e'}, TR:{t:'Training',ico:'🎓',c:'#5fd0ff'}, SK:{t:'Sick',ico:'🤒',off:1,c:'#8fa3bf'},
- SW:{t:'Swapped shift',ico:'🔁',c:'#c9a7ff'}, TOIL:{t:'Time off in lieu',ico:'🕑',off:1,c:'#34c768'}, OTHER:{t:'Other',ico:'📌',c:'#9fb0c8'}
+ SW:{t:'Swapped shift',ico:'🔁',c:'#c9a7ff'}, TOIL:{t:'Time off in lieu',ico:'🕑',off:1,c:'#34c768'}, OTHER:{t:'Other',ico:'📌',c:'#8aa2ba'}
 };
 const PRESETS=[
  {k:'core12',t:'Core unit — 4 on / 4 off',sub:'12-hour tours · Early, Early, Night, Night, then 4 rest days',cycle:'EENNRRRR',times:{E:['07:00','19:00'],N:['19:00','07:00']}},

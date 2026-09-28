@@ -1,4 +1,4 @@
-/* Garda Reference — Present to TV.
+/* Assisting — Present to TV.
    Show photos, CCTV clips and photographed documents full-screen on a TV through Samsung Smart View (screen mirroring),
    DeX (cable or wireless) or Cast. Photos: swipe, pinch-zoom and pan, double-tap zoom, red pointer dot, rotate.
    Videos: frame step, slow motion, fine scrub (0.01 s), ±5 s, zoom, Cast. Blank screen. Controls hide after 3 s.

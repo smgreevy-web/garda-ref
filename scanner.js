@@ -1,4 +1,4 @@
-/* Garda Reference — Document scanner ("Genius Scan" style): live page-edge detection with auto-capture,
+/* Assisting — Document scanner ("Genius Scan" style): live page-edge detection with auto-capture,
    corner adjustment with a magnifier, perspective correction, scan filters (Colour+, Greyscale, Black & white)
    and a multi-page PDF (or JPEGs) saved to this phone's Downloads. Self-contained IIFE: no libraries, no network,
    no external assets. Pages live only in memory (Blobs) while the scanner is open — nothing is stored in the app.
@@ -641,7 +641,7 @@ async function buildPdf(list,opt){ /* list: [{bytes:Uint8Array}] or [{blob}] ; o
   put('%PDF-1.4\n%âãÏÓ\n');
   obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
   obj(2,'<< /Type /Pages /Kids ['+list.map((_,k)=>(4+3*k)+' 0 R').join(' ')+'] /Count '+n+' >>');
-  obj(3,'<< /Title '+pdfStr(opt.title)+' /Producer (Garda Reference) /Creator (Garda Reference Scanner) /CreationDate ('+pdfDate(now)+') /ModDate ('+pdfDate(now)+') >>');
+  obj(3,'<< /Title '+pdfStr(opt.title)+' /Producer (Assisting) /Creator (Assisting Scanner) /CreationDate ('+pdfDate(now)+') /ModDate ('+pdfDate(now)+') >>');
   for(let k=0;k<n;k++){
     const it=list[k],bytes=it.bytes||new Uint8Array(await it.blob.arrayBuffer()),info=jpegInfo(bytes);
     if(!info||!info.w||!info.h)throw new Error('Page '+(k+1)+' image is damaged');
@@ -865,9 +865,9 @@ function goCam(){
     if(C.disp&&C.alpha>0.01){
       const P=C.disp.map(p=>[R.x+p[0]*R.w,R.y+p[1]*R.h]),green=prog>0||paused;
       c.save();c.globalAlpha=C.alpha;c.beginPath();c.moveTo(P[0][0],P[0][1]);for(let i=1;i<4;i++)c.lineTo(P[i][0],P[i][1]);c.closePath();
-      c.fillStyle=green?'rgba(52,199,104,.22)':'rgba(212,175,55,.2)';c.fill();
-      c.lineJoin='round';c.lineWidth=5;c.strokeStyle='rgba(0,0,0,.45)';c.stroke();c.lineWidth=3;c.strokeStyle=green?'#34c768':'#d4af37';c.stroke();
-      c.fillStyle=green?'#34c768':'#d4af37';P.forEach(p=>{c.beginPath();c.arc(p[0],p[1],6,0,7);c.fill();});
+      c.fillStyle=green?'rgba(52,199,104,.22)':'rgba(92,200,255,.2)';c.fill();
+      c.lineJoin='round';c.lineWidth=5;c.strokeStyle='rgba(0,0,0,.45)';c.stroke();c.lineWidth=3;c.strokeStyle=green?'#34c768':'#5cc8ff';c.stroke();
+      c.fillStyle=green?'#34c768':'#5cc8ff';P.forEach(p=>{c.beginPath();c.arc(p[0],p[1],6,0,7);c.fill();});
       if(prog>0){const cx=(P[0][0]+P[1][0]+P[2][0]+P[3][0])/4,cy=(P[0][1]+P[1][1]+P[2][1]+P[3][1])/4;
         c.globalAlpha=1;c.lineWidth=7;c.strokeStyle='rgba(5,10,20,.6)';c.beginPath();c.arc(cx,cy,30,0,7);c.stroke();
         c.strokeStyle='#34c768';c.lineCap='round';c.beginPath();c.arc(cx,cy,30,-Math.PI/2,-Math.PI/2+prog*Math.PI*2);c.stroke();}
@@ -1072,7 +1072,7 @@ function cropDraw(C){
   const d=draft;if(!d||!C.disp)return;const c=C.cv.getContext('2d'),cw=C.cw,ch=C.ch;
   c.setTransform(C.dpr,0,0,C.dpr,0,0);c.clearRect(0,0,cw,ch);
   c.save();c.translate(C.ox,C.oy);c.scale(C.k,C.k);rotXf(c,d.rot&3,d.w,d.h);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(C.disp,0,0,d.w,d.h);c.restore();
-  const S=d.quad.map(p=>toScr(C,p)),good=quadGood(d.quad,d.w,d.h),col=good?'#d4af37':'#ff5a4d';
+  const S=d.quad.map(p=>toScr(C,p)),good=quadGood(d.quad,d.w,d.h),col=good?'#5cc8ff':'#ff5a4d';
   c.save();c.beginPath();c.rect(C.ox,C.oy,C.rw*C.k,C.rh*C.k);c.moveTo(S[0][0],S[0][1]);for(let i=1;i<4;i++)c.lineTo(S[i][0],S[i][1]);c.closePath();
   c.fillStyle='rgba(3,8,18,.58)';c.fill('evenodd');c.restore();
   c.beginPath();c.moveTo(S[0][0],S[0][1]);for(let i=1;i<4;i++)c.lineTo(S[i][0],S[i][1]);c.closePath();c.lineJoin='round';
@@ -1080,10 +1080,10 @@ function cropDraw(C){
   const g=C.drag;
   for(let i=0;i<4;i++){const a=S[i],b=S[(i+1)%4],m=[(a[0]+b[0])/2,(a[1]+b[1])/2],ang=Math.atan2(b[1]-a[1],b[0]-a[0]),on=g&&g.kind==='e'&&g.i===i;
     c.save();c.translate(m[0],m[1]);c.rotate(ang);c.beginPath();if(c.roundRect)c.roundRect(-14,-5,28,10,5);else c.rect(-14,-5,28,10);
-    c.fillStyle=on?col:'rgba(10,25,48,.85)';c.fill();c.lineWidth=2.5;c.strokeStyle=col;c.stroke();c.restore();}
+    c.fillStyle=on?col:'rgba(5,9,15,.85)';c.fill();c.lineWidth=2.5;c.strokeStyle=col;c.stroke();c.restore();}
   for(let i=0;i<4;i++){const p=S[i],on=g&&g.kind==='c'&&g.i===i;
-    c.beginPath();c.arc(p[0],p[1],on?15:13,0,7);c.fillStyle=on?col:'rgba(10,25,48,.55)';c.fill();c.lineWidth=3;c.strokeStyle=col;c.stroke();
-    c.beginPath();c.arc(p[0],p[1],3,0,7);c.fillStyle=on?'#0a1930':'#fff';c.fill();}
+    c.beginPath();c.arc(p[0],p[1],on?15:13,0,7);c.fillStyle=on?col:'rgba(5,9,15,.55)';c.fill();c.lineWidth=3;c.strokeStyle=col;c.stroke();
+    c.beginPath();c.arc(p[0],p[1],3,0,7);c.fillStyle=on?'#05090f':'#fff';c.fill();}
 }
 function drawLoupe(C){
   const g=C.drag,d=draft;if(!g||!d||!C.full)return;
@@ -1096,10 +1096,10 @@ function drawLoupe(C){
   c.save();c.beginPath();c.arc(S/2,S/2,S/2-1,0,7);c.clip();c.fillStyle='#050b16';c.fillRect(0,0,S,S);
   c.translate(S/2,S/2);c.scale(Z,Z);c.rotate((d.rot&3)*Math.PI/2);c.translate(-P[0],-P[1]);c.imageSmoothingEnabled=true;c.drawImage(C.full,0,0);
   c.beginPath();c.moveTo(d.quad[0][0],d.quad[0][1]);for(let i=1;i<4;i++)c.lineTo(d.quad[i][0],d.quad[i][1]);c.closePath();
-  c.lineWidth=2/Z;c.strokeStyle='#d4af37';c.stroke();c.restore();
+  c.lineWidth=2/Z;c.strokeStyle='#5cc8ff';c.stroke();c.restore();
   c.lineWidth=3;c.strokeStyle='rgba(0,0,0,.55)';c.beginPath();c.moveTo(S/2-11,S/2);c.lineTo(S/2+11,S/2);c.moveTo(S/2,S/2-11);c.lineTo(S/2,S/2+11);c.stroke();
   c.lineWidth=1.4;c.strokeStyle='#fff';c.stroke();
-  c.lineWidth=3;c.strokeStyle='#d4af37';c.beginPath();c.arc(S/2,S/2,S/2-1.6,0,7);c.stroke();
+  c.lineWidth=3;c.strokeStyle='#5cc8ff';c.beginPath();c.arc(S/2,S/2,S/2-1.6,0,7);c.stroke();
 }
 function animQuad(C,to){
   const from=draft.quad.map(p=>p.slice()),t0=performance.now(),s=C.s,dd=draft;

@@ -1,4 +1,4 @@
-/* Garda Reference — Medical emergency: 999/112, type-or-voice triage, big step-by-step first aid, CPR metronome and incident log.
+/* Assisting — Medical emergency: 999/112, type-or-voice triage, big step-by-step first aid, CPR metronome and incident log.
    Self-contained IIFE: no libraries, all content bundled (works offline; only the optional voice recognition needs signal).
    Styles in firstaid.css (every selector #fa / .fa scoped). Content checked September 2026 against current Irish sources first
    (HSE, Irish Heart Foundation, PHECC, Epilepsy Ireland, National Poisons Information Centre, drugs.ie, ESB Networks, Irish Coast Guard)
@@ -842,7 +842,7 @@ function logText(){
   const L=['INCIDENT LOG — MEDICAL EMERGENCY'];let ld='';
   LOG.forEach(e=>{const d=dayStr(e.t);if(d!==ld){L.push(d);ld=d;}L.push(hms(e.t)+'  '+e.e);});
   if(!LOG.length)L.push('(no entries)');
-  L.push('Copied '+hms(Date.now())+' '+dayStr(Date.now())+' · Garda Reference — times from this phone’s clock');
+  L.push('Copied '+hms(Date.now())+' '+dayStr(Date.now())+' · Assisting — times from this phone’s clock');
   return L.join('\n');
 }
 function copyText(t,okMsg){

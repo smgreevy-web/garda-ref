@@ -1,4 +1,4 @@
-/* Garda Reference — Social media: read-only view of official accounts (X, Facebook, TikTok) inside the app,
+/* Assisting — Social media: read-only view of official accounts (X, Facebook, TikTok) inside the app,
    with a clear warning. Needs signal; the platforms' own embed code shows the posts. Nothing is stored. */
 (function(){
 'use strict';

@@ -1,4 +1,4 @@
-/* Garda Reference — media: live news TV, Irish radio, local crime/court news strip.
+/* Assisting — media: live news TV, Irish radio, local crime/court news strip.
    Everything plays inside the app. Sources verified live from the app's own site (Sept 2026):
    - Sky News 24/7 YouTube live stream; RTÉ News latest uploads (YouTube playlist)
    - Irish radio: secure streams tested to connect; full list from radio-browser.info (open directory)
@@ -89,7 +89,7 @@ function play(st){
   a.src=st.u; const p=a.play(); if(p&&p.catch)p.catch(()=>{});
   if('mediaSession' in navigator){
     try{
-      navigator.mediaSession.metadata=new MediaMetadata({title:st.n,artist:'Live radio · '+(st.d||'Ireland'),album:'Garda Reference',
+      navigator.mediaSession.metadata=new MediaMetadata({title:st.n,artist:'Live radio · '+(st.d||'Ireland'),album:'Assisting',
         artwork:[{src:'icons/icon-192.png',sizes:'192x192',type:'image/png'},{src:'icons/icon-512.png',sizes:'512x512',type:'image/png'}]});
       navigator.mediaSession.setActionHandler('play',()=>a.play());
       navigator.mediaSession.setActionHandler('pause',()=>a.pause());
