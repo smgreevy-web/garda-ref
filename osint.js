@@ -27,6 +27,7 @@ const RIC={
   me:_sv('<circle cx="12" cy="12" r="7"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>'),
   traffic:_sv('<path d="M12 3v18" stroke-dasharray="0 0"/><rect x="4.5" y="4.5" width="9" height="3.6" rx="1"/><rect x="10.5" y="10.2" width="9" height="3.6" rx="1"/><rect x="4.5" y="15.9" width="9" height="3.6" rx="1"/>'),
   photo:_sv('<rect x="3" y="5" width="18" height="14" rx="2.2"/><circle cx="8.5" cy="10" r="1.8"/><path d="m21 16-5.2-5.2L7 19"/>'),
+  walk:_sv('<circle cx="13" cy="4.5" r="1.8"/><path d="M9.5 21 11 15l2.5 2.5V21"/><path d="m7 12 2.2-4.2c.4-.7 1.1-1.1 1.9-1l2.6.4 2.3 3.3 2.5.8"/><path d="m11 15 1.3-5.5"/>'),
   cctv:_sv('<rect x="2.5" y="7" width="11" height="5.5" rx="1.2"/><path d="M13.5 8.6 20.5 6.5v7.5l-7-2.1Z"/><path d="M7.5 12.5v4.5"/><path d="M4.5 17h6"/>')
 };
 // ---- build overlay once ----
@@ -54,6 +55,7 @@ function build(){
        <button class="os-r" id="osList">${RIC.log}<em>LOG</em><i class="rbadge" id="bLog">${cctv.length}</i></button>
        <button class="os-r" id="osCam" title="Street View: tap PIN, then tap the map">${RIC.pin}<em>PIN</em></button>
        <button class="os-r" id="osLoc">${RIC.me}<em>ME</em></button>
+       <button class="os-r" id="osPatrol" title="Proactive patrol — record where you walk">${RIC.walk}<em>PATROL</em><i class="rbadge rec" id="bPatrol" hidden>REC</i></button>
      </div>
      <div class="os-mode">
        <button id="osModeStreet" class="on">🗺 MAP</button>
@@ -84,6 +86,8 @@ function build(){
   $('#osDcc').addEventListener('click',toggleDcc);
   $('#osTraffic').addEventListener('click',toggleTraffic);
   $('#osPhotos').addEventListener('click',togglePhotos);
+  $('#osPatrol').addEventListener('click',()=>{ if(window.openPatrol)openPatrol(); });
+  setInterval(()=>{ const b=document.getElementById('bPatrol'); if(b)b.hidden=!(window.GRPatrol&&GRPatrol.recording()); },2000);
   startClock();
   built=true;
 }

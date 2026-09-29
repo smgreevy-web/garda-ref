@@ -37,6 +37,8 @@ const IC={
  exhibit:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
  email:'<path d="M3 6h18v12H3z"/><path d="m3 7 9 7 9-7"/>',
  limit:'<path d="M6 3h12M6 21h12M7 3c0 5 5 6 5 9 0-3 5-4 5-9M7 21c0-5 5-6 5-9 0 3 5 4 5 9"/>',
+ arrest:'<circle cx="6.5" cy="15.5" r="4"/><circle cx="17.5" cy="15.5" r="4"/><path d="M9.6 12.9 11 11h2l1.4 1.9"/><path d="M6.5 11.5V9M17.5 11.5V9M5 9h3M16 9h3"/>',
+ scan:'<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9h8M8 12h8M8 15h5"/>',
  other:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="m3.5 6 1.5 1.5L8 4.5M3.5 12l1.5 1.5L8 10.5M3.5 18l1.5 1.5L8 16.5"/>',
  flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
  any:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -52,6 +54,7 @@ const IC={
 const TYPES=[
  {k:'cctv',t:'CCTV',tip:'View, collect or preserve footage'},
  {k:'statement',t:'Statement',tip:'Take or finish a statement'},
+ {k:'arrest',t:'Arrest',tip:'Arrest to make — named suspect, warrant, person wanted'},
  {k:'night',t:'Night shift',tip:'Something to do on nights',win:'night'},
  {k:'call',t:'Phone call',tip:'Ring back / follow up'},
  {k:'visit',t:'Call to house',tip:'House call / enquiries at an address'},
@@ -112,7 +115,18 @@ function winState(t,now){ const w=winOf(t); if(!w)return {any:true,open:true};
 function addMonths(ms,n){ const d=new Date(ms), dd=d.getDate(); const r=new Date(d); r.setDate(1); r.setMonth(r.getMonth()+n);
   const last=new Date(r.getFullYear(),r.getMonth()+1,0).getDate(); r.setDate(Math.min(dd,last)); return r.getTime(); }
 // 6 months "from" the offence: the last safe day is the day before the same date 6 months on (counted cautiously)
-function limitEnd(offence,months){ const e=addMonths(sod(offence),months); const d=new Date(e); d.setDate(d.getDate()-1); d.setHours(12,0,0,0); return d.getTime(); }
+// Irish public holidays (+ Good Friday, when court offices close) — so a "last safe day" never lands on a day the office is shut
+function easter(y){ const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1; return new Date(y,mo-1,da); }
+function firstMon(y,m){ const d=new Date(y,m,1); d.setDate(1+((8-d.getDay())%7)); return d; }
+function lastMon(y,m){ const d=new Date(y,m+1,0); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d; }
+const _hol={};
+function holidays(y){ if(_hol[y])return _hol[y]; const L=[], add=d=>L.push(d.toDateString()), fixed=(m,d)=>{ const x=new Date(y,m,d); add(x); if(x.getDay()===6||x.getDay()===0){ const n=new Date(x); n.setDate(n.getDate()+(x.getDay()===6?2:1)); while(L.includes(n.toDateString()))n.setDate(n.getDate()+1); add(n); } };
+  fixed(0,1); const b1=new Date(y,1,1); add(b1.getDay()===5?b1:firstMon(y,1)); fixed(2,17);
+  const e=easter(y), gf=new Date(e), em=new Date(e); gf.setDate(e.getDate()-2); em.setDate(e.getDate()+1); add(gf); add(em);
+  add(firstMon(y,4)); add(firstMon(y,5)); add(firstMon(y,7)); add(lastMon(y,9)); fixed(11,25); fixed(11,26);
+  return (_hol[y]=L); }
+const workDay=d=>d.getDay()!==0&&d.getDay()!==6&&!holidays(d.getFullYear()).includes(d.toDateString());
+function limitEnd(offence,months){ const e=addMonths(sod(offence),months); const d=new Date(e); d.setDate(d.getDate()-1); d.setHours(12,0,0,0); while(!workDay(d))d.setDate(d.getDate()-1); return d.getTime(); }
 function cctvOverwrite(c){ return c&&c.inc&&c.keep?c.inc+c.keep*DAY:null; }
 
 /* ================= reminders ================= */
@@ -163,11 +177,12 @@ let ov=null, main=null, sh=null, view='list', curId=null, tab=null, draft=null;
 function build(){
   if(ov&&ov.isConnected)return;
   ov=D.createElement('div'); ov.id='tsk'; ov.hidden=true; ov.setAttribute('role','dialog'); ov.setAttribute('aria-label','Tasks');
-  ov.innerHTML='<div class="tk-top"><button type="button" class="tk-back">‹ Back</button><div class="tk-tt"><b class="tk-title">Tasks</b><span class="hudclock" data-f="line"></span></div><button type="button" class="tk-copy" aria-label="Copy the list">'+svg(IC.copy)+'</button></div>'
+  ov.innerHTML='<div class="tk-top"><button type="button" class="tk-back">‹ Back</button><div class="tk-tt"><b class="tk-title">Tasks</b><span class="hudclock" data-f="line"></span></div><button type="button" class="tk-scan" aria-label="Photograph a to-do list">'+svg(IC.scan)+'</button><button type="button" class="tk-copy" aria-label="Copy the list">'+svg(IC.copy)+'</button></div>'
     +'<div class="tk-main"></div><button type="button" class="tk-fab" aria-label="New task">'+svg(IC.plus)+'</button><div class="tk-shade" hidden></div><div class="tk-sheet" hidden></div><div class="tk-toast"></div>';
   D.body.appendChild(ov); main=ov.querySelector('.tk-main'); sh=ov.querySelector('.tk-sheet');
   ov.querySelector('.tk-back').onclick=()=>back();
   ov.querySelector('.tk-copy').onclick=()=>copyList();
+  ov.querySelector('.tk-scan').onclick=()=>startScan();
   ov.querySelector('.tk-fab').onclick=()=>editTask(null);
   ov.querySelector('.tk-shade').onclick=()=>closeSheet();
 }
@@ -184,9 +199,10 @@ function back(){
   if(!ov||ov.hidden)return false;
   if(!sh.hidden){closeSheet();return true;}
   if(view==='edit'){ view='list'; draft=null; render(); return true; }
+  if(view==='scan'){ if(scan&&(scan.mode==='type'||scan.mode==='key')){ scan.mode='choose'; scan.err=''; render(); return true; } scan=null; view='list'; render(); return true; }
   closeTasks(); return true;
 }
-function render(){ if(!ov||ov.hidden)return; if(view==='edit')renderEdit(); else renderList(); if(W.grHudTick)W.grHudTick(); }
+function render(){ if(!ov||ov.hidden)return; if(view==='edit')renderEdit(); else if(view==='scan')renderScan(); else renderList(); if(W.grHudTick)W.grHudTick(); }
 
 /* ================= list ================= */
 function classify(t,now){
@@ -211,7 +227,7 @@ function row(t,now){
    +'<span class="tk-txt"><b>'+esc(t.title||ty.t)+'</b>'+(t.notes?'<small>'+esc(t.notes.split('\n')[0].slice(0,90))+'</small>':'')+'<span class="tk-chips">'+chips+'</span></span></button></div>';
 }
 function renderList(){
-  const now=Date.now(); ov.querySelector('.tk-title').textContent='Tasks'; ov.querySelector('.tk-fab').hidden=false; ov.querySelector('.tk-copy').hidden=false;
+  const now=Date.now(); ov.querySelector('.tk-title').textContent='Tasks'; ov.querySelector('.tk-fab').hidden=false; ov.querySelector('.tk-copy').hidden=false; ov.querySelector('.tk-scan').hidden=false;
   const all=open_().sort((a,b)=>cmp(sortKey(a,now),sortKey(b,now)));
   const nowList=all.filter(t=>classify(t,now).ws.open), todayList=all.filter(t=>{const c=classify(t,now);return c.od||c.today;});
   const done=DB.tasks.filter(t=>t.done).sort((a,b)=>b.done-a.done);
@@ -245,9 +261,8 @@ function toggleDone(id){
   const t=byId(id); if(!t)return;
   if(t.done){ t.done=null; save(); render(); toast('Back on the list'); return; }
   t.done=Date.now(); save(); vib(30); render();
-  toast('✓ Done — <button type="button" class="tk-undo">Undo</button>');
-  const u=ov.querySelector('.tk-undo'); if(u)u.onclick=()=>{t.done=null;save();render();ov.querySelector('.tk-toast').classList.remove('on');};
   closeTag('gr-task-'+id);
+  followSheet(t);
 }
 async function closeTag(tag){try{const r=await reg();if(!r||!r.getNotifications)return;(await r.getNotifications({tag})).forEach(n=>n.close());}catch(e){}}
 
@@ -291,7 +306,7 @@ function editTask(id){
   render(); main.scrollTop=0;
 }
 function renderEdit(){
-  const t=draft, now=Date.now(); ov.querySelector('.tk-title').textContent=curId?'Edit task':'New task'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true;
+  const t=draft, now=Date.now(); ov.querySelector('.tk-title').textContent=curId?'Edit task':'New task'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
   const ty=TY[t.type]||TY.other, w=WN[t.win]||WN.any;
   let h='<div class="tk-wrap tk-form">'
    +'<label class="tk-lab">Type</label><div class="tk-types">'+TYPES.map(x=>'<button type="button" class="tk-type ty-'+x.k+(x.k===t.type?' on':'')+'" data-type="'+x.k+'">'+svg(IC[x.k])+'<b>'+esc(x.t)+'</b></button>').join('')+'</div>'
@@ -319,7 +334,7 @@ function renderEdit(){
   main.innerHTML=h;
   wireEdit();
 }
-function placeholder(k){ return ({cctv:'e.g. Collect CCTV — Centra, Dorset St',statement:'e.g. Statement from shop manager',night:'e.g. Check back lane behind the chipper',call:'e.g. Ring the injured party back',visit:'e.g. House call — 12 Summerhill',court:'e.g. Court 8, CCJ — 10:30',file:'e.g. Update PULSE incident',exhibit:'e.g. Send exhibit to FSI',email:'e.g. Email the council for footage',limit:'e.g. Apply for summons — s.4 Public Order',other:'e.g. Anything to remember'})[k]||''; }
+function placeholder(k){ return ({cctv:'e.g. Collect CCTV — Centra, Dorset St',statement:'e.g. Statement from shop manager',arrest:'e.g. Arrest on bench warrant — address on PULSE',night:'e.g. Check back lane behind the chipper',call:'e.g. Ring the injured party back',visit:'e.g. House call — 12 Summerhill',court:'e.g. Court 8, CCJ — 10:30',file:'e.g. Update PULSE incident',exhibit:'e.g. Send exhibit to FSI',email:'e.g. Email the council for footage',limit:'e.g. Apply for summons — s.4 Public Order',other:'e.g. Anything to remember'})[k]||''; }
 function cctvHtml(t,now){
   const c=t.cctv||{}; const ow=cctvOverwrite(c);
   return '<div class="tk-help"><div class="tk-help-h">'+svg(IC.cctv)+'<b>CCTV — beat the overwrite</b></div>'
@@ -332,7 +347,7 @@ function cctvHtml(t,now){
 function cctvRes(c,now){ const ow=cctvOverwrite(c);
   return ow?'Footage may be overwritten from <b>'+esc(full(ow))+'</b>'+(ow<now?' — <b class="red">that may already have happened</b>':' ('+(ow-now<DAY?'in '+esc(durStr(ow-now)):esc(rel(ow,now)))+')'):c.inc?'Unknown retention — treat it as urgent: some systems keep only 24–72 hours.':'Enter the incident time to work out the overwrite date.'; }
 function limitRes(s,now){ const end=s.off?limitEnd(s.off,s.months||6):null;
-  return end?'Last safe day to apply: <b>'+esc(dateOnly(end))+'</b>'+(end<now?' — <b class="red">that date has passed</b>':' ('+esc(durStr(end-now))+' left)')+'<br><small>Counted cautiously: the day before the same date '+(s.months||6)+' months on.</small>':'Enter the date of the offence.'; }
+  return end?'Last safe day to apply: <b>'+esc(dateOnly(end))+'</b>'+(end<now?' — <b class="red">that date has passed</b>':' ('+esc(durStr(end-now))+' left)')+'<br><small>Counted cautiously: the day before the same date '+(s.months||6)+' months on, moved back to a working day if that falls on a weekend or public holiday.</small>':'Enter the date of the offence.'; }
 function limitHtml(t,now){
   const s=t.sol||{months:6}; const end=s.off?limitEnd(s.off,s.months||6):null;
   return '<div class="tk-help"><div class="tk-help-h">'+svg(IC.limit)+'<b>Summons time limit</b></div>'
@@ -416,6 +431,131 @@ function openTpl(id){
 }
 function closeSheet(){ if(!sh)return; sh.hidden=true; sh.innerHTML=''; ov.querySelector('.tk-shade').hidden=true; }
 
+/* ================= follow-ups when a task is done ================= */
+// [type, title, what it involves, when]  when: none · t23 (today) · +Nd (N days, 09:00)
+const FOLLOW={
+ cctv:[['exhibit','Exhibit the footage','label it and keep the continuity','none'],['file','View the footage','viewing notes · stills of anyone of interest','+1d'],['statement','Statement from whoever produced it','how and when the footage was downloaded','+2d'],['file','Disclosure — schedule the footage','relied on, or unused material','+7d']],
+ statement:[['file','Add the statement to the file','and update PULSE','+1d'],['other','Follow up what the statement raised','witnesses, CCTV, other enquiries','+2d'],['call','Update the injured party','what happens next','+2d'],['file','Disclosure — schedule the statement','','+7d']],
+ arrest:[['file','Update PULSE — arrest and outcome','','t23'],['statement','Arrest statement / memo of interview','','+1d'],['court','Charge, or apply for a summons','','+1d'],['exhibit','Record property and exhibits','seized items · continuity','t23'],['file','Prepare the file','','+7d'],['file','Disclosure — schedule the material','','+7d']],
+ visit:[['file','Record the result','PULSE / notes','t23'],['visit','Call back — nobody home','','+1d'],['statement','Statement arising from the visit','','+2d']],
+ call:[['file','Record the result','','t23'],['call','Ring again','no answer','+1d']],
+ night:[['file','Record the result','','t23']],
+ court:[['file','Update PULSE with the outcome','','t23'],['court','Next court date','remand or adjourned date','none'],['call','Tell the injured party the outcome','','+2d'],['exhibit','Exhibits — return or dispose','once the case is finished','+7d']],
+ file:[['file','Submit for review','sergeant / supervisor','+1d'],['file','Disclosure schedule','','+7d']],
+ exhibit:[['file','Update the exhibits register','continuity','t23'],['exhibit','Chase the lab result','','+14d'],['exhibit','Return property to the owner','','+7d']],
+ email:[['email','Chase a reply','','+7d']],
+ limit:[['court','Track the summons','issue, service and court date','+14d']],
+ other:[['other','Follow-up','','+1d']]
+};
+const whenTxt=q=>q==='none'?'no deadline':q==='t23'?'today':q==='+1d'?'tomorrow':q.replace(/^\+(\d+)d$/,'in $1 days');
+function followSheet(t){
+  if(!ov||ov.hidden)return; const L=FOLLOW[t.type]||FOLLOW.other, pick=new Set();
+  let h='<div class="tk-grip"></div><h3>✓ Done — any follow-up?</h3><p class="tk-note">'+esc(t.title)+'</p>';
+  if(t.type==='arrest')h+='<div class="tk-row2"><button type="button" class="tk-sec-btn fu-det">⏱ Start detention clock</button><button type="button" class="tk-sec-btn fu-gaol">🔐 Cell checks</button></div>';
+  h+='<div class="tk-fu">'+L.map((f,i)=>'<button type="button" class="tk-fuo" data-fu="'+i+'"><span class="tk-ico ty-'+f[0]+'">'+svg(IC[f[0]]||IC.other)+'</span><span class="tk-fut"><b>'+esc(f[1])+'</b><small>'+esc((f[2]?f[2]+' · ':'')+whenTxt(f[3]))+'</small></span><i></i></button>').join('')+'</div>'
+   +'<div class="tk-row2"><button type="button" class="tk-sec-btn fu-none">No follow-up</button><button type="button" class="tk-go fu-add" disabled>Add follow-up</button></div>'
+   +'<div class="tk-fu-foot"><button type="button" class="tk-link fu-own">'+svg(IC.plus)+'Write my own</button><button type="button" class="tk-link fu-undo">Undo — not done</button></div>';
+  sh.innerHTML=h; sh.hidden=false; ov.querySelector('.tk-shade').hidden=false; ov.querySelector('.tk-toast').classList.remove('on');
+  const add=sh.querySelector('.fu-add');
+  sh.querySelectorAll('[data-fu]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.fu; if(pick.has(i))pick.delete(i); else pick.add(i); b.classList.toggle('on',pick.has(i));
+    add.disabled=!pick.size; add.textContent=pick.size?'Add '+pick.size+' follow-up'+(pick.size>1?'s':''):'Add follow-up'; });
+  add.onclick=()=>{ const now=Date.now(); let n=0;
+    for(const i of [...pick].sort()){ const f=L[i], ty=TY[f[0]]||TY.other;
+      DB.tasks.push({id:uid(),type:f[0],title:(f[1]+' · '+t.title).slice(0,120),notes:'Follow-up from “'+t.title+'” (done '+full(t.done||now)+')'+(f[2]?'\n'+f[2]:''),urgent:false,win:ty.win||'any',wDays:null,
+        due:f[3]==='none'?null:quick(f[3]),rem:f[3]==='none'?[]:[0,60],remWin:false,created:now+n,done:null,fired:{},from:t.id}); n++; }
+    save(); closeSheet(); render(); check(); toast(n+' follow-up'+(n>1?'s':'')+' added'); };
+  sh.querySelector('.fu-none').onclick=()=>{ closeSheet(); toast('✓ Done'); };
+  sh.querySelector('.fu-own').onclick=()=>{ closeSheet(); editTask(null); draft.notes='Follow-up from “'+t.title+'” (done '+full(t.done||Date.now())+')'; draft.from=t.id; render(); };
+  sh.querySelector('.fu-undo').onclick=()=>{ t.done=null; save(); closeSheet(); render(); toast('Back on the list'); };
+  const dt=sh.querySelector('.fu-det'); if(dt)dt.onclick=()=>{ closeSheet(); if(W.openDetention)W.openDetention(); };
+  const gl=sh.querySelector('.fu-gaol'); if(gl)gl.onclick=()=>{ closeSheet(); if(W.openGaol)W.openGaol(); };
+}
+
+/* ================= photograph a to-do list → read it → sort it into tasks ================= */
+const AIKEY='gr_apikey';
+let scan=null;   // {img, items:[{on,text,type,urgent,due}], busy, err, mode}
+function guessType(s){ s=' '+String(s).toLowerCase()+' ';
+  if(/cctv|footage|camera/.test(s))return 'cctv';
+  if(/arrest|warrant|\bbench\b|wanted|detain/.test(s))return 'arrest';
+  if(/statement|\bstmt\b|\bs\/t\b|memo of int|interview/.test(s))return 'statement';
+  if(/\bcourt\b|summons|\bccj\b|remand|\bdc\b/.test(s))return 'court';
+  if(/exhibit|\blab\b|\bfsi\b|property|\bseal/.test(s))return 'exhibit';
+  if(/pulse|\bfile\b|incident|report/.test(s))return 'file';
+  if(/e-?mail|letter|write to/.test(s))return 'email';
+  if(/house|visit|call to|call at|address|door|knock/.test(s))return 'visit';
+  if(/\bring\b|\bcall\b|phone|\btel\b|text back|ring back/.test(s))return 'call';
+  if(/\bnights?\b/.test(s))return 'night';
+  if(/time limit|6 months|six months/.test(s))return 'limit';
+  return 'other'; }
+function guessDue(s){ s=String(s).toLowerCase(); return /\btoday\b|\btonight\b|\basap\b/.test(s)?'today':/tomorrow|\btmrw\b|\btmw\b|\btmr\b/.test(s)?'tomorrow':/this week|by fri|end of week/.test(s)?'week':'none'; }
+function lineItems(txt){ return String(txt||'').split(/\r?\n/).map(l=>l.replace(/^\s*(?:[-*•·▪◦›>]|\d{1,2}[.)]|\[[ xX✓]?\]|[☐□✓✔])\s*/,'').trim()).filter(l=>l.length>1)
+  .map(l=>({on:true,text:l.slice(0,120),type:guessType(l),urgent:/urgent|asap|!!/i.test(l),due:guessDue(l)})); }
+function startScan(){ const inp=D.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.setAttribute('capture','environment'); inp.style.display='none'; D.body.appendChild(inp);
+  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; inp.remove(); if(!f)return; loadPhoto(f); }; inp.click(); setTimeout(()=>{ if(inp.isConnected&&!inp.files.length)inp.remove(); },60000); }
+function loadPhoto(file){ const url=URL.createObjectURL(file), im=new Image();
+  im.onload=()=>{ const s=Math.min(1,1568/Math.max(im.naturalWidth,im.naturalHeight)), c=D.createElement('canvas'); c.width=Math.round(im.naturalWidth*s); c.height=Math.round(im.naturalHeight*s);
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height); URL.revokeObjectURL(url);
+    scan={img:c.toDataURL('image/jpeg',.85),items:[],busy:false,err:'',mode:'choose'}; view='scan'; render(); };
+  im.onerror=()=>{ URL.revokeObjectURL(url); toast('Couldn’t open that photo'); }; im.src=url; }
+async function readWithClaude(){ const key=(localStorage.getItem(AIKEY)||'').trim(); if(!key){ scan.mode='key'; render(); return; }
+  if(navigator.onLine===false){ scan.err='No signal — type the list in instead, or try again when you have signal.'; render(); return; }
+  scan.busy=true; scan.err=''; render();
+  const prompt='This is a photo of a Garda’s to-do list (handwritten or printed). Transcribe each separate task as one item, keeping the wording close to what is written (fix obvious spelling only). Do not invent tasks; if part of a line is unreadable, put (?) there. '
+   +'For each item give: "text" (max 120 characters), "type" — one of cctv, statement, arrest, night, call, visit, court, file, exhibit, email, limit, other — "urgent" (true only if it is marked urgent, starred or says ASAP), and "due" — one of "today", "tomorrow", "week", "none" (only if the list says when). '
+   +'Reply with JSON only, no other text: {"items":[{"text":"...","type":"other","urgent":false,"due":"none"}]}';
+  try{ const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-5',max_tokens:1500,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:scan.img.split(',')[1]}},{type:'text',text:prompt}]}]})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.error){ const m=(d.error&&d.error.message)||('HTTP '+r.status); throw new Error(r.status===401?'The API key was refused — check it in AI search settings.':m); }
+    const txt=(d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n'), a=txt.indexOf('{'), z=txt.lastIndexOf('}');
+    const j=JSON.parse(txt.slice(a,z+1)), ok=TYPES.map(x=>x.k);
+    const items=(j.items||[]).map(x=>({on:true,text:String(x.text||'').trim().slice(0,120),type:ok.includes(x.type)?x.type:guessType(x.text),urgent:!!x.urgent,due:['today','tomorrow','week','none'].includes(x.due)?x.due:'none'})).filter(x=>x.text);
+    if(!scan)return; scan.busy=false; if(!items.length){ scan.err='Claude couldn’t find any tasks in that photo — type them in instead.'; render(); return; }
+    scan.items=items; scan.mode='triage'; render();
+  }catch(e){ if(!scan)return; scan.busy=false; scan.err=(e&&e.message&&!/JSON|Unexpected/.test(e.message))?e.message:'Couldn’t read the list — try a clearer photo, or type it in.'; render(); } }
+function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; } ov.querySelector('.tk-title').textContent='Photo → tasks'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
+  let h='<div class="tk-wrap tk-scanv"><div class="tk-shot"><img src="'+s.img+'" alt="Your to-do list"></div>';
+  if(s.err)h+='<p class="tk-err">'+esc(s.err)+'</p>';
+  if(s.mode==='choose'||s.mode==='key'){
+    if(s.busy)h+='<div class="tk-busy"><i></i>Reading your list…</div>';
+    else if(s.mode==='key')h+='<label class="tk-lab">Your Anthropic API key</label><input class="tk-in f-key" type="password" autocomplete="off" placeholder="sk-ant-…"><p class="tk-hint">Stored only on this phone (the same key as AI search). Each photo costs about a cent.</p><div class="tk-row2"><button type="button" class="tk-sec-btn sc-back">Back</button><button type="button" class="tk-go sc-savekey">Save and read</button></div>';
+    else h+='<div class="tk-row2 col"><button type="button" class="tk-go sc-ai">✦ Read it with Claude</button><button type="button" class="tk-sec-btn sc-type">Type it in myself</button></div>'
+      +'<p class="tk-hint"><b>Read it with Claude</b> sends this photo to Anthropic’s Claude service with your API key to read the writing — handwriting included. Only do that if Garda policy allows it for what’s on the list: <b>if it has personal details of members of the public, type it in instead</b>. The photo isn’t kept on the phone either way.</p>';
+  } else if(s.mode==='type'){
+    h+='<label class="tk-lab">One task per line</label><textarea class="tk-in tk-ta big f-lines" placeholder="e.g.\nCCTV Centra Dorset St\nRing IP back re statement\nCourt Thurs 10:30">'+esc(s.lines||'')+'</textarea><div class="tk-row2"><button type="button" class="tk-sec-btn sc-back">Back</button><button type="button" class="tk-go sc-split">Sort into tasks</button></div>';
+  } else {
+    const n=s.items.filter(x=>x.on&&x.text.trim()).length;
+    h+='<label class="tk-lab">Check each one — untick anything that isn’t a task</label><div class="tk-tri">'+s.items.map((x,i)=>'<div class="tk-tr'+(x.on?'':' off')+'" data-i="'+i+'">'
+      +'<button type="button" class="tk-tron" aria-label="Include">'+svg(IC.check)+'</button><div class="tk-trb"><input class="tk-in tr-t" maxlength="120" value="'+esc(x.text)+'">'
+      +'<div class="tk-trm"><select class="tk-in tr-y">'+TYPES.map(y=>'<option value="'+y.k+'"'+(y.k===x.type?' selected':'')+'>'+esc(y.t)+'</option>').join('')+'</select>'
+      +'<select class="tk-in tr-d">'+[['none','No deadline'],['today','Today'],['tomorrow','Tomorrow'],['week','This week']].map(([v,l])=>'<option value="'+v+'"'+(v===x.due?' selected':'')+'>'+l+'</option>').join('')+'</select>'
+      +'<button type="button" class="tk-tru'+(x.urgent?' on':'')+'" aria-label="Urgent">'+svg(IC.flag)+'</button></div></div></div>').join('')+'</div>'
+      +'<button type="button" class="tk-link sc-more">'+svg(IC.plus)+'Add a line</button>'
+      +'<div class="tk-row2"><button type="button" class="tk-sec-btn sc-back">Cancel</button><button type="button" class="tk-go sc-add"'+(n?'':' disabled')+'>Add '+n+' task'+(n===1?'':'s')+'</button></div>';
+  }
+  h+='</div>'; main.innerHTML=h; main.scrollTop=0;
+  const q=c=>main.querySelector(c);
+  if(q('.sc-ai'))q('.sc-ai').onclick=()=>readWithClaude();
+  if(q('.sc-type'))q('.sc-type').onclick=()=>{ s.mode='type'; s.err=''; render(); setTimeout(()=>{ const t=q('.f-lines'); if(t)t.focus(); },50); };
+  if(q('.sc-savekey'))q('.sc-savekey').onclick=()=>{ const k=q('.f-key').value.trim(); if(!/^sk-ant-/.test(k)){ s.err='That doesn’t look like an Anthropic key (it starts sk-ant-).'; render(); return; } localStorage.setItem(AIKEY,k); s.mode='choose'; s.err=''; readWithClaude(); };
+  main.querySelectorAll('.sc-back').forEach(b=>b.onclick=()=>{ if(s.mode==='triage'||s.mode==='choose'){ scan=null; view='list'; render(); } else { s.mode='choose'; s.err=''; render(); } });
+  if(q('.sc-split'))q('.sc-split').onclick=()=>{ s.lines=q('.f-lines').value; const it=lineItems(s.lines); if(!it.length){ s.err='Type at least one task — one per line.'; render(); return; } s.items=it; s.mode='triage'; s.err=''; render(); };
+  if(s.mode==='triage'){
+    const sync=()=>{ const n=s.items.filter(x=>x.on&&x.text.trim()).length, b=q('.sc-add'); b.disabled=!n; b.textContent='Add '+n+' task'+(n===1?'':'s'); };
+    main.querySelectorAll('.tk-tr').forEach(r=>{ const x=s.items[+r.dataset.i];
+      r.querySelector('.tk-tron').onclick=()=>{ x.on=!x.on; r.classList.toggle('off',!x.on); sync(); };
+      r.querySelector('.tr-t').oninput=e=>{ x.text=e.target.value; sync(); };
+      r.querySelector('.tr-y').onchange=e=>{ x.type=e.target.value; };
+      r.querySelector('.tr-d').onchange=e=>{ x.due=e.target.value; };
+      r.querySelector('.tk-tru').onclick=e=>{ x.urgent=!x.urgent; e.currentTarget.classList.toggle('on',x.urgent); }; });
+    q('.sc-more').onclick=()=>{ s.items.push({on:true,text:'',type:'other',urgent:false,due:'none'}); render(); const all=main.querySelectorAll('.tr-t'); if(all.length){ all[all.length-1].focus(); } };
+    q('.sc-add').onclick=()=>{ const now=Date.now(); const L=s.items.filter(x=>x.on&&x.text.trim());
+      L.forEach((x,i)=>{ const ty=TY[x.type]||TY.other; DB.tasks.push({id:uid(),type:x.type,title:x.text.trim().slice(0,120),notes:'',urgent:!!x.urgent,win:ty.win||'any',wDays:null,
+        due:x.due==='today'?quick('t23'):x.due==='tomorrow'?quick('+1d'):x.due==='week'?quick('+7d'):null,rem:x.due==='none'?[]:[0,60],remWin:false,created:now+i,done:null,fired:{}}); });
+      scan=null; save(); view='list'; tab='all'; render(); check(); toast(L.length+' task'+(L.length===1?'':'s')+' added'); };
+  }
+}
+
 /* ================= copy the list (handover) ================= */
 function copyList(){
   const now=Date.now(), l=open_().sort((a,b)=>cmp(sortKey(a,now),sortKey(b,now)));
@@ -445,7 +585,7 @@ function paintStrip(el){
   if(el._h===h)return; el._h=h; el.innerHTML=h;
   el.querySelector('[data-open]').onclick=()=>openTasks();
   el.querySelectorAll('.tks-b').forEach(b=>b.onclick=()=>openTasks(b.dataset.id));
-  el.querySelectorAll('.tks-ck').forEach(b=>b.onclick=()=>{ const t=byId(b.dataset.ck); if(!t)return; t.done=Date.now(); save(); vib(30); if(W.grToast)W.grToast('✓ Done: '+t.title); closeTag('gr-task-'+t.id); });
+  el.querySelectorAll('.tks-ck').forEach(b=>b.onclick=()=>{ const t=byId(b.dataset.ck); if(!t)return; t.done=Date.now(); save(); vib(30); closeTag('gr-task-'+t.id); openTasks(); followSheet(t); });
 }
 
 /* ================= ticker / lifecycle ================= */

@@ -124,6 +124,8 @@ function homeQuick(){
   const recentHtml = rows.length? `<h2 class="sec">↺ Recent</h2><div class="recentwrap">`+
     rows.slice(0,2).map(r=>`<button class="recentrow${r.cont?' cont':''}" data-k="${r.k}" data-id="${esc(String(r.id))}"><div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${r.cont?'':relTime(r.ts)}</div></button>`).join('')+`</div>` : '';
   $('#results').innerHTML=`
+  <div id="homePatrol"></div>
+  <div id="homeGaol"></div>
   <div id="homeRoster"></div>
   <div id="homeDet"></div>
   <div id="homeTasks"></div>
@@ -149,14 +151,16 @@ function homeQuick(){
 
   <h2 class="sec">⚡ On the job</h2><div class="quick">
     <button class="qbtn" id="qbOff">📕 Offences<small>elements · arrest · statement</small></button>
+    <button class="qbtn" id="hPatrol">🚶 Proactive patrol<small>GPS route · stops · times · patrol log</small></button>
     <button class="qbtn" id="hClock">⏱ Detention clock<small>deadlines · extensions · alerts</small></button>
+    <button class="qbtn" id="hGaol">🔐 Gaoler · cell checks<small>buzz 2 min before each check</small></button>
     <button class="qbtn" id="hCaution">⚠️ Cautions<small>wording · declarations</small></button>
     <button class="qbtn" id="hScene">🚔 First at scene<small>golden hour</small></button>
   </div>
 
   <h2 class="sec">🗂️ My work</h2><div class="quick">
     <button class="qbtn" id="hRoster">🗓️ My roster<small>today · next tour · leave · court · swaps</small></button>
-    <button class="qbtn" id="hTasks">✅ Tasks<small>CCTV · statements · nights · deadlines</small></button>
+    <button class="qbtn" id="hTasks">✅ Tasks<small>CCTV · arrests · deadlines · photo a list</small></button>
     <button class="qbtn" id="hNotes">📓 Notes<small>sketches · photos · checklists · lock</small></button>
     <button class="qbtn" id="hRec">🎙️ Voice recorder<small>markers · crash-safe · stays on phone</small></button>
     <button class="qbtn" id="hScan">📄 Scanner<small>documents → PDF · saved to phone only</small></button>
@@ -220,6 +224,8 @@ function homeQuick(){
   go('qbOff',()=>renderOffences());
   go('qbEss',renderEssentials);
   go('qbCases',()=>{ixKind='case';tab='index';$$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='index'));render();});
+  go('hPatrol',()=>{ if(window.openPatrol) openPatrol(); });
+  go('hGaol',()=>{ if(window.openGaol) openGaol(); });
   go('hClock',()=>{ if(window.openDetention) openDetention(); else renderClock(); });
   go('hCaution',renderCautions);
   go('hScene',renderMajor);
@@ -234,6 +240,8 @@ function homeQuick(){
   go('hLiveNews',()=>{ if(window.GRMedia) GRMedia.openTV('sky'); });
   go('hRadio',()=>{ if(window.GRMedia) GRMedia.openRadio(); });
   go('hSocial',()=>{ if(window.openSocial) openSocial(); });
+  if(window.GRPatrol) GRPatrol.mountStrip($('#homePatrol'));
+  if(window.GRGaol) GRGaol.mountStrip($('#homeGaol'));
   if(window.GRDet) GRDet.mountStrip($('#homeDet'));
   if(window.GRRoster) GRRoster.mountStrip($('#homeRoster'));
   if(window.GRTasks) GRTasks.mountStrip($('#homeTasks'));
@@ -815,10 +823,12 @@ TOOLS.push(
 function renderTools(){
   view.innerHTML=`<h2 class="sec">Tools</h2><div class="toolmenu">
     <button class="tmenu" data-v="firstaid"><b>🚑 Medical emergency</b><small>112/999 · CPR metronome · first aid for 22 conditions · incident log</small></button>
+    <button class="tmenu" data-v="gaol"><b>🔐 Gaoler · cell checks</b><small>cell board · distinctive buzz 2 min before each check · check log</small></button>
+    <button class="tmenu" data-v="patrol"><b>🚶 Proactive patrol</b><small>records where you walked and when — stops, street names, patrol log</small></button>
     <button class="tmenu" data-v="social"><b>📱 Social media</b><small>official accounts on X, Facebook, TikTok — read-only, in the app</small></button>
     <button class="tmenu" data-v="toolbox"><b>🧰 Toolbox</b><small>ruler · measure · evidence camera · level · compass · torch · timers · QR · more</small></button>
     <button class="tmenu" data-v="roster"><b>🗓️ My roster</b><small>your shift pattern · today & next tour · leave, court, swaps, overtime</small></button>
-    <button class="tmenu" data-v="tasks"><b>✅ Tasks</b><small>to-do scheduler — CCTV · statements · nights · deadlines · reminders</small></button>
+    <button class="tmenu" data-v="tasks"><b>✅ Tasks</b><small>to-do scheduler — CCTV · arrests · deadlines · follow-ups · photograph a list to add it</small></button>
     <button class="tmenu" data-v="notes"><b>📓 Notes</b><small>notes like Samsung Notes — sketches · photos · checklists · lock</small></button>
     <button class="tmenu" data-v="rec"><b>🎙️ Voice recorder</b><small>record with markers — kept on this phone only</small></button>
     <button class="tmenu" data-v="scan"><b>📄 Document scanner</b><small>flatten · clean up · multi-page PDF saved to your phone</small></button>
@@ -849,6 +859,8 @@ function renderTools(){
   $$('.tmenu').forEach(b=>b.addEventListener('click',()=>{
     const v=b.dataset.v;
     if(v==='toolbox'){ if(window.openToolbox) openToolbox(); return; }
+    if(v==='patrol'){ if(window.openPatrol) openPatrol(); return; }
+    if(v==='gaol'){ if(window.openGaol) openGaol(); return; }
     if(v==='social'){ if(window.openSocial) openSocial(); return; }
     if(v==='firstaid'){ if(window.openFirstAid) openFirstAid(); return; }
     if(v==='tasks'){ if(window.openTasks) openTasks(); return; }
@@ -1427,6 +1439,8 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
     if(window.scnBack&&window.scnBack())return true;                      // scanner: sheet → crop/enhance → pages → camera → closed
     if(window.recBack&&window.recBack())return true;                      // recorder: sheet → player → list → closed
     if(window.detBack&&window.detBack())return true;                      // detention clock: desk → sheet → clock → list → closed
+    if(window.gaolBack&&window.gaolBack())return true;                    // gaoler: desk → sheet → closed
+    if(window.ppBack&&window.ppBack())return true;                        // proactive patrol: pocket → sheet → detail → list → closed
     if(window.tskBack&&window.tskBack())return true;                      // tasks: sheet → editor → list → closed
     if(window.rstBack&&window.rstBack())return true;                      // roster: sheet → wizard step → main → closed
     if(window.ntsBack&&window.ntsBack())return true;

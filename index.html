@@ -27,6 +27,8 @@
 <link rel="stylesheet" href="present.css">
 <link rel="stylesheet" href="firstaid.css">
 <link rel="stylesheet" href="social.css">
+<link rel="stylesheet" href="patrol.css">
+<link rel="stylesheet" href="gaoler.css">
 </head>
 <body>
 <div id="boot" aria-hidden="true">
@@ -171,9 +173,11 @@
   if(!on)document.getElementById('bkNetW').classList.add('off');
   var D=['SUN','MON','TUE','WED','THU','FRI','SAT'],M=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   function p(n){return (n<10?'0':'')+n;}
-  function tick(){var d=new Date(); document.getElementById('bkClock').textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+  var ct=0, bt=0, anim=false;
+  function dead(){ if(b.isConnected)return false; clearInterval(ct); clearInterval(bt); anim=false; return true; }   // removed early (e.g. opened from a notification)
+  function tick(){ if(dead())return; var d=new Date(); document.getElementById('bkClock').textContent=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
     document.getElementById('bkDate').textContent=D[d.getDay()]+' '+p(d.getDate())+' '+M[d.getMonth()]+' '+d.getFullYear();}
-  tick(); var ct=setInterval(tick,1000);
+  tick(); ct=setInterval(tick,1000);
   // emblem bezel ticks
   (function(){ var d='';
     for(var i=0;i<120;i++){ var a=i*Math.PI/60, r1=i%10===0?160:(i%5===0?164:167), r2=176;
@@ -183,13 +187,13 @@
   // data bars (bottom-left)
   var bars=document.getElementById('bkBars'), bh=[];
   for(var i=0;i<38;i++){ var l=document.createElementNS('http://www.w3.org/2000/svg','line'); l.setAttribute('x1',i*4+1); l.setAttribute('x2',i*4+1); l.setAttribute('y1',33); bars.appendChild(l); bh.push(l); }
-  function barz(){ for(var i=0;i<bh.length;i++){ var v=6+Math.pow(Math.random(),1.8)*26; bh[i].setAttribute('y2',(33-v).toFixed(1)); } }
-  barz(); var bt=calm?0:setInterval(barz,420);
+  function barz(){ if(dead())return; for(var i=0;i<bh.length;i++){ var v=6+Math.pow(Math.random(),1.8)*26; bh[i].setAttribute('y2',(33-v).toFixed(1)); } }
+  barz(); bt=calm?0:setInterval(barz,420);
   // edge data-flicker (left/right HUD streaks)
   var cv=document.getElementById('bkRain'), cx=cv.getContext('2d');
   function size(){ var r=window.devicePixelRatio||1; cv.width=innerWidth*r; cv.height=innerHeight*r; cx.setTransform(r,0,0,r,0,0); }
-  size(); var anim=!calm, last=0;
-  function fl(t){ if(!anim)return; requestAnimationFrame(fl); if(t-last<90)return; last=t; var W=innerWidth,H=innerHeight;
+  size(); anim=!calm; var last=0;
+  function fl(t){ if(!anim||dead())return; requestAnimationFrame(fl); if(t-last<90)return; last=t; var W=innerWidth,H=innerHeight;
     cx.clearRect(0,0,W,H);
     for(var k=0;k<26;k++){ var side=k%2, y=Math.random()*H, w=6+Math.random()*(side?60:90), x=side?W-w-4-Math.random()*20:4+Math.random()*24;
       cx.fillStyle='rgba(92,200,255,'+(0.12+Math.random()*0.35).toFixed(2)+')'; cx.fillRect(x,y,w,1+(Math.random()<.2?2:0)); }
@@ -218,11 +222,11 @@
     b.removeChild(pr);
   }
   fit(); if(document.fonts&&document.fonts.load){ document.fonts.load('900 40px Tektur').then(fit,function(){}); }
-  addEventListener('resize',function(){ fit(); size(); });
+  addEventListener('resize',function(){ if(dead())return; fit(); size(); });
   // decode the title + description
   var GL='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&@$<>/|=+*';
   function decode(el,text,dur,cb){ if(calm){el.textContent=text; cb&&cb(); return;}
-    var t0=performance.now(); (function f(now){ var q=Math.min(1,(now-t0)/dur), n=Math.floor(text.length*q), s=text.slice(0,n);
+    var t0=performance.now(); (function f(now){ if(!el.isConnected)return; var q=Math.min(1,(now-t0)/dur), n=Math.floor(text.length*q), s=text.slice(0,n);
       for(var i=n;i<text.length;i++) s+=(text[i]===' '||text[i]==='\n')?text[i]:GL[(Math.random()*GL.length)|0];
       el.textContent=s; if(q<1)requestAnimationFrame(f); else cb&&cb(); })(t0); }
   setTimeout(function(){ b.classList.add('emb'); },calm?0:120);
@@ -233,7 +237,7 @@
   var stage=0, go=document.getElementById('bkGo');
   function start(){
     if(stage!==0)return; stage=1; b.classList.add('run','shown');
-    var lines=[[on?'NETWORK · ONLINE':'OFFLINE · RUNNING FROM PHONE','OK'],['12 VOLUMES · 1,478 PAGES','OK'],['397 CASES · 15 GUIDES','OK'],['12 STENCILS · 8 TEMPLATES','OK'],['138 LIVE CAMERAS · 241 DCC','OK'],['568 STATIONS · 96 DISTRICTS','OK'],['11 NEWS SOURCES · 29 RADIO','OK'],['MAP · STREET VIEW · 21 TOOLS','OK'],['DETENTION CLOCK · ROSTER','OK'],['NOTES · TASKS · RECORDER','OK'],['SCANNER · PRESENT TO TV','OK'],['FIRST AID · 22 CONDITIONS · CPR','OK'],['SYSTEM READY','']];
+    var lines=[[on?'NETWORK · ONLINE':'OFFLINE · RUNNING FROM PHONE','OK'],['12 VOLUMES · 1,478 PAGES','OK'],['397 CASES · 15 GUIDES','OK'],['12 STENCILS · 8 TEMPLATES','OK'],['138 LIVE CAMERAS · 241 DCC','OK'],['568 STATIONS · 96 DISTRICTS','OK'],['11 NEWS SOURCES · 29 RADIO','OK'],['MAP · STREET VIEW · 21 TOOLS','OK'],['PROACTIVE PATROL · GPS LOG','OK'],['DETENTION CLOCK · CELL CHECKS','OK'],['ROSTER · TASKS · NOTES','OK'],['RECORDER · SCANNER · TV','OK'],['FIRST AID · 22 CONDITIONS · CPR','OK'],['SYSTEM READY','']];
     var log=document.getElementById('bkLog');
     lines.forEach(function(l,i){ setTimeout(function(){ var d=document.createElement('div'); if(!l[1])d.className='rdy';
       d.innerHTML='<em>&rsaquo; '+l[0]+'</em>'+(l[1]?'<span>'+l[1]+'</span>':''); log.appendChild(d); }, calm?0:60+i*100); });
@@ -301,5 +305,7 @@
 <script src="present.js"></script>
 <script src="firstaid.js"></script>
 <script src="social.js"></script>
+<script src="patrol.js"></script>
+<script src="gaoler.js"></script>
 </body>
 </html>
