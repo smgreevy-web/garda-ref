@@ -181,6 +181,7 @@ function openRadio(){
 }
 
 /* ================= NEED-TO-KNOW NEWS (merged, ranked for a Garda) ================= */
+const bellIc=on=>window.GRI?GRI('bell-ring','bi'+(on?'':' off')):(on?'🔔':'🔕');
 const FEEDS=[
   {k:'rte',t:'RTÉ News',u:['https://www.rte.ie/feeds/rss/?index=/news/ireland/']},
   {k:'rtecrime',t:'RTÉ News',u:['https://www.rte.ie/feeds/rss/?index=/news/crime/']},
@@ -296,7 +297,7 @@ function rowHtml(C,i){
 let _feed=[];
 function paintStrip(el){
   _feed=feedNow();
-  const head='<div class="ns-head"><span class="ns-pip"></span><b>NEED-TO-KNOW NEWS</b><span class="ns-as">'+(news&&news.t?'updated '+hhmm(news.t):'')+'</span><button class="ns-bell" aria-label="News alerts settings">'+(nset().on?'🔔':'🔕')+'</button></div>';
+  const head='<div class="ns-head"><span class="ns-pip"></span><b>NEED-TO-KNOW NEWS</b><span class="ns-as">'+(news&&news.t?'updated '+hhmm(news.t):'')+'</span><button class="ns-bell'+(nset().on?' on':'')+'" aria-label="News alerts settings">'+bellIc(nset().on)+'</button></div>';
   if(!_feed.length){ el.innerHTML=head+'<div class="ns-empty">'+(navigator.onLine===false?'Offline — news loads when you have signal.':'Loading Garda-relevant news…')+'</div>'; wireStrip(el); return; }
   el.innerHTML=head+'<div class="ns-list">'+_feed.slice(0,30).map(rowHtml).join('')+'</div>'
     +'<div class="ns-foot">ranked for Garda need-to-know · '+(news.raw||[]).length+' Irish sources · tap for the full story</div>';
@@ -343,7 +344,7 @@ function openNewsSettings(){
     +'<div class="m-cats">'+NCATS.map(([k,l])=>'<label class="m-tog"><input type="checkbox" data-c="'+k+'"'+(st.cats.includes(k)?' checked':'')+'> '+esc(l)+'</label>').join('')+'</div>'
     +'<p class="m-note">Alerts are checked every few minutes while the app is open or running in the background. Android may pause web apps after the phone has been locked for a long time, so treat this as an extra, not a guarantee.</p>';
   const save=()=>{ const s2={on:$('#naOn').checked,cats:[...document.querySelectorAll('#mSbody [data-c]')].filter(x=>x.checked).map(x=>x.dataset.c)};
-    localStorage.setItem(NSET_KEY,JSON.stringify(s2)); document.querySelectorAll('.ns-bell').forEach(b=>b.textContent=s2.on?'🔔':'🔕'); };
+    localStorage.setItem(NSET_KEY,JSON.stringify(s2)); document.querySelectorAll('.ns-bell').forEach(b=>{ b.innerHTML=bellIc(s2.on); b.classList.toggle('on',!!s2.on); }); };
   $('#naOn').addEventListener('change',async e=>{ if(e.target.checked&&'Notification' in window&&Notification.permission!=='granted'){ const p=await Notification.requestPermission(); if(p!=='granted'){e.target.checked=false;toast('Notifications are blocked for this app in Android settings');} } save(); if(e.target.checked)markSeen(); });
   document.querySelectorAll('#mSbody [data-c]').forEach(x=>x.addEventListener('change',save));
   o.classList.remove('hidden'); document.body.classList.add('m-open');

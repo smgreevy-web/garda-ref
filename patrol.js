@@ -155,8 +155,17 @@ function analyse(p){
     if(j>i&&d>=TMIN){ const gp=gaps.filter(g=>g.i0>=i&&g.i1<=j); stops.push({i0:i,i1:j,s0:P[i][0],s1:P[j][0],dur:d,lat:la,lon:lo,gap:gp.reduce((a,g)=>a+(g.s1-g.s0),0),paused:gp.some(g=>g.pause)}); i=j+1; }
     else i++; }
   const inStop=new Uint8Array(n); for(const s of stops)for(let k=s.i0;k<=s.i1;k++)inStop[k]=1;
+  // distance: smooth the wobble (centred 5-point mean) and only count movement once it clears ~12 m,
+  // so GPS jitter while walking or standing doesn't inflate the total
   let dm=0, mv=0;
-  for(const sg of segs)for(let k=1;k<sg.length;k++){ const a=P[sg[k-1]], b=P[sg[k]]; if(inStop[sg[k-1]]&&inStop[sg[k]])continue; dm+=dist(a[1],a[2],b[1],b[2]); mv+=b[0]-a[0]; }
+  for(const sg of segs){
+    const sm=sg.map((i,k)=>{ let la=0,lo=0,c=0; for(let j=Math.max(0,k-2);j<=Math.min(sg.length-1,k+2);j++){ if(inStop[sg[j]]!==inStop[i])continue; la+=P[sg[j]][1]; lo+=P[sg[j]][2]; c++; } return [la/c,lo/c]; });
+    let A=null;
+    for(let k=0;k<sg.length;k++){ if(!A){ A=sm[k]; continue; } const d=dist(A[0],A[1],sm[k][0],sm[k][1]);
+      if(inStop[sg[k]]){ if(!inStop[sg[k-1]]&&d>3)dm+=d; A=sm[k]; continue; }      // reaching a stop: count the last stretch, then hold
+      if(d>=12){ dm+=d; A=sm[k]; } }
+    if(A&&sg.length&&!inStop[sg[sg.length-1]]){ const z=sm[sg.length-1], d=dist(A[0],A[1],z[0],z[1]); if(d>3)dm+=d; }
+    for(let k=1;k<sg.length;k++){ if(inStop[sg[k-1]]&&inStop[sg[k]])continue; mv+=P[sg[k]][0]-P[sg[k-1]][0]; } }
   const total=n?P[n-1][0]-P[0][0]:0, spd=mv>30?dm/mv:0;
   return {segs,gaps,stops,dist:dm,moving:mv,total,mode:spd>3.2?'mobile':'foot'};
 }
@@ -329,7 +338,7 @@ function drawLiveAll(){ if(!map||!rec)return; liveLay.clearLayers(); liveLines=n
   drawLiveMarks(); if(P.length)map.setView([P[P.length-1][1],P[P.length-1][2]],Math.max(map.getZoom(),17)); }
 function addLive(pt,prev,bulk){ if(!map||!liveLay||view!=='rec')return; const ll=[pt[1],pt[2]];
   if(!liveLines||(prev&&pt[0]-prev[0]>GAP)){ if(prev&&liveLines)L.polyline([[prev[1],prev[2]],ll],{color:'#f0b429',weight:3,dashArray:'6 8',opacity:.9}).addTo(liveLay);
-    liveLines=[L.polyline([ll],{color:'#04070b',weight:8,opacity:.75}).addTo(liveLay),L.polyline([ll],{color:'#5cc8ff',weight:4.5,opacity:.95}).addTo(liveLay)]; }
+    liveLines=[L.polyline([ll],{color:'#04070b',weight:8,opacity:.75}).addTo(liveLay),L.polyline([ll],{color:'#6aa2ef',weight:4.5,opacity:.95}).addTo(liveLay)]; }
   else { liveLines[0].addLatLng(ll); liveLines[1].addLatLng(ll); }
   if(!bulk&&follow){ const b=map.getBounds().pad(-.25); if(!b.contains(ll))map.panTo(ll,{animate:true}); } }
 function drawLiveMarks(){ if(!map||!rec||view!=='rec')return; const an=recAnalysis();
@@ -339,7 +348,7 @@ function drawLiveMarks(){ if(!map||!rec||view!=='rec')return; const an=recAnalys
   const P=rec.p.pts; if(P.length)L.marker([P[0][1],P[0][2]],{icon:L.divIcon({className:'',html:'<div class="pp-se s">S</div>',iconSize:[24,24],iconAnchor:[12,12]})}).addTo(rec.mk); }
 function updateMe(){ if(!map||!rec||!rec.cur||view!=='rec')return; const ll=[rec.cur.lat,rec.cur.lon];
   if(!meMk)meMk=L.marker(ll,{icon:meIcon(),interactive:false,keyboard:false,zIndexOffset:1000}); if(!map.hasLayer(meMk))meMk.addTo(map); meMk.setLatLng(ll);
-  if(!accC)accC=L.circle(ll,{radius:rec.cur.acc,color:'#5cc8ff',weight:1,opacity:.5,fillOpacity:.08,interactive:false}); if(!map.hasLayer(accC))accC.addTo(map); accC.setLatLng(ll); accC.setRadius(Math.min(rec.cur.acc,200));
+  if(!accC)accC=L.circle(ll,{radius:rec.cur.acc,color:'#6aa2ef',weight:1,opacity:.5,fillOpacity:.08,interactive:false}); if(!map.hasLayer(accC))accC.addTo(map); accC.setLatLng(ll); accC.setRadius(Math.min(rec.cur.acc,200));
   if(follow&&!rec.p.pts.length)map.setView(ll,17); }
 function hideMe(){ if(map){ if(meMk&&map.hasLayer(meMk))map.removeLayer(meMk); if(accC&&map.hasLayer(accC))map.removeLayer(accC); } }
 
@@ -396,9 +405,10 @@ async function renderList(){
    +'<ul class="pp-feats"><li>Exact route on the map</li><li>Where you stopped &amp; how long</li><li>Street names, offline once downloaded</li><li>“Where was I at 15:20?”</li><li>Quick notes at a spot</li><li>Copy the patrol log</li></ul>'
    +(rec&&!rec.done?'<button type="button" class="pp-go" data-a="torec"><i></i>Back to recording</button>':geo?'<button type="button" class="pp-go" data-a="start"><i></i>Start patrol</button>':'<div class="pp-err"><b>No GPS access.</b> This browser can’t read your location.</div>')
    +'<div class="pp-warn"><b>Keep Assisting open while you patrol.</b> Phones stop web apps using GPS when the screen goes off or you switch apps — the screen stays on while recording, and <b>pocket mode</b> blacks it out. Any break shows in the log as “No GPS”.</div></div>';
+  h+='<div class="pp-lock"><b>Want to lock the phone?</b><span>Record with the free GPS Logger app while the phone is locked, then share the track to Assisting — same route, stops, streets and patrol log.</span><div class="pp-row"><button type="button" class="pp-sec" data-a="howlock">How to set it up</button><button type="button" class="pp-sec on" data-a="import">Import a track</button></div></div>';
   h+='<h3 class="pp-hd">Saved patrols <small>'+items.filter(p=>p.end).length+'</small></h3>';
   const done=items.filter(p=>p.end);
-  if(!done.length)h+='<div class="pp-empty">No patrols yet. Tap <b>Start patrol</b> as you head out.</div>';
+  if(!done.length)h+='<div class="pp-empty">No patrols yet. Tap <b>Start patrol</b> as you head out, or import a track.</div>';
   else { h+='<div class="pp-list">'+done.map(p=>{ const P=p.pts, t1=P.length?p.start+P[P.length-1][0]*1000:p.end, a=analyseMemo(p);
       return '<button type="button" class="pp-item" data-a="open" data-id="'+p.id+'"><div class="d">'+new Date(p.start).getDate()+'<small>'+MON[new Date(p.start).getMonth()]+'</small></div>'
         +'<div><b>'+hm(p.start+(P.length?P[0][0]*1000:0))+'–'+hm(t1)+' · '+DAYS[new Date(p.start).getDay()]+'</b><span>'+dur(a.total)+' · '+a.stops.length+' stop'+(a.stops.length===1?'':'s')+((p.marks||[]).length?' · '+p.marks.length+' note'+(p.marks.length===1?'':'s'):'')+'</span></div><em>'+km(a.dist)+'</em></button>'; }).join('')+'</div>'; }
@@ -479,7 +489,7 @@ function renderDetail(){
   let h='<div class="pp-det"><div class="pp-map" id="ppHost">'+mapBtns('<button type="button" class="pp-mb" data-a="fit" aria-label="Whole route">'+IC.fit+'</button>')+'</div>'
    +'<div class="pp-scrub"><div class="lbl"><b id="ppScT">'+hm(t0)+'</b><span id="ppScL">Start</span><input id="ppScIn" inputmode="numeric" maxlength="5" placeholder="hh:mm" aria-label="Go to a time"></div>'
    +'<input type="range" id="ppScR" min="'+(P.length?P[0][0]:0)+'" max="'+(P.length?P[P.length-1][0]:0)+'" step="1" value="'+(P.length?P[0][0]:0)+'" aria-label="Where was I at this time"></div>'
-   +'<div class="pp-wrap"><h2 class="pp-dh">'+dstr(t0)+'</h2><p class="pp-ds">'+hm(t0)+' – '+hm(t1)+(sameDay(t0,t1)?'':' ('+dshort(t1)+')')+' · '+(a.mode==='mobile'?'mobile patrol':'on foot')+'</p>'
+   +'<div class="pp-wrap"><h2 class="pp-dh">'+dstr(t0)+'</h2><p class="pp-ds">'+hm(t0)+' – '+hm(t1)+(sameDay(t0,t1)?'':' ('+dshort(t1)+')')+' · '+(a.mode==='mobile'?'mobile patrol':'on foot')+(p.src&&p.src.kind==='import'?' · imported from '+esc(p.src.name||'a GPS app'):p.src&&p.src.kind==='merged'?' · merged with '+esc(p.src.name||'an imported track'):'')+'</p>'
    +'<div class="pp-sum"><div><b>'+durS(a.total)+'</b><small>Time</small></div><div><b>'+km(a.dist)+'</b><small>Distance</small></div><div><b>'+a.stops.length+'</b><small>Stops</small></div><div><b>'+mk+'</b><small>Notes</small></div></div>'
    +'<div class="pp-row"><button type="button" class="pp-sec on" data-a="copy">Copy patrol log</button><button type="button" class="pp-sec" data-a="gpx">Save GPX file</button></div>'
    +'<div class="pp-names" id="ppNames">'+namesHtml()+'</div>'
@@ -509,7 +519,7 @@ function tlHtml(p,T){ let day=T.length?new Date(p.start+T[0].s*1000).toDateStrin
   return h; }
 function drawDetail(){ const d=det; if(!d||!map)return; const p=d.p, P=p.pts, a=d.a; lay.clearLayers(); if(!P.length)return;
   const all=[]; for(const sg of a.segs){ const ll=sg.map(i=>[P[i][1],P[i][2]]); all.push(...ll);
-    L.polyline(ll,{color:'#04070b',weight:8,opacity:.75}).addTo(lay); L.polyline(ll,{color:'#5cc8ff',weight:4.5,opacity:.95}).addTo(lay); }
+    L.polyline(ll,{color:'#04070b',weight:8,opacity:.75}).addTo(lay); L.polyline(ll,{color:'#6aa2ef',weight:4.5,opacity:.95}).addTo(lay); }
   for(const g of a.gaps)L.polyline([[P[g.i0][1],P[g.i0][2]],[P[g.i1][1],P[g.i1][2]]],{color:'#f0b429',weight:3,dashArray:'6 8',opacity:.9}).bindTooltip('No GPS '+durS(g.s1-g.s0)).addTo(lay);
   // direction arrows about every 180 m of track
   for(const sg of a.segs){ let acc=0; for(let k=1;k<sg.length;k++){ const A=P[sg[k-1]], B=P[sg[k]], dd=dist(A[1],A[2],B[1],B[2]); acc+=dd;
@@ -569,7 +579,9 @@ function onClick(e){ const b=e.target.closest('[data-a],[data-k]'); if(!b||!main
   else if(a==='copy')copyLog();
   else if(a==='gpx')saveGpx();
   else if(a==='names')nameStreets();
-  else if(a==='del')delSheet(); }
+  else if(a==='del')delSheet();
+  else if(a==='import')pickTrack();
+  else if(a==='howlock')lockSheet(); }
 function finishSheet(){ const an=recAnalysis();
   sheet('<h4>Finish this patrol?</h4><p><b>'+clock(elapsed())+'</b> recorded · '+km(an.dist)+' · '+an.stops.length+' stop'+(an.stops.length===1?'':'s')+'. You’ll get the route, timeline and patrol log.</p>'
    +'<div class="pp-row"><button type="button" class="pp-sec" data-x="1">Keep recording</button><button type="button" class="pp-sec on" id="ppFin">Finish patrol</button></div>',
@@ -611,11 +623,14 @@ function settingsSheet(){
    +'<p style="margin-top:14px"><b>Count a stop after</b></p><div class="pp-seg">'+seg+'</div>'
    +'<button type="button" class="pp-sw'+(S.online?' on':'')+'" data-t="online"><span>Street names from OpenStreetMap<small>Downloads the street list for the area (not your route) and keeps it on the phone</small></span><i></i></button>'
    +'<button type="button" class="pp-sw'+(S.dark?' on':'')+'" data-t="dark"><span>Dark map<small>Easier on the eyes at night</small></span><i></i></button>'
-   +'<div class="pp-row" style="margin-top:14px"><button type="button" class="pp-sec" id="ppDl">Download streets around me</button><button type="button" class="pp-sec" id="ppClr">Clear downloaded streets</button></div>'
+   +'<div class="pp-row" style="margin-top:14px"><button type="button" class="pp-sec" id="ppImp">Import a track (phone locked)</button><button type="button" class="pp-sec" id="ppLk">How to lock the phone</button></div>'
+   +'<div class="pp-row"><button type="button" class="pp-sec" id="ppDl">Download streets around me</button><button type="button" class="pp-sec" id="ppClr">Clear downloaded streets</button></div>'
    +'<p class="pp-foot" id="ppDlMsg">Street lists are downloaded automatically as you patrol with signal. Downloading your area in advance means names work offline from the start.</p>'
    +'<div class="pp-row"><button type="button" class="pp-sec" data-x="1">Done</button></div>',
    s=>{ s.querySelectorAll('[data-sm]').forEach(b=>b.onclick=()=>{ S.stopMin=+b.dataset.sm; saveS(); s.querySelectorAll('[data-sm]').forEach(x=>x.classList.toggle('on',x===b)); if(view==='detail'&&det)renderDetail(); });
      s.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{ const k=b.dataset.t; S[k]=!S[k]; saveS(); b.classList.toggle('on',!!S[k]); if(k==='dark'&&ov)ov.classList.toggle('pp-dark',S.dark); });
+     s.querySelector('#ppImp').onclick=()=>{ closeSheet(); pickTrack(); };
+     s.querySelector('#ppLk').onclick=()=>{ closeSheet(); lockSheet(); };
      s.querySelector('#ppClr').onclick=async()=>{ try{ await clearStore('streets'); }catch(e){} liveIx=null; s.querySelector('#ppDlMsg').textContent='Downloaded street lists cleared.'; };
      s.querySelector('#ppDl').onclick=()=>{ const m=s.querySelector('#ppDlMsg');
        if(N.onLine===false){ m.textContent='No signal — try again when you have signal.'; return; }
@@ -625,6 +640,118 @@ function settingsSheet(){
          try{ const r=await tiles(tilesAround(pos.coords.latitude,pos.coords.longitude,1),true); const ix=buildIndex(r); liveIx=ix||liveIx; m.textContent=ix?('Done — '+ix.names.length+' streets kept on this phone.'):'Couldn’t reach the street server — try again later.'; }
          catch(e){ m.textContent='Couldn’t reach the street server — try again later.'; } S.online=save; },
          ()=>{ m.textContent='Location unavailable — allow location for Assisting and try again.'; },{enableHighAccuracy:true,timeout:15000,maximumAge:60000}); }; }); }
+
+/* ================= phone locked: import a track recorded by a GPS logger app ================= */
+// Android stops web apps using GPS once the phone locks; an installed logger app keeps recording.
+// Its track (GPX / TXT / KML with times / GeoJSON / CSV) comes in through the share menu or a file pick,
+// and gets the same treatment: route, stops, street names, timeline and patrol log.
+const LOGGER_URL='https://play.google.com/store/apps/details?id=eu.basicairdata.graziano.gpslogger';
+function parseWhen(s){ s=String(s||'').trim(); if(!s)return NaN;
+  if(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(s))s=s.replace(' ','T')+'Z';   // logger TXT/CSV times are UTC
+  if(/^\d{10,13}$/.test(s))return +s<1e12?+s*1000:+s;
+  return Date.parse(s); }
+function xmlDoc(txt){ const d=new DOMParser().parseFromString(txt,'application/xml'); if(d.getElementsByTagName('parsererror').length)throw new Error('That file isn’t readable XML'); return d; }
+const kids=(el,tag)=>el.getElementsByTagNameNS('*',tag);
+const kid=(el,tag)=>{ const x=kids(el,tag)[0]; return x?x.textContent.trim():''; };
+function parseGPX(txt){ const d=xmlDoc(txt), fixes=[], wpts=[];
+  for(const p of kids(d,'trkpt')){ const t=parseWhen(kid(p,'time')), lat=+p.getAttribute('lat'), lon=+p.getAttribute('lon'); if(!isFinite(t)||!isFinite(lat)||!isFinite(lon))continue;
+    let acc=parseFloat(kid(p,'accuracy')); if(!isFinite(acc)){ const hd=parseFloat(kid(p,'hdop')); acc=isFinite(hd)?Math.min(60,Math.max(4,hd*5)):NaN; }
+    fixes.push({t,lat,lon,acc:isFinite(acc)?acc:10}); }
+  for(const w of kids(d,'wpt')){ const t=parseWhen(kid(w,'time')), lat=+w.getAttribute('lat'), lon=+w.getAttribute('lon'); if(!isFinite(t)||!isFinite(lat))continue; wpts.push({t,lat,lon,name:kid(w,'name'),desc:kid(w,'desc')}); }
+  const md=kids(d,'metadata')[0]; return {fixes,wpts,title:(md?kid(md,'name'):'')||kid(d.documentElement,'name')}; }
+function parseKML(txt){ const d=xmlDoc(txt), fixes=[];
+  for(const tr of kids(d,'Track')){ const W=[...kids(tr,'when')].map(x=>parseWhen(x.textContent)), C=[...kids(tr,'coord')].map(x=>x.textContent.trim().split(/\s+/).map(Number));
+    for(let i=0;i<Math.min(W.length,C.length);i++){ if(isFinite(W[i])&&isFinite(C[i][1]))fixes.push({t:W[i],lat:C[i][1],lon:C[i][0],acc:10}); } }
+  for(const pm of kids(d,'Placemark')){ const ts=kids(pm,'TimeStamp')[0], pt=kids(pm,'Point')[0]; if(!ts||!pt)continue; const t=parseWhen(kid(ts,'when')), c=kid(pt,'coordinates').split(',').map(Number); if(isFinite(t)&&isFinite(c[1]))fixes.push({t,lat:c[1],lon:c[0],acc:10}); }
+  return {fixes,wpts:[],title:kid(d,'name')}; }
+function parseCSV(txt){ const L=txt.split(/\r?\n/).filter(l=>l.trim()); if(L.length<2)return {fixes:[],wpts:[]};
+  const sp=l=>l.split(/,|;|\t/).map(x=>x.trim().replace(/^"|"$/g,'')), H=sp(L[0]).map(h=>h.toLowerCase());
+  const col=(...re)=>H.findIndex(h=>re.some(r=>r.test(h)));
+  const it=col(/date ?time/,/^time/,/timestamp/,/^date/), ila=col(/^lat/), ilo=col(/^lon/,/^lng/), iac=col(/^acc/), ity=col(/^type$/), inm=col(/^name$/), ids=col(/^desc/);
+  if(it<0||ila<0||ilo<0)return {fixes:[],wpts:[]};
+  const fixes=[], wpts=[];
+  for(const l of L.slice(1)){ const c=sp(l), t=parseWhen(c[it]), lat=+c[ila], lon=+c[ilo]; if(!isFinite(t)||!isFinite(lat)||!isFinite(lon))continue;
+    if(ity>=0&&/^w/i.test(c[ity]))wpts.push({t,lat,lon,name:inm>=0?c[inm]:'',desc:ids>=0?c[ids]:''});
+    else { const a=iac>=0?parseFloat(c[iac]):NaN; fixes.push({t,lat,lon,acc:isFinite(a)?a:10}); } }
+  return {fixes,wpts}; }
+function parseGeoJSON(txt){ const j=JSON.parse(txt), fixes=[], wpts=[], F=j.type==='FeatureCollection'?j.features:[j];
+  for(const f of F||[]){ const g=f&&f.geometry, pr=(f&&f.properties)||{}; if(!g)continue;
+    if(g.type==='Point'){ const t=parseWhen(pr.time||pr.timestamp); if(isFinite(t))fixes.push({t,lat:g.coordinates[1],lon:g.coordinates[0],acc:+pr.accuracy||10}); continue; }
+    const lines=g.type==='LineString'?[g.coordinates]:g.type==='MultiLineString'?g.coordinates:[]; let times=pr.coordTimes||pr.times||[]; if(lines.length===1&&times.length&&!Array.isArray(times[0]))times=[times];
+    lines.forEach((ln,i)=>(ln||[]).forEach((c,k)=>{ const t=parseWhen((times[i]||[])[k]); if(isFinite(t))fixes.push({t,lat:c[1],lon:c[0],acc:10}); })); }
+  return {fixes,wpts}; }
+function parseTrackFile(name,text){ const n=String(name||'').toLowerCase(), s=String(text||'').trim();
+  if(/\.gpx$/.test(n)||/<gpx[\s>]/i.test(s.slice(0,800)))return parseGPX(s);
+  if(/\.kml$/.test(n)||/<kml[\s>]/i.test(s.slice(0,800)))return parseKML(s);
+  if(/\.(geo)?json$/.test(n)||/^[{[]/.test(s))return parseGeoJSON(s);
+  return parseCSV(s); }
+// same filtering as live recording: drop weak fixes, glitches and standing-still jitter
+function patrolFromFixes(fixes,wpts,meta){
+  fixes=fixes.filter(f=>isFinite(f.t)&&Math.abs(f.lat)<=90&&Math.abs(f.lon)<=180).sort((a,b)=>a.t-b.t);
+  if(!fixes.length)return null;
+  const start=fixes[0].t, pts=[]; let L=null;
+  for(const f of fixes){ if(f.acc>MAXACC)continue; const s=Math.round((f.t-start)/1000);
+    if(L){ const dt=s-L[0]; if(dt<=0)continue; const d=dist(L[1],L[2],f.lat,f.lon); if(d>60&&d/dt>45)continue; if(d<Math.max(5,f.acc*.6)&&dt<20)continue; }
+    const pt=[s,+f.lat.toFixed(6),+f.lon.toFixed(6),Math.round(f.acc)]; pts.push(pt); L=pt; }
+  if(!pts.length)return null;
+  const endT=start+pts[pts.length-1][0]*1000;
+  const marks=(wpts||[]).filter(w=>w.t>=start-10*60e3&&w.t<=endT+10*60e3).map(w=>({s:Math.max(0,Math.round((w.t-start)/1000)),lat:+w.lat.toFixed(6),lon:+w.lon.toFixed(6),k:(w.name||'Note').slice(0,60),note:(w.desc||'').slice(0,140)}));
+  return {id:'pp_'+start+'_i',v:1,start,end:endT,pts,marks,pauses:[],rev:{},src:Object.assign({kind:'import'},meta||{})}; }
+// one track can arrive as .gpx + .kml + .txt together — keep the best version of each
+function pickFiles(files){ const g=new Map(), rank=n=>/\.txt$|\.csv$/i.test(n)?0:/\.gpx$/i.test(n)?1:/json$/i.test(n)?2:/\.kml$/i.test(n)?3:4;
+  for(const f of files){ const base=String(f.name||'track').replace(/\.[^.]+$/,''); const cur=g.get(base); if(!cur||rank(f.name)<rank(cur.name))g.set(base,f); }
+  return [...g.values()]; }
+async function importTracks(files){ // files: [{name,text}]
+  if(!files.length){ toast('Nothing to import — share or pick a GPX track file'); return; }
+  const made=[], bad=[];
+  for(const f of pickFiles(files)){ try{ const r=parseTrackFile(f.name,f.text), p=patrolFromFixes(r.fixes,r.wpts,{name:f.name,title:r.title||''});
+      if(p)made.push(p); else bad.push(f.name+' — no timed track points'); }catch(e){ bad.push(f.name+' — '+(e.message||'unreadable')); } }
+  if(!made.length){ errSheet(bad); return; }
+  let saved=[]; try{ saved=await getAll('patrols'); }catch(e){}
+  const done=[];
+  for(const p of made){
+    if(saved.some(x=>x.id===p.id)){ done.push(p.id); continue; }                 // already imported
+    const p0=p.start, p1=p.end;
+    const over=saved.filter(x=>x.src&&x.src.kind==='import'?false:true).filter(x=>!(rec&&!rec.done&&x.id===rec.p.id)&&x.pts.length).find(x=>{ const a0=x.start+x.pts[0][0]*1000, a1=x.start+x.pts[x.pts.length-1][0]*1000; return Math.min(a1,p1)-Math.max(a0,p0)>60e3; });
+    if(over&&made.length===1){ mergeSheet(over,p); return; }
+    try{ await put('patrols',p); done.push(p.id); }catch(e){ bad.push('Couldn’t save on this phone'); } }
+  if(bad.length)toast(bad.length+' file'+(bad.length>1?'s':'')+' couldn’t be read');
+  if(done.length===1){ openDetail(done[0],true); toast('Track imported'); } else if(done.length){ view='list'; render(); toast(done.length+' tracks imported'); } }
+function errSheet(bad){ build(); sheet('<h4>Couldn’t import that</h4><p>'+bad.map(esc).join('<br>')+'</p><p>Share the <b>GPX</b> (or TXT) file from GPS Logger — it has the time of every point. A KML without times can’t show when you were where.</p><div class="pp-row"><button type="button" class="pp-sec" data-x="1">OK</button></div>'); }
+function mergePatrols(a,b){
+  const abs=p=>p.pts.map(q=>({t:p.start+q[0]*1000,lat:q[1],lon:q[2],acc:q[3]||10}));
+  const all=abs(a).concat(abs(b)).sort((x,y)=>x.t-y.t), out=[];
+  for(const f of all){ const L=out[out.length-1]; if(L&&f.t-L.t<2000){ if(f.acc<L.acc)out[out.length-1]=f; continue; } out.push(f); }
+  const n=patrolFromFixes(out,[],{}); if(!n)return a;
+  const start=n.start, re=s0=>pp=>Object.assign({},pp,{s:Math.max(0,Math.round((s0+pp.s*1000-start)/1000))});
+  const marks=(a.marks||[]).map(re(a.start)).concat((b.marks||[]).map(re(b.start)).filter(m=>!(a.marks||[]).some(x=>Math.abs(a.start+x.s*1000-(start+m.s*1000))<60e3&&x.k===m.k)));
+  const pauses=(a.pauses||[]).map(q=>[Math.round((a.start+q[0]*1000-start)/1000),q[1]==null?null:Math.round((a.start+q[1]*1000-start)/1000)]);
+  return Object.assign({},a,{start,pts:n.pts,marks:marks.sort((x,y)=>x.s-y.s),pauses,end:Math.max(a.end||0,b.end||0,n.end),src:{kind:'merged',name:(b.src&&b.src.name)||''}}); }
+function mergeSheet(a,b){ build();
+  const a0=a.start+a.pts[0][0]*1000, a1=a.start+a.pts[a.pts.length-1][0]*1000;
+  sheet('<h4>Merge with your patrol?</h4><p>This track overlaps the patrol you recorded in Assisting, <b>'+dshort(a0)+' '+hm(a0)+'–'+hm(a1)+'</b>. Merging fills its “No GPS” gaps and keeps your notes.</p>'
+   +'<div class="pp-row"><button type="button" class="pp-sec" id="ppSep">Keep separate</button><button type="button" class="pp-sec on" id="ppMrg">Merge them</button></div>',
+   s=>{ s.querySelector('#ppMrg').onclick=async()=>{ closeSheet(); const m=mergePatrols(a,b); try{ await put('patrols',m); }catch(e){} anMemo.clear(); openDetail(m.id,true); toast('Merged — gaps filled from the imported track'); };
+     s.querySelector('#ppSep').onclick=async()=>{ closeSheet(); try{ await put('patrols',b); }catch(e){} openDetail(b.id,true); toast('Track imported'); }; }); }
+function pickTrack(){ const inp=D.createElement('input'); inp.type='file'; inp.multiple=true; inp.style.display='none'; D.body.appendChild(inp);
+  inp.onchange=async()=>{ const fs=[...(inp.files||[])]; inp.remove(); if(!fs.length)return;
+    const files=[]; for(const f of fs){ if(f.size>15e6){ toast(f.name+' is too big'); continue; } try{ files.push({name:f.name,text:await f.text()}); }catch(e){} }
+    importTracks(files); };
+  inp.click(); }
+async function importShared(){ try{ const c=await caches.open('gr-share'), r=await c.match('./__shared-track'); if(!r)return false;
+    const j=await r.json(); await c.delete('./__shared-track'); if(Date.now()-(j.t||0)>30*60e3)return false;
+    await importTracks((j.items||[]).filter(x=>x&&x.text)); return true; }catch(e){ return false; } }
+function lockSheet(){
+  sheet('<h4>Patrol with the phone locked</h4><p>Android stops web apps using GPS once the phone locks, so a small GPS app does the recording and Assisting does the rest — route, stops, street names, timeline and the patrol log.</p>'
+   +'<p><b>1. Get GPS Logger</b> (BasicAirData) from Google Play — free, open source, works offline, collects no data.</p>'
+   +'<p><b>2. Let it run when locked:</b> Settings → Apps → GPS Logger → Battery → <b>Unrestricted</b>.</p>'
+   +'<p><b>3. On patrol:</b> open GPS Logger, tap <b>Record</b>, lock the phone as normal. You can still open Assisting for notes — recording in both is fine.</p>'
+   +'<p><b>4. When you’re back:</b> stop the recording, open its <b>Tracklist</b>, tap the track → <b>Share</b> → choose <b>Assisting</b>. If Assisting isn’t in the list yet, save the GPX and use <b>Import a track</b> here instead.</p>'
+   +'<p>If you also recorded in Assisting, the import offers to <b>merge</b> the two, so the gaps fill in and your notes stay.</p>'
+   +'<p style="color:#f3d58a">Don’t use fitness apps that upload or publish routes for patrols.</p>'
+   +'<div class="pp-row"><a class="pp-sec pp-a" href="'+LOGGER_URL+'" target="_blank" rel="noopener">Get GPS Logger</a><button type="button" class="pp-sec on" id="ppImp2">Import a track</button></div>'
+   +'<div class="pp-row"><button type="button" class="pp-sec" data-x="1">Close</button></div>',
+   s=>{ s.querySelector('#ppImp2').onclick=()=>{ closeSheet(); pickTrack(); }; }); }
 
 /* ================= home strip ================= */
 function mountStrip(el){ if(!el)return; strips=strips.filter(x=>x.isConnected); if(!strips.includes(el))strips.push(el); paintStrip(el); }
@@ -647,7 +774,12 @@ function paintStrip(el){ if(!rec||rec.done){ if(el.innerHTML)el.innerHTML=''; re
   startTick(); paintStrips(); loadRefs();
 })();
 
+// opened from the share menu (a GPS app's track) or a link: ?open=patrol[&shared=1]
+(function(){ try{ const q=new URLSearchParams(location.search); if(q.get('open')!=='patrol')return; const shared=q.get('shared')==='1';
+  history.replaceState(history.state,'',location.pathname);
+  const go=async()=>{ openPatrol(); if(shared){ const ok=await importShared(); if(!ok)toast('Nothing to import — share the GPX track file from GPS Logger'); } };
+  if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(go,80)); else setTimeout(go,80); }catch(e){} })();
 W.openPatrol=openPatrol;
 W.ppBack=()=>back();
-W.GRPatrol=Object.freeze({open:openPatrol,mountStrip,recording:()=>!!(rec&&!rec.done),_feed:f=>feed(f),_analyse:analyse,_timeline:timeline,_log:logText,_buildIndex:buildIndex,_nearest:nearest,_state:()=>rec,_det:()=>det});
+W.GRPatrol=Object.freeze({open:openPatrol,mountStrip,recording:()=>!!(rec&&!rec.done),_feed:f=>feed(f),_analyse:analyse,_timeline:timeline,_log:logText,_buildIndex:buildIndex,_nearest:nearest,_parse:parseTrackFile,_fromFixes:patrolFromFixes,_merge:mergePatrols,_import:importTracks,_state:()=>rec,_det:()=>det});
 })();

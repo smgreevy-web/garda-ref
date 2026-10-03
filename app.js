@@ -6,7 +6,7 @@ const view=$('#view'), reader=$('#reader'), rdBody=$('#rdBody');
 let META=null, AZ=null, CASES=null, OPS=null, OPS2=null, TPL=null, G3=null, STEN=null, KB=null;
 const CHUNKS={};            // file -> {start,end,pages}
 let chunksReady=false, chunksLoading=false;
-let curPage=1, tab='search', lastQuery='', lastFilter='all';
+let curPage=1, tab='home', lastQuery='', lastFilter='all';
 let toolState={};           // session-only checklist state
 const FAVKEY='gr_favs_v1';
 let favs=JSON.parse(localStorage.getItem(FAVKEY)||'[]'); // [{a,title,label}] — section IDs only
@@ -16,8 +16,8 @@ let favs=JSON.parse(localStorage.getItem(FAVKEY)||'[]'); // [{a,title,label}] �
   if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
   const [m,a,cs,op,sn,kb,o2,tpl,g3]=await Promise.all(['meta','az','cases','ops','stencils','kb','ops2','templates','guides3'].map(f=>fetch('data/'+f+'.json').then(r=>r.json())));
   META=m; AZ=a; CASES=cs; OPS=op; OPS2=o2; TPL=tpl; G3=g3; STEN=sn; KB=kb;
-  $('#verinfo').textContent='v'+META.version+' · content '+META.built+' · '+META.pages+' pp';
-  bindUI(); render();
+  window.GRVER='v'+META.version+' · content '+META.built+' · '+META.pages+' pp'; { const vi=$('#verinfo'); if(vi)vi.textContent=GRVER; }
+  wrapSubviews(); bindUI(); render();
   loadAllChunks(); // background; SW caches for offline
 })();
 
@@ -27,14 +27,26 @@ async function loadAllChunks(){
   const st=$('#loadState');
   for(const c of META.chunks){
     try{ CHUNKS[c.f]=await fetch(c.f).then(r=>r.json()); }
-    catch(e){ st.textContent='Load failed — retry online'; chunksLoading=false; return; }
-    done++; st.textContent='Loading '+done+'/'+total;
+    catch(e){ st.textContent='Load failed — retry online'; heroLoad('LOAD FAILED · RETRY ONLINE'); chunksLoading=false; return; }
+    done++; st.textContent='Loading '+done+'/'+total; heroLoad('LOADING '+done+'/'+total);
     if(tab==='search'&&lastQuery) doSearch(lastQuery,lastFilter,true);
   }
-  chunksReady=true; st.textContent='All content ✓ offline'; st.classList.add('ok');
-  setTimeout(()=>{st.textContent='Offline ✓';},2500);
+  chunksReady=true; st.textContent='All content saved offline'; st.classList.add('ok'); heroLoad('OFFLINE READY');
+  setTimeout(()=>{st.textContent='';},2500);
 }
 
+const HEAD_EMO=/^[\s\u2190-\u21FF\u2300-\u23FF\u2460-\u27BF\u2900-\u2BFF\u{1F000}-\u{1FAFF}\uFE0F\u200D★☆◉⌕✓✦▸•]+/u;
+function tidyHeads(root){
+  root.querySelectorAll('h2.sec:not([data-t])').forEach(h=>{ h.dataset.t='1';
+    if(h.querySelector('.sec-r')||h.children.length)return;
+    let t=h.textContent.replace(HEAD_EMO,'').trim(), sub='';
+    const i=t.indexOf(' — '); if(i>0&&t.length>30){ sub=t.slice(i+3).trim(); t=t.slice(0,i).trim(); }
+    h.textContent=t;
+    if(sub){ const d=document.createElement('div'); d.className='sec-sub'; d.textContent=sub.charAt(0).toUpperCase()+sub.slice(1); h.after(d); }
+  });
+}
+new MutationObserver(()=>tidyHeads(view)).observe(view,{childList:true,subtree:true});
+function heroLoad(t){ window._heroLoad=t; document.querySelectorAll('.hs-load').forEach(e=>{e.textContent=t;}); }
 function pageText(abs){
   for(const c of META.chunks){ if(abs>=c.s&&abs<=c.e){ const ch=CHUNKS[c.f]; return ch?ch.pages[abs-c.s]:null; } }
   return null;
@@ -69,20 +81,25 @@ function bindUI(){
   if(top){
     top.insertAdjacentHTML('beforeend','<div id="rdProg"></div>');
     const star=$('#rdStar');
-    star.insertAdjacentHTML('beforebegin','<button id="rdDl" class="iconbtn" title="Download as Word" aria-label="Download Word document" style="display:none">⬇</button>');
+    star.insertAdjacentHTML('beforebegin','<button id="rdDl" class="iconbtn" title="Download as Word" aria-label="Download Word document" style="display:none">'+(window.GRI?GRI('download'):'⬇')+'</button>');
+    const rb=$('#rdBack'); if(rb&&window.GRI)rb.innerHTML=GRI('chevron-left');
     $('#rdDl').addEventListener('click',()=>{if(curDoc)downloadDoc(curDoc.title,curDoc.text);});
     rdBody.addEventListener('scroll',()=>{const el=rdBody;const max=el.scrollHeight-el.clientHeight;
       const p=max>0?(el.scrollTop/max*100):0;const bar=$('#rdProg');if(bar)bar.style.width=p+'%';},{passive:true});
   }
-  $('#loadState').insertAdjacentHTML('beforebegin','<button id="fsBtn" title="Text size — tap to zoom" aria-label="Text size"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="13.5" cy="13.5" r="9.5"/><path d="m20.5 20.5 8 8"/><text x="13.5" y="18" text-anchor="middle">A</text></svg></button>');
+  $('#topbar .tb-clock').insertAdjacentHTML('afterend','<button id="fsBtn" title="Text size" aria-label="Text size"><span>A</span><span>a</span></button>');
   $('#fsBtn').addEventListener('click',()=>{const o=['s','m','l','xl'],c=localStorage.getItem('gr_fs')||'m';
     const n=o[(o.indexOf(c)+1)%o.length]; localStorage.setItem('gr_fs',n);applyFS();
     const t=document.getElementById('osToast')||null; if(window.grToast)grToast('Text size: '+({s:'small',m:'normal',l:'large',xl:'extra large'})[n]);});
-  $$('#tabbar .tab').forEach(b=>b.addEventListener('click',()=>{
-    tab=b.dataset.tab; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x===b));
-    closeReader(); render(); view.scrollTop=0;
-  }));
-  $('#brandBtn').addEventListener('click',()=>{tab='search';$$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='search'));closeReader();render();});
+  $$('#tabbar .tab').forEach(b=>{
+    if(window.GRI&&b.dataset.ic&&!b.querySelector('.gri'))b.insertAdjacentHTML('afterbegin',GRI(b.dataset.ic));
+    b.addEventListener('click',()=>{ const t=b.dataset.tab;
+      if(t===tab&&view.dataset.root===t){ view.scrollTo({top:0,behavior:'smooth'}); if(t==='search'){const i=$('#q'); if(i)i.focus();} return; }
+      setTab(t); closeReader(); render(); view.scrollTop=0; if(t==='search'){const i=$('#q'); if(i&&!lastQuery)i.focus();} });
+  });
+  $('#brandBtn').addEventListener('click',goHome);
+  $('#brandBtn').insertAdjacentHTML('beforebegin','<button id="tbBack" class="tbback" aria-label="Back">'+(window.GRI?GRI('chevron-left'):'‹')+'</button>');
+  $('#tbBack').addEventListener('click',()=>{ if(window.grBack)grBack(); });
   $('#rdBack').addEventListener('click',closeReader);
   $('#rdPrev').addEventListener('click',()=>openPage(Math.max(1,curPage-1)));
   $('#rdNext').addEventListener('click',()=>openPage(Math.min(META.pages,curPage+1)));
@@ -92,38 +109,150 @@ function bindUI(){
 }
 
 function render(){
-  if(tab==='search')renderSearch();
-  else if(tab==='browse')renderBrowse();
+  if(tab==='browse'){ ixKind='contents'; tab='index'; }
+  setTab(tab); vstack.length=0; vcur=null; view.dataset.root=tab; document.body.classList.remove('subview');
+  if(tab==='home')renderHome();
+  else if(tab==='search')renderSearch();
   else if(tab==='index')renderIndex();
   else if(tab==='tools')renderTools();
   else renderSaved();
 }
+function setTab(t){ tab=t; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t)); document.body.classList.toggle('on-home',t==='home'); }
+function goHome(){ setTab('home'); closeReader(); render(); view.scrollTop=0; }
+function searchFor(q,opt){ lastQuery=q||''; lastFilter='all'; setTab('search'); closeReader(); render(); view.scrollTop=0;
+  if(opt&&opt.focus){ const i=$('#q'); if(i)i.focus(); } }
+function subView(){ view.innerHTML='<div id="results"></div>'; view.scrollTop=0; return $('#results'); }
+/* sub-view stack: every screen drawn into #view that isn't a tab's own page. Back steps through it, then to the tab, then Home. */
+const vstack=[]; let vcur=null;
+const SUBVIEWS=['renderPTP','renderGuides','renderMajor','renderEssentials','renderOffences','renderOffence','renderStencils','renderLive','renderClock',
+  'renderCourtDay','renderCaution','renderKBtopic','renderLatin','renderAcronyms','renderCCTV','renderCautions','renderTemplates','openTemplate','renderExhibits',
+  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings'];
+function sameArgs(a,b){ return JSON.stringify(a||[])===JSON.stringify(b||[]); }
+function wrapSubviews(){
+  for(const name of SUBVIEWS){ const orig=window[name]; if(typeof orig!=='function'||orig._sv)continue;
+    const w=function(...a){
+      a=a.filter(x=>x!==undefined&&!(x&&typeof x==='object'&&'isTrusted' in x));   // drop click events passed by listeners
+      const ix=vstack.findIndex(e=>e.f===name&&sameArgs(e.a,a));
+      if(ix>=0){ vstack.length=ix; }                                             // "up" to a screen already in the trail
+      else if(vcur){ if(vcur.f!==name||(!vcur.a.length&&a.length)) vstack.push({f:vcur.f,a:vcur.a,y:view.scrollTop}); }
+      vcur={f:name,a}; view.dataset.root=''; document.body.classList.add('subview');
+      return orig.apply(this,a); };
+    w._sv=1; w._orig=orig; window[name]=w; }
+}
 
-/* ---------- SEARCH ---------- */
+/* ---------- SEARCH (search.js draws the Search tab; this is only the fallback) ---------- */
 const FILTERS=[['all','Everything'],['vols','Vols 1–11'],['v12','Vol 12'],['st','Statements'],['pb','Playbooks'],['man','2007 Manual']];
 const FRANGE={vols:[15,937],v12:[938,968],st:[969,992],pb:[986,992],man:[993,1478]};
 function renderSearch(){
-  view.innerHTML=`
-  <div class="searchbox sb-mag"><svg class="sb-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="q" type="search" placeholder="Search — topic, case, statute, offence…" value="${esc(lastQuery)}" autocomplete="off" enterkeyhint="search"></div>
+  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery}); return; }
+  view.innerHTML=`<div class="tabroot" data-tab="search" hidden></div>
+  <div class="searchbox sb-mag"><input id="q" type="search" placeholder="Search — topic, case, statute, offence…" value="${esc(lastQuery)}" autocomplete="off" enterkeyhint="search"></div>
   <div id="results"></div>`;
   const q=$('#q'); let t;
   q.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(()=>doSearch(q.value,lastFilter),200);});
   q.addEventListener('keydown',e=>{if(e.key==='Enter'){q.blur();doSearch(q.value,lastFilter);}});
   lastFilter='all';
-  if(lastQuery)doSearch(lastQuery,lastFilter,true); else homeQuick();
+  if(lastQuery)doSearch(lastQuery,lastFilter,true);
 }
-function homeQuick(){
+
+/* ---------- HOME ---------- */
+const HOME=[
+ {h:'On the job',r:'Quick access',c:[
+  ['qbOff','shield','Offences','Elements · Arrest · Statement'],
+  ['hPatrol','walk','Proactive patrol','GPS route · Stops · Times'],
+  ['hClock','timer','Detention clock','Deadlines · Extensions · Alerts'],
+  ['hGaol','users','Gaoler / cell checks','Buzz 2 min · Check log'],
+  ['hCaution','triangle-alert','Cautions','Wording · Declarations'],
+  ['hScene','sunrise','First at scene','Golden hour']]},
+ {h:'Emergency & field',r:'Offline',c:[
+  ['hFirstAid','heart-pulse','Medical emergency','Call 112 · CPR metronome · Choking · Bleeding · Overdose · 22 conditions','wide red'],
+  ['hOsint','map','Map','Stations · Districts · Cameras · Measure'],
+  ['hTools','toolbox','Toolbox','Ruler · Torch · Timers · 21 tools']]},
+ {h:'My work',r:'On this phone',c:[
+  ['hRoster','calendar-days','My roster','Today · Next tour · Leave · Court'],
+  ['hTasks','square-check','Tasks','CCTV · Arrests · Deadlines'],
+  ['hNotes','notebook-pen','Notes','Sketches · Photos · Lock'],
+  ['hRec','mic','Voice recorder','Markers · Crash-safe'],
+  ['hScan','scan-text','Scanner','Documents → PDF'],
+  ['hPres','monitor','Present to TV','Photos & CCTV · Smart View']]},
+ {h:'Investigation guides',r:'In depth',c:[
+  ['hAssault','hand','Assault','Scene · Evidence · Trial'],
+  ['hRobbery','wallet','Robbery from person','Force · ID · Continuing act'],
+  ['hBurglary','door-open','Burglary','Entry forensics · Possession'],
+  ['hTheft','shopping-bag','Theft & handling','Dishonesty · Claim of right'],
+  ['hDrugs2','pill','Drugs prosecutions','MDA · s.23 · s.26 warrants'],
+  ['hImm','plane','Immigration','Status · Smuggling · Trafficking']]},
+ {h:'Law & authority',r:'Case law · Bail',c:[
+  ['qbEss','star','Essential case law','The ones that changed everything'],
+  ['qbCases','library','Full case library','383 cases, categorised'],
+  ['hBail','scale','Objecting to bail',"O'Callaghan · s.2 · Burglary"],
+  ['hOcall','clipboard-list',"O'Callaghan worksheet",'Systematic objection'],
+  ['hBailpack','folder-open','Bail pack','Case-manager worksheet'],
+  ['hAmend','file-pen-line','Recent amendments','New laws by area — verify']]},
+ {h:'Files & paperwork',r:'Statements · Forms',c:[
+  ['hGuides','file-text','Statement guides','Per offence'],
+  ['hSten','layout-template','Stencils','Your templates'],
+  ['hTpl','mail','Templates','CCTV · s.41 · Agency'],
+  ['hPrecis','file-check','Précis of evidence','Build it to win']]},
+ {h:'Deep guides',r:'Reference',c:[
+  ['hPO','megaphone','Public order','s.6 & s.8'],
+  ['hAffray','swords','Affray','Investigation guide'],
+  ['hClamp','car-front','Clamping & s.41','Seizure · Rogue clampers'],
+  ['hIplan','messages-square','Interview plan','Stencil'],
+  ['hRare','scroll','Rare offences','Niche statutes'],
+  ['hDeep','book-open','All deep guides','Searches · Weapons · RTC · MP']]},
+ {h:'The manual',r:'Vols 1–12',c:[
+  ['g986','book-marked','Playbooks','5-part per offence'],
+  ['g955','brain','Inference aide','ss.18 · 19 · 19A'],
+  ['g975','eye','ADVOKATE','Identification'],
+  ['g941','message-square-quote','Cross-examination','Surviving the stand'],
+  ['g945','landmark','Law of evidence','Vol 12 Part B'],
+  ['g144','file-pen','Assault statements','s.2 / s.3 guide'],
+  ['hLang','languages','Latin & acronyms','ABC · MMO · PEACE'],
+  ['hCourt','gavel','Court-day mode','Everything for the stand']]},
+ {h:'Live',r:'Needs signal',c:[
+  ['hJudg','gavel','Latest judgments','Supreme · Appeal · High'],
+  ['hCourtLists','calendar-clock','Court lists','CCJ & Dublin courts — today'],
+  ['hCamDist','cctv','Fitzgibbon St / Mountjoy','Street cameras · North city'],
+  ['hCamM50','route','M50 motorway','Every TII camera · J3 → J17'],
+  ['hCamPort','ship','Dublin Port','Ships · Liffey · Poolbeg'],
+  ['hCamAll','video','All cameras','M1 · N4 · N7 too'],
+  ['hDccList','list-video','DCC City CCTV list','241 locations · No live feed'],
+  ['hLiveNews','tv','Live news','Sky News · RTÉ'],
+  ['hRadio','radio','Irish radio','RTÉ · Newstalk · 98 · FM104'],
+  ['hSocial','message-circle','Social media','Official Garda accounts · Read-only']]}
+];
+function hsub(t){ const p=String(t).split(' · '); return p.map((x,i)=>'<span class="sb">'+esc(x)+(i<p.length-1?' ·':'')+'</span>').join(' '); }
+function hcard(c){ const [id,ic,t,sub,cls]=c; const go=/^g\d+$/.test(id)?` data-go="${id.slice(1)}"`:` id="${id}"`;
+  return `<button class="hc${cls?' '+cls:''}"${go}>${GRI(ic)}<span class="hc-t"><b>${esc(t)}</b><small>${hsub(sub)}</small></span></button>`; }
+function renderHome(){
   const lp=+localStorage.getItem('gr_lastpage')||0;
-  const nCases=(CASES&&CASES.length)||0;
-  const nGuides=(G3&&G3.length)||0;
-  const online=navigator.onLine;
   let recent=[]; try{recent=JSON.parse(localStorage.getItem('gr_recent')||'[]');}catch(e){}
-  // Recent + Continue reading, merged: the page you were reading comes first, then your latest items (2 rows max)
   let rows=recent.slice();
-  if(lp){ rows=rows.filter(r=>!(r.k!=='guide'&&+r.id===lp)); rows.unshift({k:'page',id:lp,t:'▶ '+titleFor(lp),s:pageLabel(lp)+' · continue reading',ts:0,cont:1}); }
-  const recentHtml = rows.length? `<h2 class="sec">↺ Recent</h2><div class="recentwrap">`+
-    rows.slice(0,2).map(r=>`<button class="recentrow${r.cont?' cont':''}" data-k="${r.k}" data-id="${esc(String(r.id))}"><div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${r.cont?'':relTime(r.ts)}</div></button>`).join('')+`</div>` : '';
-  $('#results').innerHTML=`
+  if(lp){ rows=rows.filter(r=>!(r.k!=='guide'&&+r.id===lp)); rows.unshift({k:'page',id:lp,t:titleFor(lp),s:pageLabel(lp)+' · continue reading',ts:0,cont:1}); }
+  const recentHtml=rows.length?`<h2 class="sec">Recent<span class="sec-r">Continue</span></h2><div class="recentwrap">`+
+    rows.slice(0,2).map(r=>`<button class="recentrow${r.cont?' cont':''}" data-k="${r.k}" data-id="${esc(String(r.id))}">${GRI(r.cont?'book-open':'history')}<div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${r.cont?'':relTime(r.ts)}</div></button>`).join('')+`</div>`:'';
+  const fs=localStorage.getItem('gr_fs')||'m';
+  view.innerHTML=`<div class="tabroot home-root" data-tab="home">
+  <section class="hero">
+    <div class="hero-row">
+      <svg class="hero-emb" viewBox="0 0 64 72" aria-hidden="true"><use href="#emb"/></svg>
+      <div class="hero-txt">
+        <h1>ASSISTING</h1>
+        <div class="hero-sub">OPERATIONAL REFERENCE TOOL</div>
+        <i class="hero-rule"></i>
+        <p>Independent reference for frontline Gardaí — law, procedure and tools.</p>
+      </div>
+      <div class="hero-stat">
+        <div class="hs-net"><i></i><span>ONLINE</span></div>
+        <div class="hudclock hs-time" data-f="t"></div>
+        <div class="hudclock hs-date" data-f="d"></div>
+        <div class="hs-load">${esc(window._heroLoad||'')}</div>
+      </div>
+    </div>
+  </section>
+  <div class="home-body">
+  <button class="homesearch" id="homeSearch" type="button">${GRI('search')}<span>Search or ask anything…</span>${GRI('sparkles','ai')}</button>
   <div id="homePatrol"></div>
   <div id="homeGaol"></div>
   <div id="homeRoster"></div>
@@ -131,104 +260,33 @@ function homeQuick(){
   <div id="homeTasks"></div>
   <div id="homeNews"></div>
   ${recentHtml}
-
-  <button class="qbtn osintHero" id="hOsint">🗺️ Map<small>stations · districts · cameras · DCC CCTV · Street View pin · draw & measure — you choose what's on</small></button>
-  <button class="qbtn faHero" id="hFirstAid">🚑 Medical emergency<small>call 112/999 · CPR metronome · choking · bleeding · overdose · 22 conditions · step by step</small></button>
-  <button class="qbtn osintHero tbxHero" id="hTools">🧰 Toolbox<small>ruler · measure with evidence photo · evidence camera · level · compass · torch · timers · 21 tools</small></button>
-  <h2 class="sec">📹 Live cameras <span class="livepip">● LIVE</span></h2><div class="quick">
-    <button class="qbtn camHero" id="hCamDist">📷 Fitzgibbon St / Mountjoy<small>street cams · your district + north city</small></button>
-    <button class="qbtn camHero" id="hCamM50">🛣️ M50 motorway<small>every TII camera · J3 → J17</small></button>
-    <button class="qbtn camHero" id="hCamPort">⚓ Dublin Port<small>ships · Liffey · Poolbeg</small></button>
-    <button class="qbtn camHero" id="hCamAll">🎥 All cameras<small>organised list · M1 · N4 · N7 too</small></button>
-    <button class="qbtn dccHero" id="hDccList">🗂️ DCC City CCTV list<small>241 Dublin City Council cameras · search a street → pinpoint it on the map · locations only, no live feed</small></button>
+  <div id="results">
+  ${HOME.map(g=>`<h2 class="sec">${esc(g.h)}<span class="sec-r">${esc(g.r)}</span></h2><div class="hgrid">${g.c.map(hcard).join('')}</div>`).join('')}
   </div>
-
-  <h2 class="sec">📡 Live TV & radio</h2><div class="quick">
-    <button class="qbtn camHero" id="hLiveNews">📺 Live news<small>Sky News live · RTÉ News latest · in the app</small></button>
-    <button class="qbtn camHero" id="hRadio">📻 Irish radio<small>favourites · RTÉ · Newstalk · 98 · FM104 · all</small></button>
-    <button class="qbtn socHero" id="hSocial">📱 Social media<small>official Garda accounts · Garda Info · Garda Traffic · DMR Facebook · TikTok · read-only</small></button>
+  <div class="homefoot">
+    <div class="hf-dis"><span>INDEPENDENT TOOL</span> · <span>NOT AN OFFICIAL GARDA SYSTEM</span></div>
+    <div class="hf-sub">Not legal advice · verify current wording before relying on it</div>
+    <div class="hf-ver">${esc(window.GRVER||'')}</div>
+    <div class="hf-fs">Text size ${['s','m','l','xl'].map((k,i)=>`<button type="button" data-fs="${k}" class="${k===fs?'on':''}" style="font-size:${11+i*2.5}px" aria-label="Text size ${k}">A</button>`).join('')}</div>
   </div>
-
-  <h2 class="sec">⚡ On the job</h2><div class="quick">
-    <button class="qbtn" id="qbOff">📕 Offences<small>elements · arrest · statement</small></button>
-    <button class="qbtn" id="hPatrol">🚶 Proactive patrol<small>GPS route · stops · times · patrol log</small></button>
-    <button class="qbtn" id="hClock">⏱ Detention clock<small>deadlines · extensions · alerts</small></button>
-    <button class="qbtn" id="hGaol">🔐 Gaoler · cell checks<small>buzz 2 min before each check</small></button>
-    <button class="qbtn" id="hCaution">⚠️ Cautions<small>wording · declarations</small></button>
-    <button class="qbtn" id="hScene">🚔 First at scene<small>golden hour</small></button>
-  </div>
-
-  <h2 class="sec">🗂️ My work</h2><div class="quick">
-    <button class="qbtn" id="hRoster">🗓️ My roster<small>today · next tour · leave · court · swaps</small></button>
-    <button class="qbtn" id="hTasks">✅ Tasks<small>CCTV · arrests · deadlines · photo a list</small></button>
-    <button class="qbtn" id="hNotes">📓 Notes<small>sketches · photos · checklists · lock</small></button>
-    <button class="qbtn" id="hRec">🎙️ Voice recorder<small>markers · crash-safe · stays on phone</small></button>
-    <button class="qbtn" id="hScan">📄 Scanner<small>documents → PDF · saved to phone only</small></button>
-    <button class="qbtn" id="hPres">📺 Present to TV<small>photos & CCTV on the TV · Smart View · DeX</small></button>
-  </div>
-
-  <h2 class="sec">🔎 In-depth investigation guides</h2><div class="quick">
-    <button class="qbtn" id="hAssault">👊 Assault<small>scene · evidence · trial · case law</small></button>
-    <button class="qbtn" id="hRobbery">🔪 Robbery from person<small>force · ID · continuing act</small></button>
-    <button class="qbtn" id="hBurglary">🏠 Burglary<small>entry forensics · recent possession</small></button>
-    <button class="qbtn" id="hTheft">💰 Theft & handling<small>dishonesty · claim of right</small></button>
-    <button class="qbtn" id="hDrugs2">💊 Drugs prosecutions<small>MDA · s.23 · s.26 warrants</small></button>
-    <button class="qbtn" id="hImm">🛂 Immigration<small>status · smuggling · trafficking</small></button>
-  </div>
-
-  <h2 class="sec">⚖️ Law & authority</h2><div class="quick">
-    <button class="qbtn" id="qbEss">★ Essential case law<small>the ones that changed everything</small></button>
-    <button class="qbtn" id="qbCases">📚 Full case library<small>383 cases, categorised</small></button>
-    <button class="qbtn" id="hBail">🔒 Objecting to bail<small>O'Callaghan · s.2 · burglary presumption</small></button>
-    <button class="qbtn" id="hOcall">📋 O'Callaghan worksheet<small>systematic objection</small></button>
-    <button class="qbtn" id="hBailpack">⚖️ Bail pack<small>case-manager worksheet</small></button>
-    <button class="qbtn" id="hAmend">🆕 Recent amendments<small>new laws by area — verify</small></button>
-    <button class="qbtn" id="hJudg">◉ Latest judgments<small>BAILII — Supreme · Appeal · High</small></button>
-    <button class="qbtn" id="hCourtLists">🗓️ Court lists<small>CCJ & all Dublin courts — today</small></button>
-  </div>
-
-  <h2 class="sec">📝 Files & paperwork</h2><div class="quick">
-    <button class="qbtn" id="hGuides">Statement guides<small>per offence</small></button>
-    <button class="qbtn" id="hSten">📄 Stencils<small>your templates</small></button>
-    <button class="qbtn" id="hTpl">📧 Templates<small>CCTV · s.41 · agency</small></button>
-    <button class="qbtn" id="hPrecis">📑 Précis of evidence<small>build it to win</small></button>
-  </div>
-
-  <h2 class="sec">📖 Deep guides</h2><div class="quick">
-    <button class="qbtn" id="hPO">🚨 Public order<small>s.6 & s.8</small></button>
-    <button class="qbtn" id="hAffray">⚔️ Affray<small>investigation guide</small></button>
-    <button class="qbtn" id="hClamp">🚗 Clamping & s.41<small>public clamping · seizure · rogue clampers</small></button>
-    <button class="qbtn" id="hIplan">🎙️ Interview plan<small>stencil</small></button>
-    <button class="qbtn" id="hDrugs">💊 Drugs prosecutions<small>MDA · s.23 · s.26 warrants</small></button>
-    <button class="qbtn" id="hRare">📜 Rare offences<small>niche statutes</small></button>
-    <button class="qbtn" id="hDeep">📚 All deep guides<small>search · weapons · RTC · MP</small></button>
-  </div>
-
-  <h2 class="sec">📗 The manual</h2><div class="quick">
-    <button class="qbtn" data-go="986">Playbooks<small>5-part per offence</small></button>
-    <button class="qbtn" data-go="955">Inference aide<small>ss.18/19/19A</small></button>
-    <button class="qbtn" data-go="975">ADVOKATE<small>identification</small></button>
-    <button class="qbtn" data-go="941">Cross-exam<small>surviving the stand</small></button>
-    <button class="qbtn" data-go="945">Law of evidence<small>V12 Part B</small></button>
-    <button class="qbtn" data-go="144">Assault statements<small>s.2 / s.3 guide</small></button>
-    <button class="qbtn" id="hLang">⚖️ Latin & acronyms<small>ABC · MMO · PEACE</small></button>
-    <button class="qbtn" id="hCourt">👨‍⚖️ Court-day mode<small>everything for the stand</small></button>
-  </div>
-  <div class="empty">Or type anything above — all 1,478 pages are searchable.</div>`;
-
-  $$('#results .recentrow').forEach(b=>b.addEventListener('click',()=>{
+  </div></div>`;
+  if(window.grHudTick)grHudTick(); netPaint();
+  $('#homeSearch').addEventListener('click',()=>searchFor('',{focus:true}));
+  $$('.homefoot [data-fs]').forEach(b=>b.addEventListener('click',()=>{ localStorage.setItem('gr_fs',b.dataset.fs); applyFS();
+    $$('.homefoot [data-fs]').forEach(x=>x.classList.toggle('on',x===b)); }));
+  $$('#view .recentrow').forEach(b=>b.addEventListener('click',()=>{
     const k=b.dataset.k, id=b.dataset.id;
     if(k==='guide')openGuide3(id); else openPage(+id);
   }));
   const go=(id,fn)=>{const b=$('#'+id); if(b)b.addEventListener('click',fn);};
   go('qbOff',()=>renderOffences());
-  go('qbEss',renderEssentials);
-  go('qbCases',()=>{ixKind='case';tab='index';$$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='index'));render();});
+  go('qbEss',()=>renderEssentials());
+  go('qbCases',()=>{ixKind='case';setTab('index');render();});
   go('hPatrol',()=>{ if(window.openPatrol) openPatrol(); });
   go('hGaol',()=>{ if(window.openGaol) openGaol(); });
   go('hClock',()=>{ if(window.openDetention) openDetention(); else renderClock(); });
-  go('hCaution',renderCautions);
-  go('hScene',renderMajor);
+  go('hCaution',()=>renderCautions());
+  go('hScene',()=>renderMajor());
   go('hOsint',()=>{ if(window.openOSINT) window.openOSINT(); });
   go('hCamDist',()=>{ if(window.openCamReel) window.openCamReel(0,'district',true); });
   go('hCamM50',()=>{ if(window.openCamReel) window.openCamReel(0,'m50',true); });
@@ -255,7 +313,6 @@ function homeQuick(){
   go('hBail',()=>openGuide3('bail'));
   go('hOcall',()=>openGuide3('ocall'));
   go('hBailpack',()=>openTemplate(TPL.findIndex(t=>t.id==='bailpack')));
-  go('hDrugs',()=>openGuide3('drugs'));
   go('hAssault',()=>openGuide3('assault_inv'));
   go('hRobbery',()=>openGuide3('robbery_inv'));
   go('hBurglary',()=>openGuide3('burglary_inv'));
@@ -269,16 +326,18 @@ function homeQuick(){
   go('hClamp',()=>openGuide3('clamping'));
   go('hIplan',()=>openGuide3('iplan'));
   go('hAmend',()=>openGuide3('amendments'));
-  go('hJudg',renderJudgments);
-  go('hCourtLists',renderCourtLists);
+  go('hJudg',()=>renderJudgments());
+  go('hCourtLists',()=>renderCourtLists());
   go('hGuides',()=>renderGuides());
-  go('hSten',renderStencils);
-  go('hTpl',renderTemplates);
+  go('hSten',()=>renderStencils());
+  go('hTpl',()=>renderTemplates());
   go('hDeep',()=>renderDeep());
-  go('hLang',renderLang);
-  go('hCourt',renderCourtDay);
-  $$('#results .qbtn[data-go]').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
+  go('hLang',()=>renderLang());
+  go('hCourt',()=>renderCourtDay());
+  $$('#view .hc[data-go]').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
 }
+function netPaint(){ const on=navigator.onLine; document.querySelectorAll('.hs-net').forEach(el=>{ el.classList.toggle('off',!on); const sp=el.querySelector('span'); if(sp)sp.textContent=on?'ONLINE':'OFFLINE'; }); }
+addEventListener('online',netPaint); addEventListener('offline',netPaint);
 function pushRecent(item){
   try{
     let r=JSON.parse(localStorage.getItem('gr_recent')||'[]');
@@ -296,7 +355,7 @@ function openGuide3(id){
   const g=G3.find(x=>x.id===id); if(!g)return;
   pushRecent({k:'guide',id:id,t:g.t,s:'Investigation guide'});
   reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
-  $('#rdTitle').textContent=g.icon+' '+g.t; $('#rdPage').textContent='Guide';
+  $('#rdTitle').textContent=g.t; $('#rdPage').textContent='Guide';
   $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
   curDoc={title:g.t,text:g.b}; rdBody.innerHTML=formatPage(g.b); applyRdScale(); rdBody.scrollTop=0; updateDlBtn();
@@ -403,7 +462,7 @@ function doSearch(q,filter,keep){
 
 /* ---------- POINTS TO PROVE ---------- */
 function renderPTP(){
-  tab='search';
+  subView();
   let html='<h2 class="sec">Points to prove — tap offence · always verify current wording</h2>';
   OPS.ptp.forEach((p,pi)=>{
     html+=`<div class="cslot"><button class="ixrow cshead"><span class="term" style="font-style:normal;font-weight:700">${esc(p.o)}</span><div class="refs">▾</div></button>
@@ -416,7 +475,7 @@ function renderPTP(){
   $$('.cshead').forEach(h=>h.addEventListener('click',()=>h.nextElementSibling.classList.toggle('hidden')));
   $$('#results .csall').forEach(b=>b.addEventListener('click',()=>{
     if(b.dataset.g){renderGuides(b.dataset.g);return;}
-    lastQuery=b.dataset.q;doSearch(lastQuery,'all');$('#q').value=lastQuery;}));
+    searchFor(b.dataset.q);}));
   view.scrollTop=0;
 }
 function renderGuides(openG){
@@ -506,8 +565,8 @@ function renderOffence(i){
   $('#backO').addEventListener('click',renderOffences);
   $('#oGuide').addEventListener('click',()=>renderGuides(p.g));
   $('#oPlay').addEventListener('click',()=>openPage(986));
-  $('#oSearch').addEventListener('click',()=>{tab='search';renderSearch();$('#q').value=short;doSearch(short,'all');});
-  $('#oCases').addEventListener('click',()=>{window.caseCat='All';tab='index';ixKind='case';$$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='index'));caseQ=short.split(' ')[0];render();});
+  $('#oSearch').addEventListener('click',()=>searchFor(short));
+  $('#oCases').addEventListener('click',()=>{window.caseCat='All';ixKind='case';caseQ=short.split(' ')[0];setTab('index');render();});
   view.scrollTop=0;
 }
 function renderStencils(){
@@ -573,6 +632,7 @@ function renderLive(){
 
 /* ---------- DETENTION CLOCK (session only — nothing saved) ---------- */
 function renderClock(){
+  subView();
   $('#results').innerHTML=`<h2 class="sec">⏱ Detention clock</h2>
   <div class="tool">
     <label class="flab">Time detention commenced (member i/c)</label>
@@ -625,6 +685,7 @@ function renderClock(){
 
 /* ---------- COURT-DAY MODE ---------- */
 function renderCourtDay(){
+  subView();
   let html=`<h2 class="sec">⚖ Court day — all offline</h2><div class="quick">
     <button class="qbtn" data-go="941">Cross-exam survival<small>V12 Part A</small></button>
     <button class="qbtn" data-go="945">Law of evidence<small>objections & rules</small></button>
@@ -645,11 +706,7 @@ function renderCourtDay(){
 }
 
 /* ---------- BROWSE ---------- */
-function renderBrowse(){
-  view.innerHTML='<h2 class="sec">Browse the full reference</h2><div id="tree"></div>';
-  const root=$('#tree');
-  META.tree.forEach(n=>root.appendChild(treeNode(n,0)));
-}
+function renderBrowse(){ ixKind='contents'; setTab('index'); render(); }
 function treeNode(n,depth){
   const d=document.createElement('div'); d.className='tnode';
   const row=document.createElement('button'); row.className='trow';
@@ -668,16 +725,20 @@ function treeNode(n,depth){
   return d;
 }
 
-/* ---------- INDEXES ---------- */
-let ixKind='topic';
+/* ---------- INDEX (contents · topics · case law · statutes · A–Z) ---------- */
+let ixKind='contents';
 function renderIndex(){
-  view.innerHTML=`<div class="chips" style="padding-top:2px">
-    <button class="chip ${ixKind==='topic'?'on':''}" data-k="topic">Topics</button>
-    <button class="chip ${ixKind==='case'?'on':''}" data-k="case">Case law</button>
-    <button class="chip ${ixKind==='statute'?'on':''}" data-k="statute">Statutes</button>
-    <button class="chip ${ixKind==='all'?'on':''}" data-k="all">All A–Z</button></div>
+  const K=[['contents','Contents'],['topic','Topics'],['case','Case law'],['statute','Statutes'],['all','All A–Z']];
+  view.innerHTML=`<div class="tabroot" data-tab="index" hidden></div>
+  <div class="ixtop"><div class="chips">${K.map(([k,l])=>`<button class="chip ${ixKind===k?'on':''}" data-k="${k}">${l}</button>`).join('')}</div></div>
   <div class="alpharail" id="rail"></div><div id="ixlist"></div>`;
-  $$('.chip').forEach(c=>c.addEventListener('click',()=>{ixKind=c.dataset.k;renderIndex();}));
+  $$('.ixtop .chip').forEach(c=>c.addEventListener('click',()=>{ixKind=c.dataset.k;renderIndex();view.scrollTop=0;}));
+  if(ixKind==='contents'){
+    const list=$('#ixlist');
+    list.innerHTML='<h2 class="sec">Full reference<span class="sec-r">'+META.pages+' pages</span></h2><div id="tree"></div>';
+    META.tree.forEach(n=>$('#tree').appendChild(treeNode(n,0)));
+    return;
+  }
   if(ixKind==='case'){renderCases();return;}
   const items=AZ.filter(e=>ixKind==='all'||e.k===ixKind);
   const list=$('#ixlist'); let html='', letters=new Set(), cur='';
@@ -737,8 +798,7 @@ function renderCases(){
     });
     list.querySelectorAll('.cssnip,.cspg').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.a)));
     list.querySelectorAll('.csall').forEach(b=>b.addEventListener('click',()=>{
-      lastQuery=b.dataset.n.replace(/^(The\s)?(People\s\((DPP|AG)\)|DPP)\sv\s/i,'').trim(); lastFilter='all';
-      tab='search'; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='search')); render();
+      searchFor(b.dataset.n.replace(/^(The\s)?(People\s\((DPP|AG)\)|DPP)\sv\s/i,'').trim());
     }));
   };
   draw();
@@ -820,43 +880,54 @@ TOOLS.push(
   'Updates: arrest, charge, bail — victim informed',
   'VIS explained for sentence stage',
   'Referral: support services offered']});
+const TOOLS_MENU=[
+ ['On the job',[
+  ['clock','timer','Detention clock','s.4 · s.30 · DTA 1996 · s.50 — extensions, excluded periods, alerts'],
+  ['gaol','users','Gaoler · cell checks','Cell board · buzz 2 min before each check · check log'],
+  ['patrol','walk','Proactive patrol','Where you walked and when — stops, street names, patrol log'],
+  ['firstaid','heart-pulse','Medical emergency','112/999 · CPR metronome · 22 conditions · incident log','red'],
+  ['ptp','shield','Points to prove','20 offence cards — elements & arrest power'],
+  ['major','siren','Major incident','First response · golden hour'],
+  ['cautions','triangle-alert','Cautions & declarations','Caution wording · pre-caution questioning · declarations'],
+  ['caution','message-square-quote','Caution — when & case law','Questioning · statement declarations · key cases']]],
+ ['My work',[
+  ['tasks','square-check','Tasks','CCTV · arrests · deadlines · follow-ups · photograph a list'],
+  ['roster','calendar-days','My roster','Shift pattern · today & next tour · leave, court, swaps'],
+  ['notes','notebook-pen','Notes','Sketches · photos · checklists · lock'],
+  ['rec','mic','Voice recorder','Record with markers — kept on this phone'],
+  ['scan','scan-text','Document scanner','Flatten · clean up · multi-page PDF'],
+  ['pres','monitor','Present to TV','Photos & CCTV via Smart View, DeX or cast']]],
+ ['Paperwork',[
+  ['guides','file-text','Statement guides','What to capture, per offence'],
+  ['sten','layout-template','My stencils','Your templates — tap to copy'],
+  ['tpl','mail','Templates & forms','CCTV preservation · s.41 DP · passport · welfare'],
+  ['exhibits','clipboard-list','Exhibits builder','SMG1–99 · continuity · copy for report'],
+  ['cctv','cctv','CCTV preservation','Generate the request text'],
+  ['checks','list-checks','Checklists','Scene · arrest · warrant · exhibits · interview · ID']]],
+ ['Law & guides',[
+  ['guides2','book-open','Deep guides','Searches · weapons · RTC · précis · missing person'],
+  ['searches','search','Searches','Powers & what to say'],
+  ['weapons','swords','Weapons & knives','Offences · search · seizure'],
+  ['rtc','car-front','Traffic collision','Investigation guide'],
+  ['escooter','route','E-scooters','Status · charges · collisions'],
+  ['seizure','key','Seizure powers','Quick reference'],
+  ['lang','languages','Latin & acronyms','Legal terms · ABC · MMO · ADVOKATE · PEACE'],
+  ['latin','scroll','Latin & legal terms','Meaning & Garda use'],
+  ['acronyms','book-text','Acronyms','ABC · MMO · ADVOKATE …']]],
+ ['Live',[
+  ['judg','gavel','Latest judgments','Supreme · Appeal · High Court — from BAILII'],
+  ['courtlists','calendar-clock',"Court lists — who's on",'CCJ & all Dublin courts — official Legal Diary'],
+  ['social','message-circle','Social media','Official accounts — read-only, in the app']]],
+ ['Utilities',[
+  ['toolbox','toolbox','Toolbox','Ruler · measure · evidence camera · level · compass · torch · timers · QR']]],
+ ['Settings',[
+  ['aikey','sparkles','AI search','Your Anthropic key · what is sent · cost'],
+  ['about','info','About Assisting','Version · disclaimer · what stays on this phone']]]
+];
+function lrow(v,ic,t,sub,cls,attr){ return `<button class="lrow${cls?' '+cls:''}" ${attr||'data-v'}="${esc(v)}">${GRI(ic)}<span class="lt"><b>${esc(t)}</b>${sub?`<small>${esc(sub)}</small>`:''}</span>${GRI('chevron-right','chev')}</button>`; }
 function renderTools(){
-  view.innerHTML=`<h2 class="sec">Tools</h2><div class="toolmenu">
-    <button class="tmenu" data-v="firstaid"><b>🚑 Medical emergency</b><small>112/999 · CPR metronome · first aid for 22 conditions · incident log</small></button>
-    <button class="tmenu" data-v="gaol"><b>🔐 Gaoler · cell checks</b><small>cell board · distinctive buzz 2 min before each check · check log</small></button>
-    <button class="tmenu" data-v="patrol"><b>🚶 Proactive patrol</b><small>records where you walked and when — stops, street names, patrol log</small></button>
-    <button class="tmenu" data-v="social"><b>📱 Social media</b><small>official accounts on X, Facebook, TikTok — read-only, in the app</small></button>
-    <button class="tmenu" data-v="toolbox"><b>🧰 Toolbox</b><small>ruler · measure · evidence camera · level · compass · torch · timers · QR · more</small></button>
-    <button class="tmenu" data-v="roster"><b>🗓️ My roster</b><small>your shift pattern · today & next tour · leave, court, swaps, overtime</small></button>
-    <button class="tmenu" data-v="tasks"><b>✅ Tasks</b><small>to-do scheduler — CCTV · arrests · deadlines · follow-ups · photograph a list to add it</small></button>
-    <button class="tmenu" data-v="notes"><b>📓 Notes</b><small>notes like Samsung Notes — sketches · photos · checklists · lock</small></button>
-    <button class="tmenu" data-v="rec"><b>🎙️ Voice recorder</b><small>record with markers — kept on this phone only</small></button>
-    <button class="tmenu" data-v="scan"><b>📄 Document scanner</b><small>flatten · clean up · multi-page PDF saved to your phone</small></button>
-    <button class="tmenu" data-v="pres"><b>📺 Present to TV</b><small>show photos & CCTV clips via Smart View / DeX / cast</small></button>
-    <button class="tmenu" data-v="clock"><b>⏱ Detention clock</b><small>s.4 · s.30 · DTA 1996 · s.50 — extensions, excluded periods, alerts</small></button>
-    <button class="tmenu" data-v="ptp"><b>Points to prove</b><small>20 offence cards — elements & arrest power</small></button>
-    <button class="tmenu" data-v="guides"><b>📝 Statement guides</b><small>what to capture, per offence</small></button>
-    <button class="tmenu" data-v="sten"><b>📄 My stencils</b><small>your templates — tap to copy</small></button>
-    <button class="tmenu" data-v="checks"><b>✓ Checklists</b><small>scene · arrest · warrant · exhibits · interview · ID</small></button>
-    <button class="tmenu" data-v="major"><b>🚨 Major incident</b><small>first response · golden hour</small></button>
-    <button class="tmenu" data-v="caution"><b>🗣 Caution & declarations</b><small>questioning · statement declarations · case law</small></button>
-    <button class="tmenu" data-v="exhibits"><b>📦 Exhibits builder</b><small>SMG1–99 · continuity · copy for report</small></button>
-    <button class="tmenu" data-v="cctv"><b>📧 CCTV preservation</b><small>generate request text</small></button>
-    <button class="tmenu" data-v="weapons"><b>🔪 Weapons & knives</b><small>offences · search · seizure</small></button>
-    <button class="tmenu" data-v="searches"><b>🔍 Searches</b><small>powers & what to say</small></button>
-    <button class="tmenu" data-v="rtc"><b>🚗 Traffic collision</b><small>investigation guide</small></button>
-    <button class="tmenu" data-v="escooter"><b>🛴 E-scooters</b><small>status · charges · collisions</small></button>
-    <button class="tmenu" data-v="seizure"><b>📦 Seizure powers</b><small>quick reference</small></button>
-    <button class="tmenu" data-v="latin"><b>📜 Latin & legal terms</b><small>meaning & Garda use</small></button>
-    <button class="tmenu" data-v="acronyms"><b>🔤 Acronyms</b><small>ABC · MMO · ADVOKATE …</small></button>
-    <button class="tmenu" data-v="cautions"><b>⚠️ Cautions & declarations</b><small>caution wording · pre-caution questioning · declarations</small></button>
-    <button class="tmenu" data-v="tpl"><b>📧 Templates & forms</b><small>CCTV preservation · s.41 DP · passport · welfare · blank forms</small></button>
-    <button class="tmenu" data-v="lang"><b>⚖️ Latin & acronyms</b><small>legal terms · ABC · MMO · ADVOKATE · PEACE</small></button>
-    <button class="tmenu" data-v="guides2"><b>📚 Deep guides</b><small>searches · weapons · RTC & e-scooters · précis · missing person</small></button>
-    <button class="tmenu" data-v="judg"><b>◉ Latest judgments</b><small>Supreme · Appeal · High Court — live from BAILII</small></button>
-    <button class="tmenu" data-v="courtlists"><b>🗓️ Court lists — who's on</b><small>CCJ & all Dublin courts — official Legal Diary</small></button>
-  </div>`;
-  $$('.tmenu').forEach(b=>b.addEventListener('click',()=>{
+  view.innerHTML=`<div class="tabroot" data-tab="tools" hidden></div>`+TOOLS_MENU.map(([g,rows])=>`<h2 class="sec">${esc(g)}${g==='Live'?'<span class="sec-r">Needs signal</span>':''}</h2><div class="lgrp">${rows.map(r=>lrow(r[0],r[1],r[2],r[3],r[4])).join('')}</div>`).join('');
+  $$('#view .lrow[data-v]').forEach(b=>b.addEventListener('click',()=>{
     const v=b.dataset.v;
     if(v==='toolbox'){ if(window.openToolbox) openToolbox(); return; }
     if(v==='patrol'){ if(window.openPatrol) openPatrol(); return; }
@@ -869,8 +940,10 @@ function renderTools(){
     if(v==='rec'){ if(window.openRecorder) openRecorder(); return; }
     if(v==='scan'){ if(window.openScanner) openScanner(); return; }
     if(v==='pres'){ if(window.openPresent) openPresent(); return; }
-    if(v==='clock'){ if(window.openDetention){ openDetention(); return; } tab='search';renderSearch();renderClock();}
-    else if(v==='ptp'){tab='search';renderSearch();renderPTP();}
+    if(v==='aikey'){ if(window.GRSearch) GRSearch.settings(); return; }
+    if(v==='about'){ renderAbout(); return; }
+    if(v==='clock'){ if(window.openDetention){ openDetention(); return; } renderClock();}
+    else if(v==='ptp')renderPTP();
     else if(v==='guides')renderGuides();
     else if(v==='sten')renderStencils();
     else if(v==='checks')renderChecklists();
@@ -890,19 +963,27 @@ function renderTools(){
   }));
   view.scrollTop=0;
 }
+function renderAbout(){
+  view.innerHTML=`<h2 class="sec">About Assisting</h2>
+  <div class="tool"><div class="gtxt"><b>Assisting</b> is an independent operational reference tool. It is <b>not an official Garda system</b> and is not endorsed by An Garda Síochána. Nothing in it is legal advice — verify current wording and follow direction from your member in charge.</div></div>
+  <div class="tool"><h3>What stays on this phone</h3><div class="gtxt">Your notes, tasks, roster, patrols, recordings, scans and saved pages are stored only on this phone. Nothing is uploaded. Clearing the app's site data deletes them.</div></div>
+  <div class="tool"><h3>What uses the internet</h3><div class="gtxt">Live cameras, news, radio, judgments, court lists, map tiles and street names need signal. AI search sends your question and the matching extracts from the app's reference content (never your own notes, tasks or patrols) to Anthropic, using your own key.</div></div>
+  <div class="tool"><h3>Version</h3><div class="gtxt">${esc(window.GRVER||'')}</div></div>`;
+  view.scrollTop=0;
+}
 function kbHead(t){return `<button class="chip" id="backT" style="margin-bottom:8px">‹ Tools</button><h2 class="sec">${esc(t)}</h2>`;}
 function cardHTML(c){return `<div class="tool"><h3>${esc(c.h)}</h3><div style="font-size:13.5px;line-height:1.55">${esc(c.body)}</div>`+(c.tag?'':'')+`</div>`;}
-function copyBtn(txt,label){const id='cp'+Math.random().toString(36).slice(2,7);
+function copyBtnHtml(txt,label){const id='cp'+Math.random().toString(36).slice(2,7);
   setTimeout(()=>{const b=document.getElementById(id);if(b)b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(txt);b.textContent='✓ Copied';}catch(e){b.textContent='Copy failed';}});},0);
   return `<button class="csall" id="${id}">⧉ ${label||'Copy'}</button>`;}
 function renderCaution(){
   const K=KB.caution;
   let h=kbHead('🗣 '+K.t)+`<div class="rbox note">${esc(K.intro)}</div>`;
-  h+=K.cards.map(c=>`<div class="tool"><h3>${esc(c.h)}</h3><div style="font-size:13.5px;line-height:1.55">${esc(c.body)}</div>${copyBtn(c.body,'Copy text')}</div>`).join('');
+  h+=K.cards.map(c=>`<div class="tool"><h3>${esc(c.h)}</h3><div style="font-size:13.5px;line-height:1.55">${esc(c.body)}</div>${copyBtnHtml(c.body,'Copy text')}</div>`).join('');
   h+='<h2 class="sec">Related case law — know before you caution</h2>';
   h+=K.cases.map(c=>`<button class="hit" data-n="${esc(c.n)}"><div class="h-title"><i>${esc(c.n)}</i></div><div class="h-snip" style="color:var(--ink)">${esc(c.p)}</div></button>`).join('');
   view.innerHTML=h;wireBack();
-  $$('#view .hit').forEach(b=>b.addEventListener('click',()=>{const c=CASES.find(x=>x.n===b.dataset.n);if(c)openCase(c.n);else{lastQuery=b.dataset.n;tab='search';$$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='search'));render();}}));
+  $$('#view .hit').forEach(b=>b.addEventListener('click',()=>{const c=CASES.find(x=>x.n===b.dataset.n);if(c)openCase(c.n);else searchFor(b.dataset.n);}));
   view.scrollTop=0;
 }
 function renderKBtopic(v){
@@ -946,7 +1027,7 @@ function renderCCTV(){
   $('#cvGen').addEventListener('click',()=>{
     const g=id=>($('#'+id).value||'').trim();
     const body=`Re: Preservation and provision of CCTV — request under investigation${g('cvRef')?' (Ref: '+g('cvRef')+')':''}\n\nTo the occupier / data controller, ${g('cvHolder')||'[premises]'},\n\nAn Garda Síochána is investigating an incident that occurred on ${g('cvWhen')||'[date/time]'} in your vicinity. Your CCTV system may hold footage of evidential value covering ${g('cvArea')||'[area]'}.\n\nI request that you PRESERVE and do not overwrite or delete any CCTV footage for a period of at least two hours before and after the above time, and retain it pending formal collection. CCTV is routinely overwritten within days, so prompt preservation is essential.\n\nA member of An Garda Síochána will attend to view and, where appropriate, take possession of relevant footage. A formal data-access request will follow through the appropriate channel.\n\nPlease confirm preservation by contacting me.\n\n${g('cvYou')||'Garda [Name] [Reg], [Station], [tel]'}\nAn Garda Síochána`;
-    $('#cvOut').innerHTML='<div class="tool"><h3>Preservation request</h3><div style="font-size:13px;white-space:pre-wrap;line-height:1.5">'+esc(body)+'</div>'+copyBtn(body,'Copy request')+'</div>'
+    $('#cvOut').innerHTML='<div class="tool"><h3>Preservation request</h3><div style="font-size:13px;white-space:pre-wrap;line-height:1.5">'+esc(body)+'</div>'+copyBtnHtml(body,'Copy request')+'</div>'
       +'<div class="tool"><h3>Reminder — s.41B parallel step</h3><div style="font-size:13px;line-height:1.5">Raise the s.41B Data Protection Act 2018 request on your official Garda email and forward to the District Office for the Superintendent\'s signature. Do this yourself through Garda systems — never through this app.</div></div>';
     document.querySelectorAll('#cvOut .csall').forEach(b=>{});
     // rewire copy
@@ -1088,7 +1169,7 @@ function applyRdScale(){rdBody.style.fontSize=(15.5*rdScale).toFixed(1)+'px';loc
   document.addEventListener('touchmove',e=>{if(d0&&e.touches.length===2){rdScale=Math.min(2.2,Math.max(0.75,s0*(dist(e)/d0)));applyRdScale();}},{passive:true});
   document.addEventListener('touchend',()=>{d0=null;},{passive:true});
 })();
-function wireBack(){const b=$('#backT');if(b)b.addEventListener('click',()=>{tab='tools';render();});}
+function wireBack(){const b=$('#backT');if(b)b.addEventListener('click',()=>{ if(window.grBack)grBack(); else{setTab('tools');render();} });}
 function renderChecklists(){
   const GRP=[['On scene',['scene','warrant','exhibit','arrest']],
    ['Custody & interview',['inference']],['Statements & identification',['advokate','fivepart','victim']]];
@@ -1192,14 +1273,12 @@ function renderCourtLists(){
 
 /* ---------- SAVED ---------- */
 function renderSaved(){
-  let html='<h2 class="sec">Saved sections</h2>';
-  if(!favs.length)html+='<div class="empty">Nothing saved. Open any page and tap ★.<br>Only section references are stored — never case data.</div>';
-  favs.forEach((f,i)=>{
-    html+=`<div class="savedrow"><button class="hit" data-go="${f.a}"><div class="h-title">${esc(f.title)}</div><div class="h-loc">${esc(f.label)}</div></button>
-    <button class="unsave" data-i="${i}" aria-label="Remove">✕</button></div>`;
-  });
+  let html='<div class="tabroot" data-tab="saved" hidden></div><h2 class="sec">Saved sections<span class="sec-r">'+favs.length+'</span></h2>';
+  if(!favs.length)html+='<div class="empty">Nothing saved yet. Open any page and tap ☆ to keep it here.<br>Only the page reference is stored — never case data.</div>';
+  html+='<div class="lgrp">'+favs.map((f,i)=>{ const parts=String(f.title).split(' › '), t=parts.pop(), sub=f.label+(parts.length?' · '+parts[parts.length-1]:'');
+    return `<div class="savedrow">${lrow(f.a,'bookmark',t,sub,'','data-go')}<button class="unsave" data-i="${i}" aria-label="Remove">${GRI('x')}</button></div>`; }).join('')+'</div>';
   view.innerHTML=html;
-  $$('.savedrow .hit').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
+  $$('.savedrow .lrow').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
   $$('.unsave').forEach(b=>b.addEventListener('click',()=>{favs.splice(+b.dataset.i,1);saveFavs();renderSaved();}));
 }
 function saveFavs(){localStorage.setItem(FAVKEY,JSON.stringify(favs));}
@@ -1281,7 +1360,7 @@ function downloadDoc(title,text){
   const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'+
    '<head><meta charset="utf-8"><title>'+_wordEsc(title)+'</title><style>'+
    'body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#111;line-height:1.42}'+
-   'h1{font-size:19pt;color:#05090f;margin:0 0 4pt}h2{font-size:13pt;color:#8a6d1d;border-bottom:1px solid #d8cba4;padding-bottom:2pt;margin:16pt 0 6pt}'+
+   'h1{font-size:19pt;color:#070e18;margin:0 0 4pt}h2{font-size:13pt;color:#8a6d1d;border-bottom:1px solid #d8cba4;padding-bottom:2pt;margin:16pt 0 6pt}'+
    'h3{font-size:11.5pt;color:#334;margin:11pt 0 4pt}ul{margin:6pt 0 6pt 0}li{margin:2pt 0}p{margin:6pt 0}'+
    '.sub{color:#666;font-size:9.5pt;margin:0 0 12pt}.disc{color:#888;font-size:9pt;margin-top:18pt;border-top:1px solid #ccc;padding-top:6pt}'+
    '</style></head><body><h1>'+_wordEsc(title)+'</h1>'+
@@ -1359,54 +1438,6 @@ function linkify(txt){
   h=h.replace(/\b([A-Z][A-Za-z\'’\-]+(?:\s\([A-Z]{2,3}\))?\sv\.?\s[A-Z][A-Za-z\'’\-]+(?:\s[A-Z][A-Za-z\'’\-]+)?)/g,'<i class="caseref">$1</i>');
   return h;
 }
-/* ---------- AI SEARCH (needs your Anthropic API key + signal) ---------- */
-const AIKEY='gr_apikey';
-function getKey(){let k=localStorage.getItem(AIKEY);
-  if(!k){k=prompt('Paste your Anthropic API key (from console.anthropic.com → API Keys).\nStored only on this phone. Each answer costs a fraction of a cent.');
-    if(k)localStorage.setItem(AIKEY,k.trim());}
-  return localStorage.getItem(AIKEY);}
-async function askAI(){
-  const q=($('#q').value||'').trim();
-  const panel=$('#aiPanel');
-  if(q.length<4){panel.innerHTML='<div class="aians">Type your question in the box first — e.g. "can I draw an inference if he refuses to account for the phone?"</div>';return;}
-  const key=getKey(); if(!key)return;
-  if(!navigator.onLine){panel.innerHTML='<div class="aians">AI needs signal — offline search below still works.</div>';return;}
-  panel.innerHTML='<div class="aians">✦ Reading the manual…</div>';
-  // gather best pages via local search
-  const terms=q.toLowerCase().split(/\s+/).filter(w=>w.length>2);
-  const hits=[];
-  for(const c of META.chunks){const ch=CHUNKS[c.f];if(!ch)continue;
-    for(let i=0;i<ch.pages.length;i++){const low=ch.pages[i].toLowerCase();
-      let sc=0;for(const t of terms){let p=low.indexOf(t);while(p>=0&&sc<60){sc++;p=low.indexOf(t,p+1);}}
-      if(sc>0)hits.push({abs:c.s+i,sc});}}
-  hits.sort((a,b)=>b.sc-a.sc);
-  const top=hits.slice(0,6);
-  const ctx=top.map(h=>'[[PAGE '+h.abs+' — '+titleFor(h.abs)+']]\n'+pageText(h.abs).slice(0,2600)).join('\n\n');
-  try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{
-      'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:900,messages:[{role:'user',content:
-      'You are helping a serving Garda use his own reference manual. Answer his question ONLY from the extracts below. Be direct, operational, brief. Cite pages as (p.N) exactly matching the [[PAGE N]] markers. If the extracts do not cover it, say so. End with: Verify before relying.\n\nQUESTION: '+q+'\n\nEXTRACTS:\n'+ctx}]})});
-    const d=await r.json();
-    if(d.error)throw new Error(d.error.message||'API error');
-    let txt=(d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
-    let h=esc(txt)
-      .replace(/^#{1,4}\s*(.+)$/gm,'<b class="aih">$1</b>')
-      .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>')
-      .replace(/^\s*[-•]\s+(.+)$/gm,'<span class="aib">▸ $1</span>')
-      .replace(/\n{2,}/g,'<br>')
-      .replace(/\n/g,'<br>')
-      .replace(/(<br>)+(<b class="aih">)/g,'<br>$2')
-      .replace(/\(p\.(\d{1,4})\)/g,(m,n)=>'<span class="xref" data-a="'+n+'">(p.'+n+')</span>');
-    panel.innerHTML='<div class="aians">'+h+'<div class="aisrc">Sources: '+top.map(t=>'<span class="xref" data-a="'+t.abs+'">'+esc(pageLabel(t.abs))+'</span>').join(' · ')+'</div></div>';
-    panel.querySelectorAll('.xref').forEach(x=>x.addEventListener('click',()=>openPage(+x.dataset.a)));
-  }catch(e){
-    let msg=String(e.message||e);
-    if(/401|invalid|auth/i.test(msg)){localStorage.removeItem(AIKEY);msg='Key rejected — tap Ask AI again and re-enter it.';}
-    panel.innerHTML='<div class="aians">AI failed: '+esc(msg)+'</div>';
-  }
-}
 function stripMd(t){return String(t).replace(/\*{1,3}|_{2,}|^#+\s/gm,'');}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -1417,8 +1448,11 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
   function tick(){
     const d=new Date(), t=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
     const ds=DAYS[d.getDay()]+' '+p(d.getDate())+' '+MON[d.getMonth()]+' '+d.getFullYear();
+    const hm=t.slice(0,5);
     document.querySelectorAll('.hudclock').forEach(el=>{
-      const f=el.dataset.f, h=f==='line'?'<b>'+t+'</b> · '+ds:'<b>'+t+'</b><small>'+(f==='noyear'?ds.slice(0,-5):ds)+'</small>';
+      const f=el.dataset.f;
+      const h=f==='line'?'<b>'+hm+'</b> · '+ds : f==='hm'?'<b>'+hm+'</b>' : f==='t'?hm : f==='d'?ds : f==='sec'?'<b>'+t+'</b><small>'+ds+'</small>'
+        : '<b>'+hm+'</b><small>'+(f==='noyear'?ds.slice(0,-5):ds)+'</small>';
       if(el._h!==h){el.innerHTML=h;el._h=h;}
     });
   }
@@ -1456,10 +1490,15 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
       if(vis(p)){ if(!clk('#osPanel #ospClose'))p.classList.add('hidden'); return true; }
       if(window.closeOSINT){ closeOSINT(); return true; } }
     if(!reader.classList.contains('hidden')){ closeReader(); return true; }
-    if(tab!=='search'){ tab='search'; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='search')); render(); view.scrollTop=0; return true; }
-    if(lastQuery||!document.getElementById('homeNews')){ lastQuery=''; renderSearch(); view.scrollTop=0; return true; }
+    if(window.GRSearch&&GRSearch.back&&GRSearch.back())return true;          // search: key sheet → AI thread
+    if(vcur){                                                               // sub-view → the screen before it → the tab
+      if(vstack.length){ const p=vstack.pop(); vcur=null; const fn=window[p.f]; if(typeof fn==='function'){ fn.apply(null,p.a); view.scrollTop=p.y||0; } return true; }
+      vcur=null; render(); return true; }
+    if(tab!=='home'){ goHome(); return true; }
+    if(view.scrollTop>40){ view.scrollTo({top:0,behavior:'smooth'}); return true; }
     return false;
   }
+  window.grBack=()=>closeTop();
   try{ history.replaceState({gr:'base'},''); history.pushState({gr:'guard'},''); }catch(e){}
   let armed=false, leaving=false;
   addEventListener('popstate',()=>{

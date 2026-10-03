@@ -422,7 +422,7 @@ function locate(){
   if(!navigator.geolocation){toast('No location on this device');return;}
   toast('Locating…');
   navigator.geolocation.getCurrentPosition(
-    p=>{const ll=[p.coords.latitude,p.coords.longitude];map.setView(ll,17);L.circleMarker(ll,{radius:8,color:'#5cc8ff'}).addTo(map);},
+    p=>{const ll=[p.coords.latitude,p.coords.longitude];map.setView(ll,17);L.circleMarker(ll,{radius:8,color:'#6aa2ef'}).addTo(map);},
     ()=>toast('Location unavailable'),{enableHighAccuracy:true,timeout:8000});
 }
 

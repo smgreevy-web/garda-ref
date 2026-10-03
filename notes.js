@@ -87,7 +87,7 @@ const IC={
 
 /* ---------- palettes ---------- */
 const TINTS=[['','None','#9fb0c8'],['rose','Rose','#ff8fab'],['amber','Amber','#ffb45e'],['lemon','Lemon','#eedc5b'],
-  ['mint','Mint','#5fd3a0'],['sky','Sky','#6cc4ff'],['lilac','Lilac','#b99cff']];
+  ['mint','Mint','#5fd3a0'],['sky','Sky','#82b2f2'],['lilac','Lilac','#b99cff']];
 const TINTK=new Set(TINTS.map(t=>t[0]));
 const TX_COL=[['Red','#ff6b6b'],['Orange','#ffa94d'],['Green','#69db7c'],['Blue','#74c0fc'],['Purple','#da77f2']];
 const HL=[255,214,10,0.4], HLS='rgba(255, 214, 10, 0.4)';
