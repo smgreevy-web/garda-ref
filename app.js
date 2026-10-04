@@ -1,4 +1,4 @@
-window.GRAPP='61';
+window.GRAPP='62';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -76,24 +76,40 @@ function isDated(abs){ return abs>=993; } // 2007 manual
 /* ---------- tabs ---------- */
 function applyFS(){document.documentElement.dataset.fs=localStorage.getItem('gr_fs')||'m';}
 /* ---------- display: theme + text size (the Aa button) ---------- */
-const THEMES=[['ivory','Ivory','Light · warm paper · best in daylight','#f3f0e9','#1f4e79'],['graphite','Graphite & teal','Dark · minimal · easy at night','#0f1111','#72b6a9'],['navy','Navy & brass','Dark · classic','#0c1320','#c9a96e']];
+/* [key, name, note, page, card, text, accent, tone] — keep in step with the head script in index.html and the tokens in theme.css */
+const THEMES=[
+  ['ivory','Ivory','Warm paper · best in daylight','#f3f0e9','#fbf9f4','#1d2733','#1f4e79','light'],
+  ['daylight','Daylight','Maximum contrast · bright sun','#f2f3f5','#ffffff','#000000','#0047b3','light'],
+  ['sepia','Sepia','Soft and warm · long reads','#eee4d1','#f6eedd','#2e2316','#8a4513','light'],
+  ['mist','Mist & indigo','Cool grey · crisp','#eef1f5','#f8fafc','#18212c','#3d4db7','light'],
+  ['slate','Slate','Neutral grey · soft blue','#121519','#191d23','#e4e7eb','#8fb0d6','dark'],
+  ['graphite','Graphite & teal','Minimal · easy at night','#0f1111','#171a19','#e5e8e6','#72b6a9','dark'],
+  ['navy','Navy & brass','Classic','#0c1320','#121b2a','#e6eaf0','#c9a96e','dark'],
+  ['forest','Forest & sage','Deep green · calm','#0f1411','#151c18','#e2e9e4','#9cc58f','dark'],
+  ['midnight','Midnight & amber','True black · gentle at night','#000000','#0d0d0e','#ece9e4','#e0a650','dark']];
 function applyTheme(t){
-  if(!THEMES.some(x=>x[0]===t))t='ivory';
-  document.documentElement.dataset.theme=t; try{localStorage.setItem('gr_theme',t);}catch(e){}
-  const m=document.querySelector('meta[name="theme-color"]'); if(m)m.setAttribute('content',THEMES.find(x=>x[0]===t)[3]);
+  let th=THEMES.find(x=>x[0]===t); if(!th)th=THEMES[0];
+  const d=document.documentElement; d.dataset.theme=th[0]; d.dataset.tone=th[7]; try{localStorage.setItem('gr_theme',th[0]);}catch(e){}
+  const m=document.querySelector('meta[name="theme-color"]'); if(m)m.setAttribute('content',th[3]);
+  try{ window.dispatchEvent(new CustomEvent('gr:theme',{detail:th[0]})); }catch(e){}
 }
 function displaySheet(){
   let o=document.getElementById('dsp');
   if(!o){ o=document.createElement('div'); o.id='dsp'; o.className='dsp hidden'; document.body.appendChild(o); }
   const cur=document.documentElement.dataset.theme||'ivory', fs=localStorage.getItem('gr_fs')||'m';
+  const tile=([k,n,d,pg,cd,tx,ac])=>'<button type="button" class="dsp-t'+(k===cur?' on':'')+'" data-th="'+k+'" aria-pressed="'+(k===cur)+'">'
+    +'<span class="sw" style="background:'+pg+'" aria-hidden="true"><span class="sw-c" style="background:'+cd+'"><i style="background:'+tx+'"></i><i style="background:'+tx+'"></i><em style="background:'+ac+'"></em></span></span>'
+    +'<span class="lt"><b>'+esc(n)+'</b><small>'+esc(d)+'</small></span>'+(window.GRI?GRI('check','ok'):'')+'</button>';
   o.innerHTML='<div class="dsp-shade"></div><div class="dsp-sheet" role="dialog" aria-label="Display"><div class="dsp-grip"></div><h3>Display</h3>'
-    +'<div class="dsp-l">Theme</div><div class="dsp-th">'+THEMES.map(([k,n,d,bg,ac])=>'<button type="button" class="dsp-t'+(k===cur?' on':'')+'" data-th="'+k+'"><span class="sw" style="background:'+bg+'"><i style="background:'+ac+'"></i></span><span class="lt"><b>'+esc(n)+'</b><small>'+esc(d)+'</small></span>'+(window.GRI?GRI('check','ok'):'')+'</button>').join('')+'</div>'
+    +'<div class="dsp-l">Light themes</div><div class="dsp-th">'+THEMES.filter(x=>x[7]==='light').map(tile).join('')+'</div>'
+    +'<div class="dsp-l">Dark themes</div><div class="dsp-th">'+THEMES.filter(x=>x[7]==='dark').map(tile).join('')+'</div>'
     +'<div class="dsp-l">Text size</div><div class="dsp-fs">'+['s','m','l','xl'].map((k,i)=>'<button type="button" data-fs="'+k+'" class="'+(k===fs?'on':'')+'" style="font-size:'+(13+i*3)+'px" aria-label="Text size '+k+'">A</button>').join('')+'</div>'
+    +'<p class="dsp-n">The theme carries through every screen — tools, cameras, notes and the reader.</p>'
     +'<button type="button" class="dsp-done">Done</button></div>';
   const close=()=>o.classList.add('hidden');
   o.querySelector('.dsp-shade').onclick=close; o.querySelector('.dsp-done').onclick=close;
-  o.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{ applyTheme(b.dataset.th); o.querySelectorAll('[data-th]').forEach(x=>x.classList.toggle('on',x===b)); });
-  o.querySelectorAll('[data-fs]').forEach(b=>b.onclick=()=>{ localStorage.setItem('gr_fs',b.dataset.fs); applyFS(); o.querySelectorAll('[data-fs]').forEach(x=>x.classList.toggle('on',x===b)); });
+  o.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{ applyTheme(b.dataset.th); o.querySelectorAll('[data-th]').forEach(x=>{ x.classList.toggle('on',x===b); x.setAttribute('aria-pressed',String(x===b)); }); });
+  o.querySelectorAll('[data-fs]').forEach(b=>b.onclick=()=>{ localStorage.setItem('gr_fs',b.dataset.fs); applyFS(); o.querySelectorAll('[data-fs]').forEach(x=>x.classList.toggle('on',x===b)); if(typeof bookRelayout==='function')setTimeout(bookRelayout,60); });
   o.classList.remove('hidden');
 }
 window.displaySheet=displaySheet;
@@ -104,10 +120,12 @@ function bindUI(){
   if(top){
     top.insertAdjacentHTML('beforeend','<div id="rdProg"></div>');
     const star=$('#rdStar');
-    star.insertAdjacentHTML('beforebegin','<button id="rdDl" class="iconbtn" title="Download as Word" aria-label="Download Word document" style="display:none">'+(window.GRI?GRI('download'):'⬇')+'</button>');
+    star.insertAdjacentHTML('beforebegin','<button id="rdBook" class="iconbtn" title="Book reading — page by page" aria-label="Book reading" aria-pressed="false">'+(window.GRI?GRI('book-open-text'):'B')+'</button><button id="rdDl" class="iconbtn" title="Download as Word" aria-label="Download Word document" style="display:none">'+(window.GRI?GRI('download'):'⬇')+'</button>');
     const rb=$('#rdBack'); if(rb&&window.GRI)rb.innerHTML=GRI('chevron-left');
     $('#rdDl').addEventListener('click',()=>{if(curDoc)downloadDoc(curDoc.title,curDoc.text);});
-    rdBody.addEventListener('scroll',()=>{const el=rdBody;const max=el.scrollHeight-el.clientHeight;
+    $('#rdBook').addEventListener('click',bookToggle);
+    bookWire();
+    rdBody.addEventListener('scroll',()=>{if(book.on)return;const el=rdBody;const max=el.scrollHeight-el.clientHeight;
       const p=max>0?(el.scrollTop/max*100):0;const bar=$('#rdProg');if(bar)bar.style.width=p+'%';},{passive:true});
   }
   $('#topbar .tb-clock').insertAdjacentHTML('afterend','<button id="fsBtn" title="Theme and text size" aria-label="Theme and text size"><span>A</span><span>a</span></button>');
@@ -118,7 +136,7 @@ function bindUI(){
       if(t===tab&&view.dataset.root===t){ view.scrollTo({top:0,behavior:'smooth'}); if(t==='search'){const i=$('#q'); if(i)i.focus();} return; }
       setTab(t); closeReader(); render(); view.scrollTop=0; if(t==='search'){const i=$('#q'); if(i&&!lastQuery)i.focus();} });
   });
-  { const bb=$('#brandBtn'); if(bb&&window.GRI&&!bb.querySelector('.brandico'))bb.insertAdjacentHTML('afterbegin',GRI('shield','brandico')); }
+
   $('#brandBtn').addEventListener('click',goHome);
   $('#brandBtn').insertAdjacentHTML('beforebegin','<button id="tbBack" class="tbback" aria-label="Back">'+(window.GRI?GRI('chevron-left'):'‹')+'</button>');
   $('#tbBack').addEventListener('click',()=>{ if(window.grBack)grBack(); });
@@ -249,27 +267,68 @@ const HOME=[
 function hsub(t){ const p=String(t).split(' · '); return p.map((x,i)=>'<span class="sb">'+esc(x)+(i<p.length-1?' ·':'')+'</span>').join(' '); }
 function hcard(c){ const [id,ic,t,sub,cls]=c; const go=/^g\d+$/.test(id)?` data-go="${id.slice(1)}"`:` id="${id}"`;
   return `<button class="qbtn${cls?' '+cls:''}"${go}><span class="qh">${GRI(ic)}<b>${esc(t)}</b></span><small>${hsub(sub)}</small></button>`; }
+/* ---------- HOME layout: every block and box can be moved, hidden and brought back ---------- */
+const HOME_KEYS=['cams','tv','job','work','inv','law','files','deep','manual'];
+HOME.forEach((g,i)=>{ g.k=g.k||HOME_KEYS[i]; });
+const HOME_STRIPS={tasks:'Tasks',news:'Need-to-know news',recent:'Recent',inner:'Dublin inner city'};
+const BOXES={}; HERO.forEach(c=>{ BOXES[c[0]]=c; }); HOME.forEach(g=>g.c.forEach(c=>{ BOXES[c[0]]=c; }));
+function homeDefault(){ const boxes={top:HERO.map(c=>c[0])}; HOME.forEach(g=>{ boxes[g.k]=g.c.map(c=>c[0]); });
+  return {order:['tasks','news','recent','top','inner',...HOME.map(g=>g.k)],boxes,hidden:[]}; }
+function homeLayout(){
+  const d=homeDefault(); let sv=null; try{ sv=JSON.parse(localStorage.getItem('gr_home')||'null'); }catch(e){}
+  if(!sv||!Array.isArray(sv.order))return d;
+  const known=new Set(d.order), order=sv.order.filter(k=>known.has(k));
+  d.order.forEach((k,i)=>{ if(!order.includes(k))order.splice(Math.min(i,order.length),0,k); });   // new blocks go where they'd be by default
+  const placed=new Set(), boxes={};
+  Object.keys(d.boxes).forEach(k=>{ boxes[k]=((sv.boxes||{})[k]||[]).filter(id=>BOXES[id]&&!placed.has(id)&&placed.add(id)); });
+  Object.keys(d.boxes).forEach(k=>d.boxes[k].forEach(id=>{ if(!placed.has(id)){ boxes[k].push(id); placed.add(id); } }));   // new boxes join their usual section
+  return {order,boxes,hidden:(sv.hidden||[]).filter(id=>known.has(id)||BOXES[id])}; }
+function homeSave(L){ try{ localStorage.setItem('gr_home',JSON.stringify({v:1,order:L.order,boxes:L.boxes,hidden:L.hidden})); }catch(e){} }
+let homeEdit=false;
+function homeEditOpen(){ homeEdit=true; if(tab!=='search'||lastQuery){ lastQuery=''; setTab('search'); } closeReader(); render(); view.scrollTop=0; }
+function homeEditDone(){ homeEdit=false; const r=$('#results'); if(r&&r.querySelector('.homeq'))homeQuick(r); }
+window.homeEditOpen=homeEditOpen;
 function homeQuick(box){
   box=box||$('#results'); if(!box)return;
   const lp=+localStorage.getItem('gr_lastpage')||0;
   let recent=[]; try{recent=JSON.parse(localStorage.getItem('gr_recent')||'[]');}catch(e){}
   let rows=recent.slice();
   if(lp){ rows=rows.filter(r=>!(r.k!=='guide'&&+r.id===lp)); rows.unshift({k:'page',id:lp,t:titleFor(lp).split(' › ').pop(),s:pageLabel(lp)+' · continue reading',ts:0,cont:1}); }
-  const recentHtml=rows.length?`<h2 class="sec">Recent</h2><div class="recentwrap">`+
-    rows.slice(0,2).map(r=>`<button class="recentrow${r.cont?' cont':''}" data-k="${r.k}" data-id="${esc(String(r.id))}">${GRI(r.cont?'book-open':'history')}<div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${r.cont?'':relTime(r.ts)}</div></button>`).join('')+`</div>`:'';
-  box.innerHTML=`<div class="homeq">
+  const L=homeLayout(), hid=new Set(L.hidden), ed=homeEdit;
+  const eye=on=>GRI(on?'eye':'eye-off');
+  const card=(id,sec)=>{ const c=BOXES[id]; if(!c)return ''; if(!ed&&hid.has(id))return '';
+    const [bid,ic,t,sub,cls0]=c, cls=((sec==='top'?'hero ':'')+(cls0||'')).trim();
+    const go=/^g\d+$/.test(bid)?` data-go="${bid.slice(1)}"`:` id="${bid}"`;
+    return `<button class="qbtn${cls?' '+cls:''}${ed&&hid.has(id)?' hid':''}"${go} data-box="${bid}">`
+      +(ed?`<span class="he-ctl"><i class="he-eye" data-eye="${bid}" aria-label="${hid.has(id)?'Show':'Hide'}">${eye(!hid.has(id))}</i><i class="he-drag" data-drag="${bid}" aria-label="Move">${GRI('grip')}</i></span>`:'')
+      +`<span class="qh">${GRI(ic)}<b>${esc(t)}</b></span><small>${hsub(sub)}</small></button>`; };
+  const bar=(k,name)=>ed?`<div class="hb-bar"><i class="he-drag" data-bdrag="${k}" aria-label="Move">${GRI('grip')}</i><b>${esc(name)}</b><i class="he-eye" data-beye="${k}" aria-label="${hid.has(k)?'Show':'Hide'}">${eye(!hid.has(k))}</i></div>`:'';
+  const blk=(k,inner)=>`<section class="hblk${ed&&hid.has(k)?' hid':''}" data-b="${k}">${inner}</section>`;
+  const recentHtml=()=>`<h2 class="sec">Recent<span class="sec-r"><button type="button" class="sec-x" id="recentHide" aria-label="Hide Recent">Hide</button></span></h2><div class="recentwrap">`+
+    rows.slice(0,2).map(r=>`<button class="recentrow${r.cont?' cont':''}" data-k="${r.k}" data-id="${esc(String(r.id))}">${GRI(r.cont?'book-open':'history')}<div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${r.cont?'':relTime(r.ts)}</div></button>`).join('')+`</div>`;
+  const blockHtml=k=>{
+    if(hid.has(k)&&!ed)return '';
+    if(HOME_STRIPS[k]){
+      if(ed)return blk(k,bar(k,HOME_STRIPS[k]));
+      if(k==='recent')return rows.length?blk(k,recentHtml()):'';
+      return blk(k,`<div id="${{tasks:'homeTasks',news:'homeNews',inner:'homeInner'}[k]}"></div>`); }
+    if(k==='top'){ const ids=L.boxes.top; return blk(k,bar(k,'Top · big boxes')+`<div class="heroes" data-sec="top">${ids.map(id=>card(id,'top')).join('')}</div>`); }
+    const g=HOME.find(x=>x.k===k); if(!g)return '';
+    return blk(k,(ed?bar(k,g.h):`<h2 class="sec">${esc(g.h)}${g.r==='live'?'<span class="sec-r live"><i></i>LIVE</span>':''}</h2>`)
+      +`<div class="quick" data-sec="${k}">${L.boxes[k].map(id=>card(id,k)).join('')}</div>`); };
+  box.innerHTML=`<div class="homeq${ed?' editing':''}">
+  ${ed?`<div class="he-banner"><b>Customise Home</b><span>Drag ${GRI('grip')} to move · tap ${GRI('eye')} to hide or show</span><div class="he-acts"><button type="button" id="heReset">Reset</button><button type="button" id="heDone" class="on">Done</button></div></div>`:''}
   <div id="homePatrol"></div>
   <div id="homeGaol"></div>
   <div id="homeRoster"></div>
   <div id="homeDet"></div>
-  <div id="homeTasks"></div>
-  <div id="homeNews"></div>
-  ${recentHtml}
-  <div class="heroes">${HERO.map(c=>hcard([c[0],c[1],c[2],c[3],'hero'+(c[4]?' '+c[4]:'')])).join('')}</div>
-  <div id="homeInner"></div>
-  ${HOME.map(g=>`<h2 class="sec">${esc(g.h)}${g.r==='live'?'<span class="sec-r live"><i></i>LIVE</span>':''}</h2><div class="quick">${g.c.map(hcard).join('')}</div>`).join('')}
+  ${L.order.map(blockHtml).join('')}
+  ${ed?'':`<button type="button" class="home-edit" id="homeEditBtn">${GRI('sliders-horizontal')}Customise Home</button>`}
   <div class="empty">Or type anything above — all 1,478 pages are searchable.</div>
   </div>`;
+  if(ed){ homeEditWire(box,L); return; }
+  { const eb=box.querySelector('#homeEditBtn'); if(eb)eb.addEventListener('click',homeEditOpen);
+    const rh=box.querySelector('#recentHide'); if(rh)rh.addEventListener('click',e=>{ e.stopPropagation(); const L2=homeLayout(); if(!L2.hidden.includes('recent'))L2.hidden.push('recent'); homeSave(L2); homeQuick(box); if(window.grToast)grToast('Recent hidden — Customise Home brings it back'); }); }
   if(window.grHudTick)grHudTick();
   box.querySelectorAll('.recentrow').forEach(b=>b.addEventListener('click',()=>{
     const k=b.dataset.k, id=b.dataset.id;
@@ -333,6 +392,49 @@ function homeQuick(box){
   go('hLang',()=>renderLang());
   go('hCourt',()=>renderCourtDay());
   box.querySelectorAll('.qbtn[data-go]').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
+}
+/* edit mode: drag a box (or a whole block) by its handle; the eye hides or shows it */
+function homeEditWire(box,L){
+  const root=box.querySelector('.homeq');
+  const fromDom=()=>{ const order=[...root.querySelectorAll('.hblk')].map(b=>b.dataset.b), boxes={};
+    root.querySelectorAll('[data-sec]').forEach(g=>{ boxes[g.dataset.sec]=[...g.querySelectorAll('[data-box]')].map(x=>x.dataset.box); });
+    return {order,boxes,hidden:homeLayout().hidden}; };
+  root.querySelector('#heDone').addEventListener('click',homeEditDone);
+  root.querySelector('#heReset').addEventListener('click',()=>{ try{ localStorage.removeItem('gr_home'); }catch(e){} homeQuick(box); if(window.grToast)grToast('Home is back to the standard layout'); });
+  root.addEventListener('click',e=>{ const t=e.target.closest('[data-eye],[data-beye]');
+    if(t){ const id=t.dataset.eye||t.dataset.beye, L2=fromDom(), i=L2.hidden.indexOf(id); if(i>=0)L2.hidden.splice(i,1); else L2.hidden.push(id); homeSave(L2); const y=view.scrollTop; homeQuick(box); view.scrollTop=y; }
+    if(e.target.closest('.qbtn,.recentrow')){ e.preventDefault(); e.stopPropagation(); } },true);
+  let st=null, raf=0;
+  const place=(x,y)=>{
+    if(st.block){ const bl=[...root.querySelectorAll('.hblk')].filter(b=>b!==st.el); let before=null;
+      for(const b of bl){ const r=b.getBoundingClientRect(); if(y<r.top+r.height/2){ before=b; break; } }
+      if(before){ if(before!==st.el.nextElementSibling)root.insertBefore(st.el,before); }
+      else { const last=bl[bl.length-1]; if(last&&last.nextElementSibling!==st.el)last.after(st.el); }
+      return; }
+    const t=document.elementFromPoint(x,y); if(!t)return;
+    const cardEl=t.closest('.homeq [data-box]'), grid=t.closest('[data-sec]')||(t.closest('.hblk')&&t.closest('.hblk').querySelector('[data-sec]'));
+    if(cardEl&&cardEl!==st.el){ const r=cardEl.getBoundingClientRect(), hero=cardEl.parentNode.dataset.sec==='top';
+      const before=hero?y<r.top+r.height/2:(y<r.top+r.height*.3||(y<r.bottom-r.height*.3&&x<r.left+r.width/2));
+      if(before){ if(cardEl.previousElementSibling!==st.el)cardEl.before(st.el); } else if(cardEl.nextElementSibling!==st.el)cardEl.after(st.el); }
+    else if(grid&&!grid.contains(st.el))grid.appendChild(st.el); };
+  const tick=()=>{ if(!st)return; const vr=view.getBoundingClientRect(), edge=70; let dy=0;
+    if(st.y<vr.top+edge)dy=-Math.ceil((vr.top+edge-st.y)/6); else if(st.y>vr.bottom-edge)dy=Math.ceil((st.y-(vr.bottom-edge))/6);
+    if(dy){ view.scrollTop+=dy; place(st.x,st.y); } raf=requestAnimationFrame(tick); };
+  root.addEventListener('pointerdown',e=>{ const h=e.target.closest('[data-drag],[data-bdrag]'); if(!h)return;
+    e.preventDefault(); e.stopPropagation();
+    const block=!!h.dataset.bdrag, el=block?h.closest('.hblk'):h.closest('[data-box]'); if(!el)return;
+    const r=el.getBoundingClientRect(), gh=el.cloneNode(true);
+    gh.classList.add('he-ghost'); gh.style.cssText='left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px';
+    document.body.appendChild(gh); el.classList.add('he-ph');
+    st={el,gh,block,dx:e.clientX-r.left,dy:e.clientY-r.top,x:e.clientX,y:e.clientY};
+    try{ root.setPointerCapture(e.pointerId); }catch(_){}   // on the list itself: the dragged box moves in the page, the list never does
+    if(navigator.vibrate)try{navigator.vibrate(15);}catch(_){}
+    raf=requestAnimationFrame(tick); });
+  root.addEventListener('pointermove',e=>{ if(!st)return; e.preventDefault(); st.x=e.clientX; st.y=e.clientY;
+    st.gh.style.left=(e.clientX-st.dx)+'px'; st.gh.style.top=(e.clientY-st.dy)+'px'; place(e.clientX,e.clientY); });
+  const end=()=>{ if(!st)return; cancelAnimationFrame(raf); st.gh.remove(); st.el.classList.remove('he-ph'); st=null;
+    const y=view.scrollTop; homeSave(fromDom()); homeQuick(box); view.scrollTop=y; };
+  root.addEventListener('pointerup',end); root.addEventListener('pointercancel',end);
 }
 function netPaint(){ const on=navigator.onLine; document.querySelectorAll('.hs-net').forEach(el=>{ el.classList.toggle('off',!on); const sp=el.querySelector('span'); if(sp)sp.textContent=on?'ONLINE':'OFFLINE'; }); }
 addEventListener('online',netPaint); addEventListener('offline',netPaint);
@@ -529,7 +631,7 @@ function openCase(name){
   if(c.why)h+='<div class="rbox note"><b>Why it matters:</b> '+esc(c.why)+'</div>';
   else if(c.d)h+='<div class="rbox note">'+esc(c.d)+'</div>';
   if(c.f){if(c.f.facts)h+='<div class="rsub">Facts</div><p>'+esc(c.f.facts)+'</p>';
-    if(c.f.held)h+='<div class="rbox warn" style="background:#f7efd7;border-left-color:var(--gold)"><b>Held:</b> '+esc(c.f.held)+'</div>';}
+    if(c.f.held)h+='<div class="rbox warn" style="background:color-mix(in srgb,var(--amber) 12%,transparent);border-left-color:var(--amber);color:var(--tx)"><b>Held:</b> '+esc(c.f.held)+'</div>';}
   h+='<div class="rsub">In your manual</div>';
   h+=(c.s||[]).map(sn=>'<p><span class="xref" data-a="'+sn.a+'">'+esc(pageLabel(sn.a))+'</span> — '+esc(sn.t)+'</p>').join('')||'<p>Open the pages below for full context.</p>';
   h+='<div class="rsub">Every page it appears on</div><p>'+c.p.map(p=>'<span class="xref" data-a="'+p+'">'+esc(pageLabel(p))+'</span>').join(' · ')+'</p>';
@@ -918,7 +1020,9 @@ const TOOLS_MENU=[
  ['Utilities',[
   ['toolbox','toolbox','Toolbox','Ruler · measure · evidence camera · level · compass · torch · timers · QR']]],
  ['Settings',[
-  ['display','sun','Theme & text size','Ivory · Graphite & teal · Navy & brass'],
+  ['display','palette','Theme & text size','Nine themes, light and dark · text size'],
+  ['homelayout','sliders-horizontal','Home screen','Move, hide or bring back boxes'],
+  ['applock','lock','App lock','Username and password to open Assisting'],
   ['aikey','sparkles','AI search','Your Anthropic key · what is sent · cost'],
   ['about','info','About Assisting','Version · disclaimer · what stays on this phone']]]
 ];
@@ -941,6 +1045,8 @@ function renderTools(){
     if(v==='aikey'){ if(window.GRSearch) GRSearch.settings(); return; }
     if(v==='about'){ renderAbout(); return; }
     if(v==='display'){ displaySheet(); return; }
+    if(v==='homelayout'){ homeEditOpen(); return; }
+    if(v==='applock'){ if(window.GRLock)GRLock.sheet(); return; }
     if(v==='clock'){ if(window.openDetention){ openDetention(); return; } renderClock();}
     else if(v==='ptp')renderPTP();
     else if(v==='guides')renderGuides();
@@ -1026,9 +1132,9 @@ function renderCCTV(){
   $('#cvGen').addEventListener('click',()=>{
     const g=id=>($('#'+id).value||'').trim();
     const body=`Re: Preservation and provision of CCTV — request under investigation${g('cvRef')?' (Ref: '+g('cvRef')+')':''}\n\nTo the occupier / data controller, ${g('cvHolder')||'[premises]'},\n\nAn Garda Síochána is investigating an incident that occurred on ${g('cvWhen')||'[date/time]'} in your vicinity. Your CCTV system may hold footage of evidential value covering ${g('cvArea')||'[area]'}.\n\nI request that you PRESERVE and do not overwrite or delete any CCTV footage for a period of at least two hours before and after the above time, and retain it pending formal collection. CCTV is routinely overwritten within days, so prompt preservation is essential.\n\nA member of An Garda Síochána will attend to view and, where appropriate, take possession of relevant footage. A formal data-access request will follow through the appropriate channel.\n\nPlease confirm preservation by contacting me.\n\n${g('cvYou')||'Garda [Name] [Reg], [Station], [tel]'}\nAn Garda Síochána`;
-    $('#cvOut').innerHTML='<div class="tool"><h3>Preservation request</h3><div style="font-size:13px;white-space:pre-wrap;line-height:1.5">'+esc(body)+'</div>'+copyBtnHtml(body,'Copy request')+'</div>'
+    $('#cvOut').innerHTML='<div class="tool"><h3>Preservation request</h3><div style="font-size:13px;white-space:pre-wrap;line-height:1.5">'+esc(body)+'</div>'+copyBtnHtml(body,'Copy request')+'<button class="csall" id="cvDl">⬇ Download as Word</button></div>'
       +'<div class="tool"><h3>Reminder — s.41B parallel step</h3><div style="font-size:13px;line-height:1.5">Raise the s.41B Data Protection Act 2018 request on your official Garda email and forward to the District Office for the Superintendent\'s signature. Do this yourself through Garda systems — never through this app.</div></div>';
-    document.querySelectorAll('#cvOut .csall').forEach(b=>{});
+    const dl=$('#cvDl'); if(dl)dl.addEventListener('click',()=>downloadDoc('CCTV preservation request'+(g('cvHolder')?' — '+g('cvHolder'):''),body));
     // rewire copy
     const t=$('#cvOut'); t.scrollIntoView({behavior:'smooth'});
   });
@@ -1170,7 +1276,7 @@ function applyRdScale(){rdBody.style.fontSize=(15.5*rdScale).toFixed(1)+'px';loc
   const dist=e=>Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
   document.addEventListener('touchstart',e=>{if(e.target.closest&&e.target.closest('.rd-body')&&e.touches.length===2){d0=dist(e);s0=rdScale;}},{passive:true});
   document.addEventListener('touchmove',e=>{if(d0&&e.touches.length===2){rdScale=Math.min(2.2,Math.max(0.75,s0*(dist(e)/d0)));applyRdScale();}},{passive:true});
-  document.addEventListener('touchend',()=>{d0=null;},{passive:true});
+  document.addEventListener('touchend',()=>{ if(d0&&book.on)bookRelayout(); d0=null;},{passive:true});
 })();
 function wireBack(){const b=$('#backT');if(b)b.addEventListener('click',()=>{ if(window.grBack)grBack(); else{setTab('tools');render();} });}
 function renderChecklists(){
@@ -1322,6 +1428,54 @@ function pinchZoom(){
   el.addEventListener('touchmove',e=>{if(e.touches.length===2&&d0){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);base=Math.min(2.2,Math.max(0.7,b0*d/d0));el.style.fontSize=(base*100)+'%';}},{passive:true});
   el.addEventListener('touchend',()=>{if(d0){localStorage.setItem('gr_zoom',base.toFixed(2));d0=0;}});
 }
+/* ---------- Book reading: long texts in pages, like a Kindle ----------
+   Swipe or tap the right/left edge to turn the page; tap the middle to hide the bars. At the end of a manual page
+   the next tap carries on into the next page. On by default for long reading; the book button switches it. */
+const book={on:false,page:0,pages:1,goEnd:false,raf:0};
+function bookPref(){ try{ return localStorage.getItem('gr_book'); }catch(e){ return null; } }
+function bookWanted(){ return bookPref()!=='0'; }        // on unless switched off — short texts are simply one page
+function bookToggle(){ const on=!book.on; try{ localStorage.setItem('gr_book',on?'1':'0'); }catch(e){} bookApply(); if(typeof toast==='function')toast(on?'Book reading on — swipe or tap the edges to turn pages':'Book reading off — scroll as normal'); }
+function bookStride(){ return rdBody.clientWidth; }
+function bookApply(){
+  if(reader.classList.contains('hidden'))return;
+  const on=bookWanted(), b=$('#rdBook');
+  book.on=on; reader.classList.toggle('book',on); reader.classList.remove('bare');
+  if(b){ b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false'); }
+  if(!on){ rdBody.style.removeProperty('--bw'); rdBody.scrollLeft=0; const pi=$('#bkInd'); if(pi)pi.hidden=true; return; }
+  rdBody.querySelectorAll('details').forEach(d=>{ d.open=true; });
+  const end=book.goEnd; book.goEnd=false; bookLayout(end?1e9:0); }
+function bookLayout(goPage){
+  const cs=getComputedStyle(rdBody), pl=parseFloat(cs.paddingLeft)||0, pr=parseFloat(cs.paddingRight)||0;
+  rdBody.style.setProperty('--bw',Math.max(120,rdBody.clientWidth-pl-pr)+'px'); rdBody.style.setProperty('--bg',(pl+pr)+'px');
+  const st=bookStride(); book.pages=Math.max(1,Math.round(rdBody.scrollWidth/st));
+  book.page=Math.max(0,Math.min(book.pages-1,goPage|0)); rdBody.scrollLeft=book.page*st; bookPaint();
+  // the reading font arrives a moment later and re-flows the text: count the pages again then
+  requestAnimationFrame(()=>bookMeasure(goPage)); setTimeout(()=>bookMeasure(goPage),400); if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>bookMeasure(goPage)); }
+function bookMeasure(goPage){ if(!book.on)return; const st=bookStride(), n=Math.max(1,Math.round(rdBody.scrollWidth/st));
+  if(n===book.pages)return; book.pages=n; if(goPage>=1e9)book.page=n-1; else if(book.page>n-1)book.page=n-1; rdBody.scrollLeft=book.page*st; bookPaint(); }
+function bookRelayout(){ if(!book.on)return; const r=book.pages>1?book.page/(book.pages-1):0; bookLayout(0); bookLayout(Math.round(r*(book.pages-1))); }
+function bookPaint(){
+  let pi=$('#bkInd'); if(!pi){ reader.insertAdjacentHTML('beforeend','<div id="bkInd" class="bk-ind"></div>'); pi=$('#bkInd'); }
+  pi.hidden=!book.on; pi.textContent=(book.page+1)+' / '+book.pages;
+  const bar=$('#rdProg'); if(bar)bar.style.width=(book.pages>1?(book.page/(book.pages-1)*100):100)+'%'; }
+function bookTurn(dir){
+  const st=bookStride(), np=book.page+dir, manual=$('#rdNext')&&$('#rdNext').style.visibility!=='hidden';
+  if(np<0){ if(manual&&curPage>1){ book.goEnd=true; openPage(curPage-1); } return; }
+  if(np>=book.pages){ if(manual&&curPage<META.pages)openPage(curPage+1); else if(typeof toast==='function')toast('End'); return; }
+  book.page=np; rdBody.scrollTo({left:np*st,behavior:'smooth'}); bookPaint(); }
+function bookWire(){
+  let x0=0,y0=0,t0=0,moved=false;
+  rdBody.addEventListener('touchstart',e=>{ if(!book.on||e.touches.length!==1)return; x0=e.touches[0].clientX; y0=e.touches[0].clientY; t0=Date.now(); moved=false; },{passive:true});
+  rdBody.addEventListener('touchend',e=>{ if(!book.on||!t0)return; const t=e.changedTouches[0], dx=t.clientX-x0, dy=t.clientY-y0; t0=0;
+    if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3){ moved=true; bookTurn(dx<0?1:-1); } },{passive:true});
+  rdBody.addEventListener('click',e=>{ if(!book.on||moved){ moved=false; return; }
+    if(e.target.closest('a,button,summary,input,.xref,.cite,.caseref,.statref'))return;
+    const r=rdBody.getBoundingClientRect(), fx=(e.clientX-r.left)/r.width;
+    if(fx<0.3)bookTurn(-1); else if(fx>0.7)bookTurn(1); else reader.classList.toggle('bare'); });
+  rdBody.addEventListener('keydown',e=>{ if(!book.on)return; if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){ e.preventDefault(); bookTurn(1); } else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); bookTurn(-1); } });
+  new MutationObserver(()=>{ cancelAnimationFrame(book.raf); book.raf=requestAnimationFrame(bookApply); }).observe(rdBody,{childList:true});
+  addEventListener('resize',()=>{ if(book.on)bookRelayout(); });
+}
 function closeReader(){$('#rdPrev').style.visibility='';$('#rdNext').style.visibility='';$('#rdJump').style.visibility='';reader.classList.add('hidden');reader.setAttribute('aria-hidden','true');}
 function jumpPrompt(){
   const v=prompt('Go to: printed page (e.g. 272), absolute p.N (e.g. p1219), or V12:8 / SG:3 / ST:6 / PB:2');
@@ -1339,45 +1493,12 @@ function printedToAbs(p){
   return Math.min(14+p,META.pages);
 }
 let curDoc=null;
-function _wordEsc(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function textToWordHtml(text){
-  const lines=String(text||'').split('\n');let out='',inList=false;
-  const isHead=t=>t.length>2&&t.length<110&&t===t.toUpperCase()&&/[A-Z]{3}/.test(t)&&!/[.;]$/.test(t);
-  const isSub=t=>/^\d+(\.\d+)*\s+\S/.test(t)&&!/[.;,]$/.test(t)&&t.length<90;
-  for(let raw of lines){
-    const t=raw.replace(/\*+/g,'').trim();
-    if(!t){if(inList){out+='</ul>';inList=false;}continue;}
-    if(isHead(t)){if(inList){out+='</ul>';inList=false;}out+='<h2>'+_wordEsc(t)+'</h2>';continue;}
-    if(isSub(t)){if(inList){out+='</ul>';inList=false;}out+='<h3>'+_wordEsc(t)+'</h3>';continue;}
-    const b=t.match(/^[•▪◦·–\-\*]\s+(.*)/);
-    if(b){if(!inList){out+='<ul>';inList=true;}out+='<li>'+_wordEsc(b[1])+'</li>';continue;}
-    const lm=t.match(/^([A-Z][\w\s\/()'’&,–-]{1,42}):\s+(\S.*)/);
-    if(inList){out+='</ul>';inList=false;}
-    if(lm&&lm[1].split(' ').length<=6){out+='<p><b>'+_wordEsc(lm[1])+':</b> '+_wordEsc(lm[2])+'</p>';continue;}
-    out+='<p>'+_wordEsc(t)+'</p>';
-  }
-  if(inList)out+='</ul>';
-  return out;
-}
+// every downloadable document: a real Word file (.docx) — the title, then the text line for line in a ruled box
 function downloadDoc(title,text){
-  const body=textToWordHtml(text);
-  const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'+
-   '<head><meta charset="utf-8"><title>'+_wordEsc(title)+'</title><style>'+
-   'body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#111;line-height:1.42}'+
-   'h1{font-size:19pt;color:#070e18;margin:0 0 4pt}h2{font-size:13pt;color:#8a6d1d;border-bottom:1px solid #d8cba4;padding-bottom:2pt;margin:16pt 0 6pt}'+
-   'h3{font-size:11.5pt;color:#334;margin:11pt 0 4pt}ul{margin:6pt 0 6pt 0}li{margin:2pt 0}p{margin:6pt 0}'+
-   '.sub{color:#666;font-size:9.5pt;margin:0 0 12pt}.disc{color:#888;font-size:9pt;margin-top:18pt;border-top:1px solid #ccc;padding-top:6pt}'+
-   '</style></head><body><h1>'+_wordEsc(title)+'</h1>'+
-   '<p class="sub">Assisting — Mountjoy Garda Station, DMR North Central</p>'+body+
-   '<p class="disc">Working reference — not legal advice — verify current wording before relying. Generated '+new Date().toLocaleDateString('en-IE')+'.</p></body></html>';
-  try{
-    const blob=new Blob(['\ufeff'+html],{type:'application/msword'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-    a.download=(String(title).replace(/[^\w\s-]/g,'').trim().slice(0,60)||'assisting')+'.doc';
-    document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1200);
-    if(typeof toast==='function')toast('Downloading Word document…');
-  }catch(e){alert('Download not supported on this browser.');}
+  if(!window.GRDocs){ if(typeof toast==='function')toast('Download isn’t available — reload the app'); return; }
+  const name=GRDocs.safeName(title)+'.docx';
+  try{ GRDocs.save(GRDocs.textDoc(title,text),name); if(typeof toast==='function')toast('Saved '+name+' to your downloads'); }
+  catch(e){ if(typeof toast==='function')toast('Couldn’t make the Word file on this phone'); }
 }
 function formatPage(txt){
   txt=txt.replace(/\*{1,}/g,'');
@@ -1471,6 +1592,8 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
   const clk=sel=>{const b=document.querySelector(sel); if(b){b.click(); return true;} return false;};
   function closeTop(){
     if(document.getElementById('boot'))return true;                       // opening screen: stay put
+    if(window.lockBack&&window.lockBack())return true;                     // lock screen or its settings
+    if(homeEdit){ homeEditDone(); return true; }                            // customising Home: Back = Done
     { const d=document.getElementById('dsp'); if(d&&!d.classList.contains('hidden')){ d.classList.add('hidden'); return true; } }
     for(const id of ['mStory','mTV','mRadio']){ const el=document.getElementById(id); if(vis(el)){ el.querySelector('.m-x').click(); return true; } }
     if(window.faBack&&window.faBack())return true;                        // first aid: step/CPR → list → closed

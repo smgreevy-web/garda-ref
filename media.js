@@ -271,11 +271,16 @@ function keyWords(t){return new Set(String(t).toLowerCase().replace(/[^a-z0-9á�
 function evts(t){return Object.keys(EVT).filter(k=>EVT[k].test(t));}
 function places(t){return new Set((String(t).match(/\b[A-ZÁÉÍÓÚ][a-záéíóú']{3,}(?:\s[A-Z][a-z']{2,})?\b/g)||[]).filter(w=>!NOTPLACE.has(w.split(' ')[0])));}
 function prep(it){ const txt=it.t+' '+(it.d||'').slice(0,300); it.kw=keyWords(it.t); it.ev=evts(txt); it.pl=places(txt); }
+// words every crime story uses — they don't make two headlines the same story on their own
+const COMMONW=new Set('after following before appeal appeals witnesses witness arrested arrest charged charges court crash collision dies died death dead killed injured injury injuries serious seriously hospital attack attacked assault woman teen teenager teenagers police investigation investigating incident scene road street city north south west east county family tribute tributes named home house found missing update latest says told local people public shot stabbed stabbing fire'.split(' '));
 function sameStory(a,b){
-  if(Math.abs((a.ts||0)-(b.ts||0))>36*3600000)return false;
-  let kw=0; a.kw.forEach(w=>{if(b.kw.has(w))kw++;}); if(kw>=3)return true;
-  const ev=a.ev.some(e=>b.ev.includes(e)); let pl=0; a.pl.forEach(w=>{if(b.pl.has(w))pl++;});
-  return ev&&pl>=1;
+  const dt=Math.abs((a.ts||0)-(b.ts||0));
+  let kw=0, rare=0; a.kw.forEach(w=>{ if(b.kw.has(w)){ kw++; if(!COMMONW.has(w))rare++; } });
+  if(dt<=36*3600000){
+    if(kw>=3)return true;
+    const ev=a.ev.some(e=>b.ev.includes(e)); let pl=0; a.pl.forEach(w=>{if(b.pl.has(w))pl++;});
+    return ev&&pl>=1; }
+  return dt<=7*86400000&&kw>=3&&rare>=2;            // a follow-up days later: e.g. "rickshaw" + "Westlife" in both
 }
 function buildFeed(raw){
   const all=[]; const seen=new Set();
@@ -312,28 +317,48 @@ function rowHtml(C,i){
     +'<span class="ns-t">'+esc(it.t)+'</span></button>';
 }
 let _feed=[];
+const STRIP_N=3;   // stories shown on Home; the rest are one tap away
 function paintStrip(el){
   _feed=feedNow();
   const head='<div class="ns-head"><span class="ns-pip"></span><b>NEED-TO-KNOW NEWS</b><span class="ns-as">'+(news&&news.t?'updated '+hhmm(news.t):'')+'</span><button class="ns-bell'+(nset().on?' on':'')+'" aria-label="News alerts settings">'+bellIc(nset().on)+'</button></div>';
   if(!_feed.length){ el.innerHTML=head+'<div class="ns-empty">'+(navigator.onLine===false?'Offline — news loads when you have signal.':'Loading Garda-relevant news…')+'</div>'; wireStrip(el); return; }
-  el.innerHTML=head+'<div class="ns-list">'+_feed.slice(0,30).map(rowHtml).join('')+'</div>'
-    +'<div class="ns-foot">ranked for Garda need-to-know · '+(news.raw||[]).length+' Irish sources · tap for the full story</div>';
+  el.innerHTML=head+'<div class="ns-list">'+_feed.slice(0,STRIP_N).map(rowHtml).join('')+'</div>'
+    +(_feed.length>STRIP_N?'<button type="button" class="ns-more">View all '+_feed.length+' stories ›</button>':'')
+    +'<div class="ns-foot">ranked for Garda need-to-know · '+(news.raw||[]).length+' Irish sources</div>';
   wireStrip(el);
 }
 function wireStrip(el){
   el.querySelectorAll('.ns-row').forEach(b=>b.addEventListener('click',()=>openStory(_feed[+b.dataset.i])));
+  const mo=el.querySelector('.ns-more'); mo&&mo.addEventListener('click',()=>openNewsList('need'));
   const bell=el.querySelector('.ns-bell'); bell&&bell.addEventListener('click',openNewsSettings);
 }
 function storyEl(){
   let o=$('#mStory');
   if(!o){ o=document.createElement('div'); o.id='mStory'; o.className='m-ov hidden';
     o.innerHTML='<div class="m-top"><button class="m-x" id="mSx">‹ Back</button><div class="m-tt"><b id="mSsrc">NEWS</b><small class="hudclock" data-f="line"></small></div><span></span></div><div class="m-scroll m-story" id="mSbody"></div>';
-    document.body.appendChild(o); $('#mSx').addEventListener('click',()=>{o.classList.add('hidden');document.body.classList.remove('m-open');}); }
+    document.body.appendChild(o);
+    $('#mSx').addEventListener('click',()=>{ sTrail.pop(); const prev=sTrail[sTrail.length-1];
+      if(prev){ prev.draw(); $('#mSbody').scrollTop=prev.y||0; return; }
+      o.classList.add('hidden'); document.body.classList.remove('m-open'); }); }
   return o;
 }
+// what Back steps through inside the news screen: list → story → source
+let sTrail=[];
+function sGo(draw,keep){ const o=storyEl(), b=$('#mSbody');
+  if(keep&&sTrail.length)sTrail[sTrail.length-1].y=b.scrollTop; else if(!keep)sTrail=[];
+  sTrail.push({draw}); draw(); o.classList.remove('hidden'); document.body.classList.add('m-open'); b.scrollTop=0; }
+function openNewsList(kind){
+  const L=kind==='inner'?innerNow():feedNow();
+  sGo(()=>{ $('#mSsrc').textContent=kind==='inner'?'DUBLIN INNER CITY':'NEED-TO-KNOW NEWS';
+    $('#mSbody').innerHTML='<div class="m-list1">'+(L.length?L.map(rowHtml).join(''):'<p class="m-note">No stories right now.</p>')+'</div>'
+      +'<p class="m-note">'+(kind==='inner'?'Dublin 1, 2, 3, 7 & 8 — local papers and national stories that name the area, newest first. Follow-ups of the same story are grouped.':'Ranked for Garda need-to-know: urgent and serious first, then newest. Follow-ups of the same story are grouped.')+'</p>';
+    $('#mSbody').querySelectorAll('.ns-row').forEach(b=>b.addEventListener('click',()=>openStory(L[+b.dataset.i],true))); });
+}
 function paras(t){return String(t||'').split(/\n{2,}/).map(x=>x.trim()).filter(Boolean).map(x=>'<p>'+esc(x)+'</p>').join('');}
-function openStory(C){
-  if(!C)return; const o=storyEl(), it=C.lead;
+function openStory(C,keep){
+  if(!C)return; sGo(()=>drawStory(C),keep); }
+function drawStory(C){
+  const it=C.lead;
   $('#mSsrc').textContent=(it.urgent?'URGENT · ':'')+'NEED-TO-KNOW';
   let h='<h2>'+esc(it.t)+'</h2><div class="m-when">'+esc(when(it.ts))+' · '+esc(ago(it.ts))+' · <button class="m-srcbtn" data-s="'+esc(it.src)+'">'+esc(it.src)+' ›</button></div>'
     +(paras(it.c||it.d)||'<p>No summary provided by the source.</p>');
@@ -343,19 +368,17 @@ function openStory(C){
   h+='<p class="m-note">Text as published in each outlet’s news feed — some outlets only publish a summary.</p>';
   $('#mSbody').innerHTML=h;
   $('#mSbody').querySelectorAll('.m-srcbtn').forEach(b=>b.addEventListener('click',()=>openSource(b.dataset.s)));
-  o.classList.remove('hidden'); document.body.classList.add('m-open'); $('#mSbody').scrollTop=0;
 }
 function openSource(name){
   const S=(news&&news.raw||[]).find(x=>x.t===name); if(!S)return;
-  const o=storyEl(); $('#mSsrc').textContent=name.toUpperCase()+' · LATEST';
-  $('#mSbody').innerHTML='<div class="m-list1">'+S.items.map((x,i)=>'<button class="ns-row" data-i="'+i+'"><span class="ns-meta"><span class="ns-when">'+esc(when(x.ts))+' · '+esc(ago(x.ts))+'</span></span><span class="ns-t">'+esc(x.t)+'</span></button>').join('')+'</div>';
-  $('#mSbody').querySelectorAll('.ns-row').forEach(b=>b.addEventListener('click',()=>{const x=S.items[+b.dataset.i]; const it=Object.assign({},x); scoreItem(it); openStory({lead:it,also:[]});}));
-  o.classList.remove('hidden'); document.body.classList.add('m-open'); $('#mSbody').scrollTop=0;
+  sGo(()=>{ $('#mSsrc').textContent=name.toUpperCase()+' · LATEST';
+    $('#mSbody').innerHTML='<div class="m-list1">'+S.items.map((x,i)=>'<button class="ns-row" data-i="'+i+'"><span class="ns-meta"><span class="ns-when">'+esc(when(x.ts))+' · '+esc(ago(x.ts))+'</span></span><span class="ns-t">'+esc(x.t)+'</span></button>').join('')+'</div>';
+    $('#mSbody').querySelectorAll('.ns-row').forEach(b=>b.addEventListener('click',()=>{const x=S.items[+b.dataset.i]; const it=Object.assign({},x); scoreItem(it); openStory({lead:it,also:[]},true);})); },true);
 }
 /* ---- news alerts (by category) ---- */
 function nset(){ try{return Object.assign({on:false,cats:['serious','missing']},JSON.parse(localStorage.getItem(NSET_KEY)||'{}'));}catch(e){return {on:false,cats:['serious','missing']};} }
 function openNewsSettings(){
-  const o=storyEl(), st=nset(); $('#mSsrc').textContent='NEWS ALERTS';
+  const o=storyEl(), st=nset(); sTrail=[{draw:openNewsSettings}]; $('#mSsrc').textContent='NEWS ALERTS';
   $('#mSbody').innerHTML='<h2>News alerts</h2><p>Get a phone notification when a new story in these categories appears.</p>'
     +'<label class="m-tog"><input type="checkbox" id="naOn"'+(st.on?' checked':'')+'> <b>Alerts on</b></label>'
     +'<div class="m-cats">'+NCATS.map(([k,l])=>'<label class="m-tog"><input type="checkbox" data-c="'+k+'"'+(st.cats.includes(k)?' checked':'')+'> '+esc(l)+'</label>').join('')+'</div>'
@@ -392,12 +415,14 @@ function paintInner(el){
   _inner=innerNow();
   const head='<div class="ns-head"><span class="ns-pip loc"></span><b>DUBLIN INNER CITY</b><span class="ns-as">'+(news&&news.t?'updated '+hhmm(news.t):'')+'</span></div>';
   if(!_inner.length){ el.innerHTML=head+'<div class="ns-empty">'+(navigator.onLine===false?'Offline — local news loads when you have signal.':(news&&news.t?'No inner-city stories in the last few days.':'Loading inner-city news…'))+'</div>'; return; }
-  el.innerHTML=head+'<div class="ns-list">'+_inner.slice(0,25).map(rowHtml).join('')+'</div>'
-    +'<div class="ns-foot">Dublin 1, 2, 3, 7 & 8 · local papers and national news that names the area · newest first</div>';
+  el.innerHTML=head+'<div class="ns-list">'+_inner.slice(0,STRIP_N).map(rowHtml).join('')+'</div>'
+    +(_inner.length>STRIP_N?'<button type="button" class="ns-more">View all '+_inner.length+' stories ›</button>':'')
+    +'<div class="ns-foot">Dublin 1, 2, 3, 7 & 8 · newest first</div>';
   el.querySelectorAll('.ns-row').forEach(b=>b.addEventListener('click',()=>openStory(_inner[+b.dataset.i])));
+  const mo=el.querySelector('.ns-more'); mo&&mo.addEventListener('click',()=>openNewsList('inner'));
 }
 function mountInnerStrip(el){ if(!el)return; el.classList.add('nstrip','istrip'); paintInner(el); refreshNews(false).then(()=>paintInner(el)); }
 setInterval(()=>{ if(document.visibilityState==='visible'||nset().on)refreshNews(false); },5*60000);
 
-window.GRMedia={openTV,openRadio,mountNewsStrip,mountInnerStrip,refreshNews:()=>refreshNews(true),openNewsSettings,_inner:{isInner,innerNow,INNER_RE}};
+window.GRMedia={openTV,openRadio,mountNewsStrip,mountInnerStrip,refreshNews:()=>refreshNews(true),openNewsSettings,openNewsList,_inner:{isInner,innerNow,INNER_RE},_same:sameStory,_prep:prep};
 })();

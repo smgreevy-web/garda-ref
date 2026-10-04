@@ -1023,7 +1023,7 @@ function editorMenu(){
     +row('colour',IC.palette,'Colour',(TINTS.find(t=>t[0]===(r.color||''))||TINTS[0])[1])
     +row('move',IC.folder,'Move to folder',r.folder?esc(folderName(r.folder)):'All notes')
     +row('lock',E.locked?IC.unlock:IC.lock,E.locked?'Remove lock':'Lock note',E.locked?'Stores this note unencrypted again':'Encrypt with your notes passcode')
-    +row('copy',IC.copy,'Copy text')+row('txt',IC.download,'Save as text file')+row('print',IC.print,'Print / Save as PDF')
+    +row('copy',IC.copy,'Copy text')+row('docx',IC.download,'Save as Word document','Typed-form style, opens in Word or Google Docs')+row('txt',IC.download,'Save as text file')+row('print',IC.print,'Print / Save as PDF')
     +row('del',IC.trash,'Delete','Kept '+TRASH_DAYS+' days in Recently deleted','nts-dang')+'</div>',root=>{
     root.addEventListener('click',ev=>{ const b=ev.target.closest('[data-m]'); if(!b)return; const m=b.dataset.m; closeSheet(); menuAct(m); });
   });
@@ -1036,6 +1036,10 @@ function menuAct(m){
   else if(m==='lock'){ if(E.locked)unlockNoteForever(); else lockThisNote(); }
   else if(m==='copy'){ const tx=noteText(); copyText(tx); }
   else if(m==='txt'){ const tx=noteText(true); const nm=E.tin.value.trim()||(htmlText(sanitize(E.body.innerHTML)).split('\n').find(l=>l.trim())||'Note'); download(new Blob([tx.replace(/\n/g,'\r\n')],{type:'text/plain;charset=utf-8'}),safeName(nm)+'_'+fileStamp(Date.now())+'.txt'); toast('Text file saved to Downloads'); }
+  else if(m==='docx'){ if(!W.GRDocs){ toast('Word export isn’t available — reload the app'); return; }
+    const title=E.tin.value.trim()||(htmlText(sanitize(E.body.innerHTML)).split('\n').find(l=>l.trim())||'Note').slice(0,80);
+    const body=htmlText(sanitize(E.body.innerHTML)), name=safeName(title)+'_'+fileStamp(E.rec.updated||Date.now())+'.docx';
+    download(GRDocs.docx({title,sub:'Edited '+full(E.rec.updated||Date.now()),blocks:[{box:body}]}),name); }
   else if(m==='print')printNote();
   else if(m==='del'){ const id=E.id; flush().then(()=>{ if(!ALL.has(id)){ toList(); return; } trashNotes([id],()=>{ if(E&&E.id===id)toList(); }); }); }
 }

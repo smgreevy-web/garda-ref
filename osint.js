@@ -1064,6 +1064,16 @@ function buildReelEl(){
   return r;
 }
 function ytThumb(id,q){return 'https://i.ytimg.com/vi/'+id+'/'+(q||'hqdefault')+'.jpg';}
+// YouTube player that starts straight away, muted (phones only autoplay muted video), and tells us if the stream is gone
+function ytSrc(id,lite){ return 'https://www.youtube.com/embed/'+id+'?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&origin='+encodeURIComponent(location.origin)+(lite?'&controls=0&disablekb=1&fs=0&iv_load_policy=3':'&fs=1'); }
+const _ytWatch=new Map();
+function ytWatch(fr,onErr){ _ytWatch.set(fr,onErr);
+  fr.addEventListener('load',()=>{ try{ fr.contentWindow.postMessage(JSON.stringify({event:'listening',id:1,channel:'widget'}),'https://www.youtube.com'); }catch(e){} }); }
+window.addEventListener('message',e=>{ if(!/^https:\/\/www\.youtube(-nocookie)?\.com$/.test(e.origin))return;
+  let d=e.data; try{ if(typeof d==='string')d=JSON.parse(d); }catch(_){ return; }
+  if(!d||d.event!=='onError')return;
+  for(const [fr,cb] of _ytWatch){ if(!fr.isConnected){ _ytWatch.delete(fr); continue; } if(fr.contentWindow===e.source){ cb(+d.info); break; } } });
+function ytErrText(code){ return code===100?'This stream has ended or been removed.':(code===101||code===150)?'The owner doesn’t allow this stream to play inside apps.':code===153?'YouTube refused to play it here.':'This stream isn’t playing right now.'; }
 function reelSlideHtml(c,i){
   const lb=camLabel(c);
   const bg=c.yt?' style="background-image:url('+ytThumb(c.yt)+')"':'';
@@ -1084,7 +1094,9 @@ function loadReelIframe(sl){
   const media=sl.querySelector('.reelcam-media'); if(!media||media.dataset.loaded)return;
   if(c.yt){
     media.dataset.loaded='1';
-    media.innerHTML='<iframe class="reelcam-vid" src="https://www.youtube.com/embed/'+c.yt+'?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&fs=1" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>';
+    media.innerHTML='<iframe class="reelcam-vid" src="'+ytSrc(c.yt)+'" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+    ytWatch(media.querySelector('iframe'),code=>{ media.insertAdjacentHTML('beforeend','<div class="rc-err"><b>'+esc(ytErrText(code))+'</b><span>The camera may have a new link. Open it on YouTube to check.</span><button class="rc-yt">Open on YouTube</button></div>');
+      const b=media.querySelector('.rc-yt'); b&&b.addEventListener('click',ev=>{ ev.stopPropagation(); window.open('https://www.youtube.com/watch?v='+c.yt,'_blank','noopener'); }); });
   } else if(c.img){
     media.dataset.loaded='1';
     const im=media.querySelector('.rc-img'), ld=media.querySelector('.rc-load');
@@ -1183,7 +1195,7 @@ function buildReelGrid(){
     for(let i=sec.start;i<sec.start+sec.n;i++){
       const c=REELSET[i], lb=camLabel(c);
       const src=c.yt?ytThumb(c.yt,'mqdefault'):(c.img?c.img+'?t='+bucket:'');
-      h+='<button class="cl-tile" data-i="'+i+'" data-q="'+esc((sec.G.h+' '+lb.t+' '+lb.st+' '+(c.n||'')+' '+(c.road||'')).toLowerCase())+'">'
+      h+='<button class="cl-tile" data-i="'+i+'"'+(c.yt?' data-yt="'+esc(c.yt)+'"':c.img?' data-img="'+esc(c.img)+'"':'')+' data-q="'+esc((sec.G.h+' '+lb.t+' '+lb.st+' '+(c.n||'')+' '+(c.road||'')).toLowerCase())+'">'
         +'<span class="cl-thumb">'+(src?'<img loading="lazy" decoding="async" alt="" src="'+esc(src)+'" onerror="this.parentNode.classList.add(\'err\');this.remove()">':'')
         +'<i class="cl-badge '+(c.yt?'live':'snap')+'">'+(c.yt?'● LIVE':'◷ TII')+'</i></span>'
         +'<span class="cl-cap"><b>'+esc(lb.t)+'</b><small>'+arrowHtml(lb.hd)+esc(lb.st)+'</small></span></button>';
@@ -1194,9 +1206,10 @@ function buildReelGrid(){
     +'<p class="cl-foot">TII motorway cameras load live from TII with their exact positions and names. Street cams are public webcams — not Garda or council CCTV.</p></div>';
   gv.innerHTML=h;
   gv.classList.remove('hidden'); track.classList.add('hidden'); if(btn)btn.textContent='▤ Reel';
+  liveTiles(gv);
   const t=document.getElementById('reelTitle'); if(t)t.textContent='PICK A CAMERA';
-  gv.querySelectorAll('.cl-chip').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.f===CAMFILTER)return; setReelFilter(b.dataset.f); buildReelGrid(); }));
-  gv.querySelectorAll('.cl-tile').forEach(b=>b.addEventListener('click',()=>showReelAt(+b.dataset.i)));
+  gv.querySelectorAll('.cl-chip').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.f===CAMFILTER)return; stopTiles(); setReelFilter(b.dataset.f); buildReelGrid(); }));
+  gv.querySelectorAll('.cl-tile').forEach(b=>b.addEventListener('click',()=>{ stopTiles(); showReelAt(+b.dataset.i); }));
   gv.querySelectorAll('.cl-jump').forEach(b=>b.addEventListener('click',()=>{const sc=document.getElementById('clScroll'),el=gv.querySelector('.cl-sec[data-k="'+b.dataset.k+'"]');
     if(sc&&el)sc.scrollTo({top:el.offsetTop-sc.offsetTop-4,behavior:'smooth'});}));
   const inp=document.getElementById('clSearch');
@@ -1208,8 +1221,32 @@ function buildReelGrid(){
       const em=sec.querySelector('.cl-h em'); if(em){ if(!em.dataset.n)em.dataset.n=em.textContent; em.textContent=words.length?vis:em.dataset.n; }
     });
     document.getElementById('clEmpty').classList.toggle('hidden',!!any);
+    liveTiles(gv);
   });
 }
+/* live tiles on the selection screen */
+const LIVE_MAX=4;                 // videos playing at once in the list — enough to see them live, light on the phone
+let _tileObs=null; const _tileTimers=new Map(), _tileLive=new Set();
+function stopTiles(){ if(_tileObs){ _tileObs.disconnect(); _tileObs=null; } _tileTimers.forEach(t=>clearInterval(t)); _tileTimers.clear();
+  _tileLive.forEach(tl=>tileOff(tl)); _tileLive.clear(); }
+function tileOn(tl){
+  const th=tl.querySelector('.cl-thumb'); if(!th)return;
+  if(tl.dataset.yt){ if(_tileLive.has(tl)||_tileLive.size>=LIVE_MAX||tl.dataset.dead)return;
+    const fr=document.createElement('iframe'); fr.className='cl-vid'; fr.src=ytSrc(tl.dataset.yt,true); fr.setAttribute('allow','autoplay; encrypted-media'); fr.setAttribute('tabindex','-1'); fr.setAttribute('aria-hidden','true');
+    th.appendChild(fr); _tileLive.add(tl);
+    ytWatch(fr,code=>{ tl.dataset.dead='1'; tileOff(tl); th.classList.add('err'); const bd=th.querySelector('.cl-badge'); if(bd){ bd.className='cl-badge off'; bd.textContent='OFFLINE'; } th.title=ytErrText(code); }); }
+  else if(tl.dataset.img&&!_tileTimers.has(tl)){
+    const upd=()=>{ if(!tl.isConnected){ clearInterval(_tileTimers.get(tl)); _tileTimers.delete(tl); return; }
+      const n=new Image(); n.onload=()=>{ const cur=th.querySelector('img'); if(cur)cur.src=n.src; else th.insertAdjacentHTML('afterbegin','<img alt="" src="'+n.src+'">'); th.classList.remove('err'); }; n.src=tl.dataset.img+'?t='+Date.now(); };
+    upd(); _tileTimers.set(tl,setInterval(upd,12000)); } }
+function tileOff(tl){ const fr=tl.querySelector('.cl-vid'); if(fr)fr.remove(); _tileLive.delete(tl); if(_tileTimers.has(tl)){ clearInterval(_tileTimers.get(tl)); _tileTimers.delete(tl); } }
+function liveTiles(gv){
+  stopTiles(); const sc=document.getElementById('clScroll'); if(!sc||!('IntersectionObserver' in window))return;
+  _tileObs=new IntersectionObserver(ents=>{
+    ents.forEach(e=>{ const tl=e.target; if(e.isIntersecting&&e.intersectionRatio>=.6&&!tl.classList.contains('hidden'))tileOn(tl); else if(!e.isIntersecting||e.intersectionRatio<.2)tileOff(tl); });
+    if(_tileLive.size<LIVE_MAX)gv.querySelectorAll('.cl-tile[data-yt]').forEach(tl=>{ const r=tl.getBoundingClientRect(), sr=sc.getBoundingClientRect(); if(r.top>=sr.top-4&&r.bottom<=sr.bottom+4&&!tl.classList.contains('hidden'))tileOn(tl); });
+  },{root:sc,threshold:[0,.2,.6,1]});
+  gv.querySelectorAll('.cl-tile[data-yt],.cl-tile[data-img]').forEach(tl=>_tileObs.observe(tl)); }
 function toggleReelGrid(){
   const gv=document.getElementById('reelGridView');
   if(!gv.classList.contains('hidden')){ showReelAt(0); return; }
@@ -1217,6 +1254,7 @@ function toggleReelGrid(){
 }
 function closeReel(){
   const r=document.getElementById('osReel'); if(!r)return;
+  stopTiles();
   if(_reelObs){_reelObs.disconnect();_reelObs=null;}
   Object.keys(_reelImgTimers).forEach(k=>{clearInterval(_reelImgTimers[k]);delete _reelImgTimers[k];});
   const track=document.getElementById('reelTrack'); if(track)track.innerHTML='';

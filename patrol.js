@@ -574,7 +574,7 @@ function renderDetail(){
    +'<input type="range" id="ppScR" min="'+(P.length?P[0][0]:0)+'" max="'+(P.length?P[P.length-1][0]:0)+'" step="1" value="'+(P.length?P[0][0]:0)+'" aria-label="Where was I at this time"></div>'
    +'<div class="pp-wrap"><h2 class="pp-dh">'+dstr(t0)+'</h2><p class="pp-ds">'+hm(t0)+' – '+hm(t1)+(sameDay(t0,t1)?'':' ('+dshort(t1)+')')+' · '+(a.mode==='mobile'?'mobile patrol':'on foot')+(p.src&&p.src.kind==='import'?' · imported from '+esc(p.src.name||'a GPS app'):p.src&&p.src.kind==='merged'?' · merged with '+esc(p.src.name||'an imported track'):'')+'</p>'
    +'<div class="pp-sum"><div><b>'+durS(a.total)+'</b><small>Time</small></div><div><b>'+km(a.dist)+'</b><small>Distance</small></div><div><b>'+a.stops.length+'</b><small>Stops</small></div><div><b>'+mk+'</b><small>Notes</small></div></div>'
-   +'<div class="pp-row"><button type="button" class="pp-sec on" data-a="copy">Copy patrol log</button><button type="button" class="pp-sec" data-a="gpx">Save GPX file</button></div>'
+   +'<div class="pp-row"><button type="button" class="pp-sec on" data-a="copy">Copy patrol log</button><button type="button" class="pp-sec" data-a="export">Excel · Word · GPX</button></div>'
    +'<div class="pp-names" id="ppNames">'+namesHtml()+'</div>'
    +'<h3 class="pp-hd">Timeline <small>tap to see it on the map</small></h3><ul class="pp-tl">'+tlHtml(p,d.T)+'</ul>';
   const mt=mostTime(d.T);
@@ -665,6 +665,7 @@ function onClick(e){ const b=e.target.closest('[data-a],[data-k]'); if(!b||!main
   else if(a==='fit'){ if(det&&det.bnd)map.fitBounds(det.bnd.pad(.12),{maxZoom:18}); }
   else if(a==='copy')copyLog();
   else if(a==='gpx')saveGpx();
+  else if(a==='export')exportSheet();
   else if(a==='names')nameStreets();
   else if(a==='del')delSheet();
   else if(a==='import')pickTrack();
@@ -689,7 +690,8 @@ function copyLog(){ const d=det; if(!d)return; const txt=logText(d.p,d.a,d.T,d.i
   if(N.clipboard&&N.clipboard.writeText)N.clipboard.writeText(txt).then(ok,()=>fallbackCopy(txt,ok)); else fallbackCopy(txt,ok); }
 function fallbackCopy(txt,ok){ const ta=D.createElement('textarea'); ta.value=txt; ta.style.cssText='position:fixed;left:-9999px;top:0'; D.body.appendChild(ta); ta.select();
   try{ D.execCommand('copy'); ok(); }catch(e){ toast('Couldn’t copy on this phone'); } ta.remove(); }
-function saveGpx(){ const d=det; if(!d)return; const p=d.p, P=p.pts, a=d.a; const iso=s=>new Date(p.start+s*1000).toISOString();
+function saveGpx(){ const d=det; if(!d)return; const g=gpxFile(d); saveBlob(g.blob,g.name); }
+function gpxFile(d){ const p=d.p, P=p.pts, a=d.a; const iso=s=>new Date(p.start+s*1000).toISOString();
   const x=s=>esc(s).replace(/&#39;/g,'&apos;');
   let g='<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Assisting — Proactive patrol" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>'+x('Proactive patrol '+dstr(p.start)+' '+hm(p.start))+'</name><time>'+new Date(p.start).toISOString()+'</time></metadata>\n';
   a.stops.forEach((s,i)=>{ const t=d.T.find(q=>q.k==='stop'&&q.si===i); g+='<wpt lat="'+s.lat.toFixed(6)+'" lon="'+s.lon.toFixed(6)+'"><time>'+iso(s.s0)+'</time><name>'+x('Stop '+(i+1)+' ('+dur(s.dur)+')')+'</name><desc>'+x((t?t.label+' · ':'')+hm(p.start+s.s0*1000)+'–'+hm(p.start+s.s1*1000))+'</desc></wpt>\n'; });
@@ -697,12 +699,79 @@ function saveGpx(){ const d=det; if(!d)return; const p=d.p, P=p.pts, a=d.a; cons
   g+='<trk><name>'+x('Patrol '+hm(p.start))+'</name>\n';
   for(const sg of a.segs){ g+='<trkseg>\n'; for(const i of sg){ const q=P[i]; g+='<trkpt lat="'+q[1].toFixed(6)+'" lon="'+q[2].toFixed(6)+'"><time>'+iso(q[0])+'</time></trkpt>\n'; } g+='</trkseg>\n'; }
   g+='</trk>\n</gpx>\n';
-  const dd=new Date(p.start), name='patrol-'+dd.getFullYear()+'-'+p2(dd.getMonth()+1)+'-'+p2(dd.getDate())+'-'+p2(dd.getHours())+p2(dd.getMinutes())+'.gpx';
-  const u=URL.createObjectURL(new Blob([g],{type:'application/gpx+xml'})); const aa=D.createElement('a'); aa.href=u; aa.download=name; D.body.appendChild(aa); aa.click(); aa.remove(); setTimeout(()=>URL.revokeObjectURL(u),4000);
+  return {blob:new Blob([g],{type:'application/gpx+xml'}),name:fileBase(p)+'.gpx'}; }
+function fileBase(p){ const dd=new Date(p.start); return 'patrol-'+dd.getFullYear()+'-'+p2(dd.getMonth()+1)+'-'+p2(dd.getDate())+'-'+p2(dd.getHours())+p2(dd.getMinutes()); }
+function saveBlob(blob,name){ const u=URL.createObjectURL(blob), aa=D.createElement('a'); aa.href=u; aa.download=name; D.body.appendChild(aa); aa.click(); aa.remove(); setTimeout(()=>URL.revokeObjectURL(u),4000);
   toast('Saved '+name+' to your downloads'); }
+
+/* ================= export: Excel and Word with times, durations, places and coordinates ================= */
+// Irish Transverse Mercator (ITM, EPSG:2157) from GPS latitude/longitude — GRS80; GPS/TETRA positions (WGS84) match ETRS89 to well under a metre here
+const ITM={a:6378137,b:6356752.314140347,F0:0.99982,phi0:53.5*Math.PI/180,lam0:-8*Math.PI/180,E0:600000,N0:750000};
+function itm(lat,lon){ const {a,b,F0,phi0,lam0,E0,N0}=ITM, phi=lat*Math.PI/180, lam=lon*Math.PI/180;
+  const e2=(a*a-b*b)/(a*a), n=(a-b)/(a+b), n2=n*n, n3=n2*n, s=Math.sin(phi), c=Math.cos(phi), t=Math.tan(phi), t2=t*t;
+  const nu=a*F0/Math.sqrt(1-e2*s*s), rho=a*F0*(1-e2)/Math.pow(1-e2*s*s,1.5), eta2=nu/rho-1, dp=phi-phi0, sp=phi+phi0;
+  const M=b*F0*((1+n+1.25*n2+1.25*n3)*dp-(3*n+3*n2+2.625*n3)*Math.sin(dp)*Math.cos(sp)+(1.875*n2+1.875*n3)*Math.sin(2*dp)*Math.cos(2*sp)-(35/24)*n3*Math.sin(3*dp)*Math.cos(3*sp));
+  const I=M+N0, II=nu/2*s*c, III=nu/24*s*c*c*c*(5-t2+9*eta2), IIIA=nu/720*s*Math.pow(c,5)*(61-58*t2+t2*t2);
+  const IV=nu*c, V=nu/6*c*c*c*(nu/rho-t2), VI=nu/120*Math.pow(c,5)*(5-18*t2+t2*t2+14*eta2-58*t2*eta2), L=lam-lam0;
+  return [E0+IV*L+V*L*L*L+VI*Math.pow(L,5), I+II*L*L+III*Math.pow(L,4)+IIIA*Math.pow(L,6)]; }
+function degMin(v,pos,neg,w){ const h=v<0?neg:pos; let a=Math.abs(v), d=Math.floor(a), m=Math.round((a-d)*60*1000)/1000; if(m>=60){ d++; m=0; }
+  return h+String(d).padStart(w,'0')+'°'+m.toFixed(3).padStart(6,'0')+"'"; }
+function coords(lat,lon){ if(!isFinite(lat)||!isFinite(lon))return null; const [E,N]=itm(lat,lon);
+  return {lat:+lat.toFixed(6),lon:+lon.toFixed(6),dec:lat.toFixed(6)+', '+lon.toFixed(6),dm:degMin(lat,'N','S',2)+' '+degMin(lon,'E','W',3),E:Math.round(E),N:Math.round(N),itm:Math.round(E)+' '+Math.round(N)}; }
+const COORD_NOTE='Coordinates: decimal latitude/longitude (WGS84 — the format GPS and TETRA radios use); the same in degrees and decimal minutes; and Irish Transverse Mercator (ITM) easting/northing in metres, as on OSi maps.';
+function exportRows(d){
+  const p=d.p, P=p.pts, a=d.a, T=d.T, at=s=>p.start+s*1000, pt=i=>P[Math.max(0,Math.min(P.length-1,i))];
+  return T.map(x=>{ let lat,lon,act='',place='',t1=null;
+    if(x.k==='start'||x.k==='end'){ const q=pt(x.i); lat=q[1]; lon=q[2]; act=x.k==='start'?'Start':(x.open?'Last position':'Finish'); place=x.label; }
+    else if(x.k==='street'){ const q=pt(x.i0); lat=q[1]; lon=q[2]; t1=at(x.s1); act='On the move'; place=x.label; }
+    else if(x.k==='stop'){ const st=a.stops[x.si]; lat=st.lat; lon=st.lon; t1=at(x.s1); act='Stopped'+(x.paused?' (includes a pause)':''); place=x.label; }
+    else if(x.k==='gap'||x.k==='pause'){ const q=pt(x.i0); lat=q[1]; lon=q[2]; t1=at(x.s1); act=x.k==='pause'?'Paused':'No GPS'; place='Last known position'+(x.still?'':' — moved '+km(x.d||0)+' meanwhile'); }
+    else if(x.k==='mark'){ const m=(p.marks||[])[x.mi]||{}; lat=m.lat; lon=m.lon; act='Note: '+(m.k||''); place=(x.place||'')+(m.note?' — '+m.note:''); }
+    return {t0:at(x.s),t1,sec:t1?Math.round((t1-at(x.s))/1000):0,act,place,c:coords(lat,lon)}; }); }
+function patrolTitle(p){ const P=p.pts, t0=p.start+(P.length?P[0][0]*1000:0), t1=p.start+(P.length?P[P.length-1][0]*1000:0);
+  return {t0,t1,title:'Proactive patrol — '+dstr(t0),when:hm(t0)+'–'+hm(t1)+(sameDay(t0,t1)?'':' ('+dshort(t1)+')')}; }
+function xlsxFile(d){
+  const p=d.p, P=p.pts, a=d.a, R=exportRows(d), pt=patrolTitle(p), C=c=>c||{};
+  const sum=[['Date',dstr(pt.t0)],['Start',hms(pt.t0)],['Finish',hms(pt.t1)],['Duration',dur(a.total)],['Distance (km)',{v:+(a.dist/1000).toFixed(2),f:'n1'}],
+    ['Time moving',dur(a.moving)],['Stops',a.stops.length],['Notes',(p.marks||[]).length],['Patrol',a.mode==='mobile'?'Mobile':'On foot'],
+    ['Recorded by',p.src&&p.src.kind==='merged'?'Assisting, merged with '+(p.src.name||'a GPS app'):p.src&&p.src.kind==='import'?'Imported from '+(p.src.name||'a GPS app'):p.hp?'Assisting with Assisting GPS':'Assisting'],
+    ['Coordinates',COORD_NOTE],['Accuracy','Positions from the phone’s GPS — usually within 5–20 m, less accurate beside tall buildings. “No GPS” = no position received.'],['Made',dstr(Date.now())+' '+hm(Date.now())]];
+  const head=['Start','End','Minutes','What','Where','Latitude','Longitude','Lat (deg-min)','Long (deg-min)','ITM easting','ITM northing'];
+  const row=(t0,t1,sec,what,where,c)=>[{v:t0,f:'time'},t1?{v:t1,f:'time'}:'',sec?{v:+(sec/60).toFixed(1),f:'n1'}:'',what,where]
+    .concat(c?[{v:c.lat,f:'n6'},{v:c.lon,f:'n6'},c.dm.split(' ')[0],c.dm.split(' ')[1],{v:c.E,f:'int'},{v:c.N,f:'int'}]:['','','','','','']);
+  const sheets=[{name:'Summary',cols:[18,90],rows:sum},
+    {name:'Timeline',cols:[10,10,9,22,46,12,12,15,16,12,12],head,rows:R.map(r=>row(r.t0,r.t1,r.sec,r.act,r.place,r.c))},
+    {name:'Stops',cols:[6,10,10,9,46,12,12,15,16,12,12],head:['No.','From','To','Minutes','Where','Latitude','Longitude','Lat (deg-min)','Long (deg-min)','ITM easting','ITM northing'],
+      rows:a.stops.map((st,i)=>{ const c=coords(st.lat,st.lon), t=d.T.find(q=>q.k==='stop'&&q.si===i); return [i+1,{v:p.start+st.s0*1000,f:'time'},{v:p.start+st.s1*1000,f:'time'},{v:+(st.dur/60).toFixed(1),f:'n1'},t?t.label:'',{v:c.lat,f:'n6'},{v:c.lon,f:'n6'},c.dm.split(' ')[0],c.dm.split(' ')[1],{v:c.E,f:'int'},{v:c.N,f:'int'}]; })}];
+  if((p.marks||[]).length)sheets.push({name:'Notes',cols:[10,24,40,30,12,12,15,16,12,12],head:['Time','Type','Note','Where','Latitude','Longitude','Lat (deg-min)','Long (deg-min)','ITM easting','ITM northing'],
+    rows:p.marks.map(m=>{ const c=coords(m.lat,m.lon), t=d.T.find(q=>q.k==='mark'&&p.marks[q.mi]===m); return [{v:p.start+m.s*1000,f:'time'},m.k||'',m.note||'',t&&t.place||'',{v:c.lat,f:'n6'},{v:c.lon,f:'n6'},c.dm.split(' ')[0],c.dm.split(' ')[1],{v:c.E,f:'int'},{v:c.N,f:'int'}]; })});
+  sheets.push({name:'GPS points',cols:[18,12,12,12,12,12],head:['Date and time','Latitude','Longitude','Accuracy (m)','ITM easting','ITM northing'],
+    rows:P.map(q=>{ const c=coords(q[1],q[2]); return [{v:p.start+q[0]*1000,f:'dt'},{v:c.lat,f:'n6'},{v:c.lon,f:'n6'},q[3]==null?'':q[3],{v:c.E,f:'int'},{v:c.N,f:'int'}]; })});
+  return {blob:W.GRDocs.xlsx(sheets,pt.title),name:fileBase(p)+'.xlsx'}; }
+function docxFile(d){
+  const p=d.p, a=d.a, R=exportRows(d), pt=patrolTitle(p);
+  const summary=['Date:        '+dstr(pt.t0),'Time:        '+pt.when,'Duration:    '+dur(a.total),'Distance:    '+km(a.dist),'Stops:       '+a.stops.length+(a.stops.length?' (staying within ~35 m for '+(S.stopMin||2)+' min or more)':''),
+    'Notes:       '+(p.marks||[]).length,'Patrol:      '+(a.mode==='mobile'?'mobile':'on foot')].join('\n');
+  const rows=R.map(r=>[hm(r.t0)+(r.t1?'–'+hm(r.t1):''),r.sec?durS(r.sec):'',r.act+(r.place?'\n'+r.place:''),r.c?r.c.dec+'\n'+r.c.dm+'\nITM '+r.c.itm:'']);
+  const blob=W.GRDocs.docx({title:pt.title,sub:pt.when+' · '+km(a.dist)+' · '+a.stops.length+' stop'+(a.stops.length===1?'':'s'),blocks:[
+    {box:summary},{h:'Timeline'},{table:{cols:[1300,1000,4100,3200],head:['Time','Duration','What and where','Coordinates (decimal · deg-min · ITM)'],rows}},
+    {note:COORD_NOTE},{note:'Positions from the phone’s GPS — usually within 5–20 m, less accurate beside tall buildings. “No GPS” means no position was received. Street names © OpenStreetMap contributors.'}]});
+  return {blob,name:fileBase(p)+'.docx'}; }
+function exportSheet(){ const d=det; if(!d)return; if(!W.GRDocs){ toast('Export isn’t available — reload the app'); return; }
+  const share=(f,t)=>W.GRDocs.canShare(f.blob,f.name)?'<button type="button" class="pp-sec" data-sh="'+t+'">Share</button>':'';
+  const make=t=>t==='xlsx'?xlsxFile(d):t==='docx'?docxFile(d):gpxFile(d);
+  const fx=make('xlsx');
+  const item=(t,ttl,sub)=>'<div class="pp-exp"><div><b>'+ttl+'</b><span>'+sub+'</span></div><div class="pp-row"><button type="button" class="pp-sec on" data-sv="'+t+'">Save</button>'+share(fx,t)+'</div></div>';
+  sheet('<h4>Export this patrol</h4>'
+   +item('xlsx','Excel spreadsheet (.xlsx)','Summary, timeline, stops, notes and every GPS point — times, durations, places and coordinates.')
+   +item('docx','Word document (.docx)','The timeline as a table: times, durations, what and where, with coordinates.')
+   +item('gpx','GPX track (.gpx)','For mapping apps and Google Earth.')
+   +'<p class="pp-foot">'+esc(COORD_NOTE)+'</p><div class="pp-row"><button type="button" class="pp-sec" data-x="1">Close</button></div>',
+   s=>{ s.querySelectorAll('[data-sv]').forEach(b=>b.onclick=()=>{ try{ const f=make(b.dataset.sv); saveBlob(f.blob,f.name); }catch(e){ toast('Couldn’t make that file on this phone'); } });
+     s.querySelectorAll('[data-sh]').forEach(b=>b.onclick=async()=>{ try{ const f=make(b.dataset.sh); const ok=await W.GRDocs.share(f.blob,f.name,patrolTitle(d.p).title); if(!ok)saveBlob(f.blob,f.name); }catch(e){ toast('Couldn’t share that file'); } }); }); }
 function delSheet(){ const d=det; if(!d)return;
   sheet('<h4>Delete this patrol?</h4><p>The route, stops and notes for <b>'+dstr(d.p.start)+' '+hm(d.p.start)+'</b> are removed from this phone. This can’t be undone. If it may be relevant to a case, keep it.</p>'
-   +'<div class="pp-row"><button type="button" class="pp-sec" data-x="1">Keep it</button><button type="button" class="pp-sec" id="ppDel" style="border-color:#ff6b6b;color:#ffb3b3">Delete</button></div>',
+   +'<div class="pp-row"><button type="button" class="pp-sec" data-x="1">Keep it</button><button type="button" class="pp-sec" id="ppDel" style="border-color:var(--red);color:var(--red)">Delete</button></div>',
    s=>{ s.querySelector('#ppDel').onclick=async()=>{ try{ await del('patrols',d.p.id); }catch(e){} closeSheet(); det=null; view='list'; render(); toast('Patrol deleted'); }; }); }
 function settingsSheet(){
   const seg=[1,2,3,5].map(m=>'<button type="button" data-sm="'+m+'" class="'+((S.stopMin||2)===m?'on':'')+'">'+m+' min</button>').join('');
@@ -839,7 +908,7 @@ function lockSheet(){
    +'<p><b>3. On patrol:</b> open GPS Logger, tap <b>Record</b>, lock the phone as normal. You can still open Assisting for notes — recording in both is fine.</p>'
    +'<p><b>4. When you’re back:</b> stop the recording, open its <b>Tracklist</b>, tap the track → <b>Share</b> → choose <b>Assisting</b>. If Assisting isn’t in the list yet, save the GPX and use <b>Import a track</b> here instead.</p>'
    +'<p>If you also recorded in Assisting, the import offers to <b>merge</b> the two, so the gaps fill in and your notes stay.</p>'
-   +'<p style="color:#f3d58a">Don’t use fitness apps that upload or publish routes for patrols.</p>'
+   +'<p style="color:color-mix(in srgb,var(--amber) 60%,var(--tx))">Don’t use fitness apps that upload or publish routes for patrols.</p>'
    +'<div class="pp-row"><a class="pp-sec pp-a" href="'+LOGGER_URL+'" target="_blank" rel="noopener">Get GPS Logger</a><button type="button" class="pp-sec on" id="ppImp2">Import a track</button></div>'
    +'<div class="pp-row">'+(isAndroid?'<button type="button" class="pp-sec" id="ppHp2">Assisting GPS</button>':'')+'<button type="button" class="pp-sec" data-x="1">Close</button></div>',
    s=>{ s.querySelector('#ppImp2').onclick=()=>{ closeSheet(); pickTrack(); }; const h2=s.querySelector('#ppHp2'); if(h2)h2.onclick=()=>{ closeSheet(); helperSheet(); }; }); }
@@ -902,5 +971,5 @@ const initP=(async function init(){
   if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(go,80)); else setTimeout(go,80); }catch(e){} })();
 W.openPatrol=openPatrol;
 W.ppBack=()=>back();
-W.GRPatrol=Object.freeze({open:openPatrol,mountStrip,recording:()=>!!(rec&&!rec.done),_feed:f=>feed(f),_analyse:analyse,_timeline:timeline,_log:logText,_buildIndex:buildIndex,_nearest:nearest,_parse:parseTrackFile,_fromFixes:patrolFromFixes,_merge:mergePatrols,_import:importTracks,_state:()=>rec,_det:()=>det,_unpackHelper:unpackHelper,_importHelper:importHelper,_helper:{hinfo,hset,helperOn,hpUrl}});
+W.GRPatrol=Object.freeze({open:openPatrol,mountStrip,recording:()=>!!(rec&&!rec.done),_feed:f=>feed(f),_analyse:analyse,_timeline:timeline,_log:logText,_buildIndex:buildIndex,_nearest:nearest,_parse:parseTrackFile,_fromFixes:patrolFromFixes,_merge:mergePatrols,_import:importTracks,_state:()=>rec,_det:()=>det,_unpackHelper:unpackHelper,_importHelper:importHelper,_helper:{hinfo,hset,helperOn,hpUrl},_itm:itm,_coords:coords,_xlsx:()=>det&&xlsxFile(det),_docx:()=>det&&docxFile(det)});
 })();

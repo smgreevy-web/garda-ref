@@ -1,14 +1,17 @@
 <!DOCTYPE html>
-<html lang="en-IE" data-theme="ivory">
+<html lang="en-IE" data-theme="ivory" data-tone="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f3f0e9">
-<script>/* theme before first paint: ivory (default) · graphite · navy */
-(function(){var t='ivory',c={ivory:'#f3f0e9',graphite:'#0f1111',navy:'#0c1320',slate:'#121519'};try{var s=localStorage.getItem('gr_theme');if(s&&c[s])t=s;}catch(e){}
-document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',c[t]);})();
+<script>/* theme before first paint (ivory is the default) — keep in step with THEMES in app.js */
+(function(){var t='ivory',c={ivory:'#f3f0e9',daylight:'#f2f3f5',sepia:'#eee4d1',mist:'#eef1f5',slate:'#121519',graphite:'#0f1111',navy:'#0c1320',forest:'#0f1411',midnight:'#000000'},L={ivory:1,daylight:1,sepia:1,mist:1};
+try{var s=localStorage.getItem('gr_theme');if(s&&c[s])t=s;}catch(e){}
+var d=document.documentElement;d.setAttribute('data-theme',t);d.setAttribute('data-tone',L[t]?'light':'dark');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',c[t]);})();
 /* deep links (?open=… and #…) are read once from here, then taken out of the address so Back or a reload can't run them again */
-(function(){try{var s=location.search,h=location.hash;window.__entry={search:s,hash:h};if(s||h)history.replaceState(null,'',location.pathname);}catch(e){window.__entry={search:'',hash:''};}})();</script>
+(function(){try{var s=location.search,h=location.hash;window.__entry={search:s,hash:h};if(s||h)history.replaceState(null,'',location.pathname);}catch(e){window.__entry={search:'',hash:''};}})();
+/* app lock: nothing shows until the password is entered (lock.js decides) */
+(function(){try{if(localStorage.getItem('gr_lock'))document.documentElement.classList.add('locked');}catch(e){}})();</script>
 <meta name="description" content="Assisting — offline operational reference for frontline Gardaí. Independent tool, not an official Garda system.">
 <title>Assisting</title>
 <link rel="manifest" href="manifest.json">
@@ -39,12 +42,11 @@ document.documentElement.setAttribute('data-theme',t);var m=document.querySelect
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="embG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e7cf8a"/><stop offset=".55" stop-color="#c9a24e"/><stop offset="1" stop-color="#9c7a32"/></linearGradient>
   <linearGradient id="embN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16294a"/><stop offset="1" stop-color="#0a1630"/></linearGradient>
-  <symbol id="emb" viewBox="0 0 64 72"><path d="M32 3 59 13v22c0 17.5-11 29.5-27 34C16 64.5 5 52.5 5 35V13Z" fill="url(#embG)"/><path d="M32 8.5 54 16.6V35c0 14.6-9 24.7-22 28.8C19 59.7 10 49.6 10 35V16.6Z" fill="url(#embN)"/><path d="M32 8.5 54 16.6V35c0 14.6-9 24.7-22 28.8C19 59.7 10 49.6 10 35V16.6Z" fill="none" stroke="#e7cf8a" stroke-opacity=".35" stroke-width=".8"/><path d="M32 18.5 35.2 32.4 49 35.6 35.2 38.8 32 52.7 28.8 38.8 15 35.6 28.8 32.4Z" fill="#e7cf8a"/><path d="M32 18.5 35.2 32.4 32 35.6 28.8 32.4Z" fill="#fff4cf" fill-opacity=".55"/><circle cx="32" cy="35.6" r="2.2" fill="#0a1630"/></symbol>
 </defs></svg>
 <div id="app">
   <header id="topbar">
     <div class="brand" id="brandBtn" role="button" aria-label="Home">
-      <svg class="brandemb" viewBox="0 0 64 72" aria-hidden="true"><use href="#emb"/></svg>
+      
       <div class="bt"><b class="wm">Assisting</b><small>Garda · operational reference</small></div>
     </div>
     <div class="tb-right"><div class="hudclock tb-clock"></div><div id="loadState" class="loadstate" title="Content load status"></div></div>
@@ -85,6 +87,8 @@ document.documentElement.setAttribute('data-theme',t);var m=document.querySelect
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/leaflet-geoman.min.js"></script>
 <script src="icons.js"></script>
+<script src="docs.js"></script>
+<script src="lock.js"></script>
 <script src="app.js"></script>
 <script src="search.js"></script>
 <script src="osint.js"></script>

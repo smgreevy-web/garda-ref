@@ -620,14 +620,23 @@ function copyList(){
 let strips=[];
 function mountStrip(el){ if(!el)return; strips=strips.filter(x=>x.isConnected); if(!strips.includes(el))strips.push(el); paintStrip(el); }
 function paintStrips(){ strips=strips.filter(x=>x.isConnected); strips.forEach(paintStrip); }
+const STRIP_MAX=8;   // rows on Home — a list you can take in at a glance
+function shortDue(t,c,now){
+  if(t.due){ if(c.od)return 'overdue '+durStr(now-t.due).split(' ').slice(0,2).join(' ');
+    const dd=Math.round((sod(t.due)-sod(now))/DAY); return dd===0?hm(t.due):dd===1?'tmrw '+hm(t.due):dd<7?day(t.due).split(' ')[0]+' '+hm(t.due):day(t.due); }
+  if(c.ws.any)return ''; return c.ws.open?'now':'opens '+(c.ws.next?hm(c.ws.next):''); }
 function paintStrip(el){
   const now=Date.now(), l=open_(); if(!l.length){ if(el.innerHTML)el.innerHTML=''; el._h=''; return; }
-  const od=l.filter(t=>t.due&&t.due<now).length, nowN=l.filter(t=>winState(t,now).open).length, urg=l.filter(t=>t.urgent).length;
-  const top=l.slice().sort((a,b)=>cmp(sortKey(a,now),sortKey(b,now))).slice(0,3);
-  const h='<div class="tk-strip"><button type="button" class="tks-h" data-open="1">'+svg(IC.other)+'<b>TASKS</b><span>'+l.length+' open'+(nowN?' · '+nowN+' can do now':'')+(od?' · <i>'+od+' overdue</i>':'')+(urg?' · '+urg+' urgent':'')+'</span></button>'
-   +top.map(t=>{ const c=classify(t,now); return '<div class="tks-r'+(t.urgent?' urg':'')+(c.od?' od':'')+'"><button type="button" class="tks-ck" data-ck="'+t.id+'" aria-label="Mark done">'+svg(IC.check)+'</button><button type="button" class="tks-b" data-id="'+t.id+'"><span class="tk-ico ty-'+t.type+'">'+svg(IC[t.type]||IC.other)+'</span><span class="tks-t"><b>'+esc(t.title)+'</b><small>'+(t.due?(c.od?'overdue '+esc(durStr(now-t.due)):'due '+esc(rel(t.due,now))):c.ws.any?'any time':c.ws.open?'open now':'opens '+esc(c.ws.next?rel(c.ws.next,now):''))+'</small></span></button></div>'; }).join('')+'</div>';
+  const od=l.filter(t=>t.due&&t.due<now).length, urg=l.filter(t=>t.urgent).length;
+  const top=l.slice().sort((a,b)=>cmp(sortKey(a,now),sortKey(b,now))).slice(0,STRIP_MAX);
+  const h='<div class="tk-strip tk-compact"><button type="button" class="tks-h" data-open="1">'+svg(IC.other)+'<b>Tasks</b><span>'+l.length+' open'+(od?' · <i>'+od+' overdue</i>':'')+(urg?' · '+urg+' urgent':'')+'</span><em>Open ›</em></button><div class="tks-list">'
+   +top.map(t=>{ const c=classify(t,now), d=shortDue(t,c,now);
+      return '<div class="tks-r'+(t.urgent?' urg':'')+(c.od?' od':'')+'"><button type="button" class="tks-ck" data-ck="'+t.id+'" aria-label="Mark done">'+svg(IC.check)+'</button>'
+       +'<button type="button" class="tks-b" data-id="'+t.id+'"><span class="tks-y ty-'+t.type+'">'+svg(IC[t.type]||IC.other)+'</span><span class="tks-t">'+esc(t.title||(TY[t.type]||TY.other).t)+'</span>'
+       +(t.urgent?'<span class="tks-u" aria-label="Urgent">'+svg(IC.flag)+'</span>':'')+(d?'<span class="tks-d'+(c.od?' od':c.today?' td':'')+'">'+esc(d)+'</span>':'')+'</button></div>'; }).join('')
+   +'</div>'+(l.length>STRIP_MAX?'<button type="button" class="tks-more" data-open="1">View all '+l.length+' tasks ›</button>':'')+'</div>';
   if(el._h===h)return; el._h=h; el.innerHTML=h;
-  el.querySelector('[data-open]').onclick=()=>openTasks();
+  el.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openTasks());
   el.querySelectorAll('.tks-b').forEach(b=>b.onclick=()=>openTasks(b.dataset.id));
   el.querySelectorAll('.tks-ck').forEach(b=>b.onclick=()=>{ const t=byId(b.dataset.ck); if(!t)return; t.done=Date.now(); save(); vib(30); closeTag('gr-task-'+t.id); openTasks(); followSheet(t); });
 }
