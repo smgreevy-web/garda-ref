@@ -283,7 +283,7 @@ D.addEventListener('visibilitychange',()=>{ if(D.visibilityState==='visible'){ t
 if('serviceWorker' in N){ N.serviceWorker.addEventListener('message',e=>{ const m=e.data||{}; if(m.gr!=='notif'||!m.data||m.data.open!=='gaol')return;
   if(m.data.action==='checked'&&m.data.id&&G.occ[m.data.id]){ checked(m.data.id,m.data.ts&&Math.abs(Date.now()-m.data.ts)<6*H?m.data.ts:Date.now()); openGaol(); }
   else openGaol(m.data.id); }); }
-(function(){ try{ const q=new URLSearchParams(location.search); if(q.get('open')!=='gaol')return; const id=q.get('id'), act=q.get('act'), ts=+q.get('ts')||0;
+(function(){ try{ const q=new URLSearchParams((window.__entry||location).search); if(q.get('open')!=='gaol')return; const id=q.get('id'), act=q.get('act'), ts=+q.get('ts')||0;
   history.replaceState(history.state,'',location.pathname);
   const go=()=>{ if(act==='checked'&&id&&G.occ[id])checked(id,ts&&Math.abs(Date.now()-ts)<6*H?ts:Date.now()); openGaol(act?null:id); };
   if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(go,60)); else setTimeout(go,60); }catch(e){} })();

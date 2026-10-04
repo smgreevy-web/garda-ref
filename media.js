@@ -193,8 +193,23 @@ const FEEDS=[
   {k:'indo',t:'Irish Independent',u:['https://www.independent.ie/irish-news/courts/rss']},
   {k:'examiner',t:'Irish Examiner',u:['https://www.irishexaminer.com/feed/35-top_news.xml']},
   {k:'times',t:'Irish Times',u:['https://www.irishtimes.com/arc/outboundfeeds/feed-irish-news/?from=0&size=30']},
-  {k:'journal',t:'TheJournal.ie',u:['https://www.thejournal.ie/feed/']}
+  {k:'journal',t:'TheJournal.ie',u:['https://www.thejournal.ie/feed/']},
+  // local Dublin papers — used for the inner-city strip (each one is skipped quietly if its feed is unavailable)
+  {k:'dpeople',t:'Dublin People',u:['https://dublinpeople.com/news/feed/','https://dublinpeople.com/feed/']},
+  {k:'dinq',t:'Dublin Inquirer',u:['https://www.dublininquirer.com/rss/','https://www.dublininquirer.com/latest/rss/']}
 ];
+const LOCAL_SK=new Set(['dublinlive','dpeople','dinq']);
+// Dublin inner city: Dublin 1, 2, 3, 7 and 8 — the streets, landmarks and stations a North Central / city-centre member works
+const INNER_RE=new RegExp('\\b('+[
+  'north inner[- ]city','south inner[- ]city','inner[- ]city','city cent(?:re|er)','dublin ?(?:1|2|3|7|8)(?!\\d)',
+  "o['’]?connell (?:st|street|bridge)\\b",'the spire\\b',"ha['’]?penny bridge","bachelor['’]?s walk",
+  '(?:dorset|sheriff|talbot|gardiner|capel|abbey|henry|moore|mary|amiens|store|parnell|grafton|dame|camden|wexford|thomas|pearse|eccles|fitzgibbon|marlborough|dominick|bolton|church|manor|aungier|kevin|bride|cathal brugha|gloucester|foley|buckingham|portland|north king|bow|benburb|queen|king|james[\'’]?s|clanbrassil|meath|francis|townsend|lombard|north circular) (?:st|street|road|rd)\\b','westland row\\b',
+  'parnell (?:square|sq)\\b','mountjoy\\b','summerhill\\b','east wall\\b','north wall\\b','north strand\\b','ballybough\\b','phibsboro(?:ugh)?\\b',
+  'stoneybatter\\b','smithfield\\b','arbour hill\\b','cabra\\b','drumcondra\\b','temple bar\\b','the liberties\\b','docklands\\b','ifsc\\b',
+  'spencer dock\\b','grand canal dock\\b','ringsend\\b',"st\\.? stephen['’]?s green","stephen['’]?s green",'christ ?church cathedral',
+  'heuston\\b','connolly station','bus[aá]ras\\b','croke park\\b','mater hospital','rotunda\\b','luas (?:red|green) line'
+].join('|')+')','i');
+function isInner(it){ const txt=it.t+' '+(it.d||''); return (LOCAL_SK.has(it.sk)||/\bdublin\b/i.test(txt))&&INNER_RE.test(txt); }
 // weight, category — what a Garda needs to know first
 const NW=[
   [/\b(shot|shooting|gunman|gunmen|firearms?|gun attack|shots fired)\b/i,10,'serious'],
@@ -272,7 +287,9 @@ function buildFeed(raw){
   return clusters.map(C=>{ const lead=C[0]; lead.tier=Math.max(...C.map(x=>x.tier)); lead.urgent=C.some(x=>x.urgent); return {lead,also:C.slice(1)}; })
     .sort((a,b)=>(b.lead.tier-a.lead.tier)||(b.lead.ts-a.lead.ts));
 }
-async function refreshNews(force){
+let _newsBusy=null;
+function refreshNews(force){ if(_newsBusy)return _newsBusy; _newsBusy=refreshNews0(force).catch(()=>{}).finally(()=>{ _newsBusy=null; }); return _newsBusy; }
+async function refreshNews0(force){
   let cached=null; try{cached=JSON.parse(localStorage.getItem(NEWS_KEY)||'null');}catch(e){}
   if(cached&&!news)news=cached;
   if(!force&&cached&&Date.now()-cached.t<8*60000)return;
@@ -285,7 +302,7 @@ async function refreshNews(force){
   const slim=it=>({id:it.id,t:it.t,d:it.d,c:it.c,ts:it.ts,src:it.src,sk:it.sk});
   news={t:Date.now(),raw:Object.entries(bySrc).map(([t,items])=>({t,items:items.sort((a,b)=>b.ts-a.ts).slice(0,25).map(slim)}))};
   try{localStorage.setItem(NEWS_KEY,JSON.stringify(news));}catch(e){}
-  notifyNew(); document.querySelectorAll('.nstrip').forEach(el=>paintStrip(el));
+  notifyNew(); document.querySelectorAll('.nstrip').forEach(el=>el.classList.contains('istrip')?paintInner(el):paintStrip(el));
 }
 function feedNow(){ if(!news||!news.raw)return []; return buildFeed(news.raw.map(S=>({items:S.items.map(x=>Object.assign({},x))}))); }
 function rowHtml(C,i){
@@ -359,7 +376,28 @@ function notifyNew(){
     navigator.serviceWorker&&navigator.serviceWorker.ready.then(reg=>reg.showNotification((it.urgent?'URGENT · ':'')+it.t,{body:it.src+' · '+hhmm(it.ts),tag:'news-'+it.id,icon:'icons/icon-192.png',badge:'icons/badge.png',vibrate:it.urgent?[120,60,120,60,240]:[90,50,90]})).catch(()=>{}); });
 }
 function mountNewsStrip(el){ if(!el)return; el.classList.add('nstrip'); paintStrip(el); refreshNews(false).then(()=>paintStrip(el)); }
+/* Dublin inner city: every recent story from the local papers or the national feeds that names the inner city — newest first, not just crime */
+function innerNow(){
+  if(!news||!news.raw)return [];
+  const all=[], seen=new Set();
+  news.raw.forEach(S=>S.items.forEach(x=>{ const it=Object.assign({},x), k=String(it.t||'').toLowerCase(); if(!k||seen.has(k))return; seen.add(k);
+    if(!it.ts||Date.now()-it.ts>4*86400000)return; scoreItem(it); if(it.score<0||!isInner(it))return; prep(it); all.push(it); }));
+  all.sort((a,b)=>b.ts-a.ts);
+  const clusters=[];
+  all.forEach(it=>{ const c=clusters.find(C=>sameStory(C[0],it)); if(c){ if(!c.some(x=>x.sk===it.sk))c.push(it); } else clusters.push([it]); });
+  return clusters.map(C=>({lead:C[0],also:C.slice(1)}));
+}
+let _inner=[];
+function paintInner(el){
+  _inner=innerNow();
+  const head='<div class="ns-head"><span class="ns-pip loc"></span><b>DUBLIN INNER CITY</b><span class="ns-as">'+(news&&news.t?'updated '+hhmm(news.t):'')+'</span></div>';
+  if(!_inner.length){ el.innerHTML=head+'<div class="ns-empty">'+(navigator.onLine===false?'Offline — local news loads when you have signal.':(news&&news.t?'No inner-city stories in the last few days.':'Loading inner-city news…'))+'</div>'; return; }
+  el.innerHTML=head+'<div class="ns-list">'+_inner.slice(0,25).map(rowHtml).join('')+'</div>'
+    +'<div class="ns-foot">Dublin 1, 2, 3, 7 & 8 · local papers and national news that names the area · newest first</div>';
+  el.querySelectorAll('.ns-row').forEach(b=>b.addEventListener('click',()=>openStory(_inner[+b.dataset.i])));
+}
+function mountInnerStrip(el){ if(!el)return; el.classList.add('nstrip','istrip'); paintInner(el); refreshNews(false).then(()=>paintInner(el)); }
 setInterval(()=>{ if(document.visibilityState==='visible'||nset().on)refreshNews(false); },5*60000);
 
-window.GRMedia={openTV,openRadio,mountNewsStrip,refreshNews:()=>refreshNews(true),openNewsSettings};
+window.GRMedia={openTV,openRadio,mountNewsStrip,mountInnerStrip,refreshNews:()=>refreshNews(true),openNewsSettings,_inner:{isInner,innerNow,INNER_RE}};
 })();

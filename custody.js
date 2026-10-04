@@ -673,7 +673,7 @@ W.addEventListener('pageshow',()=>{check();});
 
 /* ================= notification clicks / deep link ================= */
 if('serviceWorker' in navigator){ navigator.serviceWorker.addEventListener('message',e=>{const m=e.data||{}; if(m.gr==='notif'&&m.data&&m.data.open==='det')openDetention(m.data.id);}); }
-(function(){ try{ const q=new URLSearchParams(location.search); if(q.get('open')==='det'){ const id=q.get('id'); history.replaceState(history.state,'',location.pathname);
+(function(){ try{ const q=new URLSearchParams((window.__entry||location).search); if(q.get('open')==='det'){ const id=q.get('id'); history.replaceState(history.state,'',location.pathname);
   const go=()=>openDetention(id); if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(go,50)); else setTimeout(go,50); } }catch(e){} })();
 
 // first run after load: fire anything missed while the app was closed; refresh the notification-bar summary

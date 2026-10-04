@@ -36,6 +36,7 @@ const IC={
   moon:_sv('<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/>'),
   fit:_sv('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'),
   info:_sv('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>'),
+  sat:_sv('<path d="M13 7 9 3 5 7l4 4"/><path d="m17 11 4 4-4 4-4-4"/><path d="m8 12 4 4 6-6-4-4Z"/><path d="m16 8 3-3"/><path d="M9 21a6 6 0 0 0-6-6"/>'),
   gear:_sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>')
 };
 
@@ -243,15 +244,92 @@ function logText(p,a,T,ix){
 /* ================= recording ================= */
 const AK='gr_pp_active';
 let rec=null, wl=null, tick=null, batt=null;
-function newPatrol(){ const now=Date.now(); return {id:'pp_'+now,v:1,start:now,end:null,pts:[],marks:[],pauses:[],rev:{}}; }
-async function startPatrol(){
+function newPatrol(id){ const now=Date.now(); return {id:id||'pp_'+now,v:1,start:now,end:null,pts:[],marks:[],pauses:[],rev:{}}; }
+
+/* ================= Assisting GPS — the companion app that records with the phone locked =================
+   Assisting asks it to start / sync / stop with an intent link; it answers by opening Assisting at
+   ?open=patrol&… with the track packed into the #fragment (never sent to a server — fragments stay on the phone). */
+const HP_PKG='ie.assisting.gps', HP_SCHEME='assisting-gps', HK='gr_pp_helper';
+const APP_BASE=location.origin+location.pathname.replace(/[^/]*$/,'');
+const HP_APK=APP_BASE+'helper/assisting-gps.apk';
+const isAndroid=/Android/i.test(N.userAgent||'');
+function hinfo(){ try{ return JSON.parse(localStorage.getItem(HK)||'{}')||{}; }catch(e){ return {}; } }
+function hset(o){ const x=Object.assign(hinfo(),o); try{ localStorage.setItem(HK,JSON.stringify(x)); }catch(e){} return x; }
+function helperOn(){ const h=hinfo(); return isAndroid&&!!h.ok&&h.use!==false; }
+function hpRemember(id){ const h=hinfo(); hset({sids:[id].concat((h.sids||[]).filter(x=>x!==id)).slice(0,12)}); }
+const hpKnows=id=>(hinfo().sids||[]).includes(id);
+// call straight from a tap: Chrome only opens another app from a user gesture
+function hpUrl(cmd,params){
+  const qs=new URLSearchParams(params||{}).toString(), fb=APP_BASE+'?open=patrol&gpsok=0&cmd='+encodeURIComponent(cmd);
+  return 'intent://'+cmd+(qs?'?'+qs:'')+'#Intent;scheme='+HP_SCHEME+';package='+HP_PKG+';S.browser_fallback_url='+encodeURIComponent(fb)+';end'; }
+function callHelper(cmd,params){ const u=hpUrl(cmd,params); hset({last:cmd,lastAt:Date.now()});
+  if(W.__hpTest){ W.__hpTest(u); return true; }                                  // test harness only
+  try{ location.href=u; return true; }catch(e){ return false; } }
+async function unpackHelper(b64){
+  let t=String(b64||'').replace(/-/g,'+').replace(/_/g,'/'); while(t.length%4)t+='=';
+  const bin=atob(t), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  if(typeof DecompressionStream!=='function')throw new Error('update Chrome to bring tracks in');
+  const txt=await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate'))).text();
+  const j=JSON.parse(txt); if(!j||j.src!=='assisting-gps'||!Array.isArray(j.f)||!isFinite(+j.t0))throw new Error('not an Assisting GPS track');
+  const t0=+j.t0, fixes=[]; let ss=0, la=0, lo=0;
+  for(const r of j.f){ if(!Array.isArray(r))continue; ss+=+r[0]||0; la+=+r[1]||0; lo+=+r[2]||0; fixes.push({t:t0+ss*1000,lat:la/1e6,lon:lo/1e6,acc:r[3]==null?999:+r[3]}); }
+  return {sid:String(j.sid||''),part:!!j.part,t0,fixes}; }
+const span=p=>p.pts.length?[p.start+p.pts[0][0]*1000,p.start+p.pts[p.pts.length-1][0]*1000]:[p.start,p.end||p.start];
+function overlaps(a,b){ const A=span(a), B=span(b); return Math.min(A[1],B[1])-Math.max(A[0],B[0])>0; }
+// the helper keeps recording through a pause in Assisting — leave those minutes out, as the officer asked
+function mergeHelper(a,b){
+  const pz=(a.pauses||[]).map(q=>[a.start+q[0]*1000,q[1]==null?Infinity:a.start+q[1]*1000]);
+  const keep=b.pts.filter(q=>{ const t=b.start+q[0]*1000; return !pz.some(z=>t>z[0]&&t<z[1]); });
+  if(!keep.length)return Object.assign({},a,{hp:1});
+  const m=mergePatrols(a,Object.assign({},b,{pts:keep,src:{kind:'helper',name:'Assisting GPS'}}));
+  m.hp=1; return m; }
+async function importHelper(pk){
+  let h; try{ h=await unpackHelper(pk); }catch(e){ toast(/update Chrome/.test(e&&e.message)?'Couldn’t bring the route in — update Chrome, then open the Assisting GPS app and tap “Send the last patrol to Assisting again”':'Couldn’t read the route from Assisting GPS — open the Assisting GPS app and tap “Send the last patrol to Assisting again”'); return; }
+  hset({ok:true,seen:Date.now()});
+  try{ await initP; }catch(e){}
+  const hp=patrolFromFixes(h.fixes,[],{kind:'helper',name:'Assisting GPS'});
+  if(!hp){ toast('Assisting GPS had no usable positions — was GPS on?'); return; }
+  const sid=/^pp_[A-Za-z0-9_]{1,60}$/.test(h.sid)?h.sid:null;
+  const live=rec&&!rec.done?rec.p:null;
+  anMemo.clear();
+  // 1. the patrol the helper was started for (its id travels both ways)
+  let target=null;
+  if(sid){ if(live&&live.id===sid)target=live; else { try{ target=await get('patrols',sid)||null; }catch(e){} } }
+  if(target){ await applyHelper(target,hp,h.part); return; }
+  // 2. no patrol with that id: keep it as its own patrol, and offer to merge if it overlaps one by a minute or more
+  hp.id=sid||hp.id; hp.hp=1; hp.src={kind:'helper',name:'Assisting GPS'};
+  const ov=x=>{ if(!x||!x.pts||!x.pts.length)return false; const A=span(x), B=span(hp); return Math.min(A[1],B[1])-Math.max(A[0],B[0])>=60e3; };
+  let all=[]; try{ all=await getAll('patrols'); }catch(e){}
+  const cand=ov(live)?live:all.find(x=>x.end&&x.id!==hp.id&&ov(x));
+  if(cand){ hpMergeSheet(cand,hp,h.part); return; }
+  try{ await put('patrols',hp); }catch(e){ toast('Couldn’t save on this phone'); return; }
+  openDetail(hp.id,true); toast('Patrol brought in from Assisting GPS'); }
+async function applyHelper(target,hp,part){
+  const live=rec&&!rec.done&&rec.p===target;
+  const m=mergeHelper(target,hp);
+  if(live){
+    m.end=null; rec.p=m; rec.an=null; rec.anAt=0; rec.anDrawn=-1; save(true);
+    if(!part){ await finish(); toast('Finished — the route Assisting GPS recorded is in'); return; }
+    view='rec'; render(); toast('Gaps filled from Assisting GPS'); return; }
+  if(!target.end&&part)m.end=null;
+  else if(!target.end){ m.end=span(m)[1]; try{ if(localStorage.getItem(AK)===m.id)localStorage.removeItem(AK); }catch(e){} }
+  try{ await put('patrols',m); }catch(e){ toast('Couldn’t save on this phone'); return; }
+  openDetail(m.id,true); toast('Route from Assisting GPS added'); }
+function hpMergeSheet(a,b,part){ build(); const A=span(a);
+  sheet('<h4>Add this route to your patrol?</h4><p>Assisting GPS sent a route that overlaps your patrol of <b>'+dshort(A[0])+' '+hm(A[0])+'–'+hm(A[1])+'</b>. Adding it fills the “No GPS” gaps and keeps your notes.</p>'
+   +'<div class="pp-row"><button type="button" class="pp-sec" id="ppSep">Keep separate</button><button type="button" class="pp-sec on" id="ppMrg">Add it</button></div>',
+   s=>{ s.querySelector('#ppMrg').onclick=async()=>{ closeSheet(); await applyHelper(a,b,part); };
+     s.querySelector('#ppSep').onclick=async()=>{ closeSheet(); try{ await put('patrols',b); }catch(e){} openDetail(b.id,true); toast('Saved as its own patrol'); }; }); }
+
+async function startPatrol(id){
   if(!('geolocation' in N)){ toast('This phone’s browser has no GPS access'); return; }
   if(rec&&!rec.done){ view='rec'; render(); return; }
-  const p=newPatrol(); rec={p,watch:null,last:null,cur:null,weak:0,glitch:0,paused:false,lastSave:0,live:null,an:null,anAt:0,err:null};
+  const p=newPatrol(id); if(helperOn()){ p.hp=1; hpRemember(p.id); }
+  rec={p,watch:null,last:null,cur:null,weak:0,glitch:0,paused:false,lastSave:0,live:null,an:null,anAt:0,err:null};
   try{ localStorage.setItem(AK,p.id); }catch(e){}
   try{ await put('patrols',p); }catch(e){ toast('Can’t save on this phone — storage is blocked'); }
   beginWatch(); wake(true); vib(60); view='rec'; render(); paintStrips(); startTick();
-  toast('Recording — keep Assisting open. Pocket mode blacks out the screen.');
+  toast(p.hp?'Recording — Assisting GPS records too, so you can lock the phone':'Recording — keep Assisting open. Pocket mode blacks out the screen.');
 }
 function beginWatch(){ if(!rec||rec.watch!=null)return; rec.err=null;
   try{ rec.watch=N.geolocation.watchPosition(onFix,onErr,{enableHighAccuracy:true,maximumAge:0,timeout:30000}); }catch(e){ rec.err='nogps'; } }
@@ -281,7 +359,8 @@ async function finish(){ if(!rec)return; const p=rec.p;
   try{ await put('patrols',p); }catch(e){}
   try{ localStorage.removeItem(AK); }catch(e){}
   rec=null; stopTick(); pocket(false); paintStrips(); vib([60,80,60]);
-  if(!p.pts.length){ try{ await del('patrols',p.id); }catch(e){} toast('Nothing recorded — no GPS fix was received'); view='list'; render(); return; }
+  if(!p.pts.length){ if(p.hp){ view='list'; render(); toast('Waiting for the route from Assisting GPS…'); return; }
+    try{ await del('patrols',p.id); }catch(e){} toast('Nothing recorded — no GPS fix was received'); view='list'; render(); return; }
   openDetail(p.id,true);
 }
 async function wake(on){
@@ -292,7 +371,7 @@ async function wake(on){
 D.addEventListener('visibilitychange',()=>{ if(!rec||rec.done)return;
   if(D.visibilityState==='hidden'){ save(true); rec.hiddenAt=Date.now(); }
   else { if(!rec.paused){ wake(true); if(rec.watch==null&&rec.err!=='denied')beginWatch(); }
-    if(rec.hiddenAt&&Date.now()-rec.hiddenAt>GAP*1000)toast('GPS paused while Assisting was in the background ('+hm(rec.hiddenAt)+'–'+hm(Date.now())+')'); rec.hiddenAt=0; } });
+    if(rec.hiddenAt&&Date.now()-rec.hiddenAt>GAP*1000)toast(rec.p.hp?'Assisting GPS kept recording while the phone was locked — tap Fill gaps to add it now, or it comes in when you finish':'GPS paused while Assisting was in the background ('+hm(rec.hiddenAt)+'–'+hm(Date.now())+')'); rec.hiddenAt=0; } });
 W.addEventListener('pagehide',()=>{ if(rec&&!rec.done)save(true); });
 function startTick(){ if(tick)return; tick=setInterval(()=>{ if(!rec){stopTick();return;} updateLive(); paintStrips(); },1000); }
 function stopTick(){ if(tick){ clearInterval(tick); tick=null; } }
@@ -404,8 +483,10 @@ async function renderList(){
   h+='<div class="pp-hero"><h2>Proactive patrol</h2><p>Records exactly where you walked and when — so later in the shift you can write up the patrol with streets, stops and times.</p>'
    +'<ul class="pp-feats"><li>Exact route on the map</li><li>Where you stopped &amp; how long</li><li>Street names, offline once downloaded</li><li>“Where was I at 15:20?”</li><li>Quick notes at a spot</li><li>Copy the patrol log</li></ul>'
    +(rec&&!rec.done?'<button type="button" class="pp-go" data-a="torec"><i></i>Back to recording</button>':geo?'<button type="button" class="pp-go" data-a="start"><i></i>Start patrol</button>':'<div class="pp-err"><b>No GPS access.</b> This browser can’t read your location.</div>')
-   +'<div class="pp-warn"><b>Keep Assisting open while you patrol.</b> Phones stop web apps using GPS when the screen goes off or you switch apps — the screen stays on while recording, and <b>pocket mode</b> blacks it out. Any break shows in the log as “No GPS”.</div></div>';
-  h+='<div class="pp-lock"><b>Want to lock the phone?</b><span>Record with the free GPS Logger app while the phone is locked, then share the track to Assisting — same route, stops, streets and patrol log.</span><div class="pp-row"><button type="button" class="pp-sec" data-a="howlock">How to set it up</button><button type="button" class="pp-sec on" data-a="import">Import a track</button></div></div>';
+   +(helperOn()?'<div class="pp-warn ok"><b>Assisting GPS is connected.</b> Start the patrol here and lock the phone as normal — the helper records in the background and sends the whole route back when you tap Finish.</div></div>'
+     :'<div class="pp-warn"><b>Keep Assisting open while you patrol.</b> Phones stop web apps using GPS when the screen goes off or you switch apps — the screen stays on while recording, and <b>pocket mode</b> blacks it out. Any break shows in the log as “No GPS”.</div></div>');
+  if(isAndroid&&!helperOn())h+='<div class="pp-lock"><b>Want to lock the phone?</b><span>Install <b>Assisting GPS</b>, a small companion app: it records while the phone is locked and sends the route straight back into Assisting when you finish — same streets, stops and patrol log.</span><div class="pp-row"><button type="button" class="pp-sec on" data-a="helper">Set up Assisting GPS</button><button type="button" class="pp-sec" data-a="howlock">Other ways</button></div></div>';
+  else if(!isAndroid)h+='<div class="pp-lock"><b>Want to lock the phone?</b><span>Record with a GPS logger app while the phone is locked, then share the track to Assisting — same route, stops, streets and patrol log.</span><div class="pp-row"><button type="button" class="pp-sec" data-a="howlock">How to set it up</button><button type="button" class="pp-sec on" data-a="import">Import a track</button></div></div>';
   h+='<h3 class="pp-hd">Saved patrols <small>'+items.filter(p=>p.end).length+'</small></h3>';
   const done=items.filter(p=>p.end);
   if(!done.length)h+='<div class="pp-empty">No patrols yet. Tap <b>Start patrol</b> as you head out, or import a track.</div>';
@@ -423,6 +504,8 @@ function renderRec(){
    +'<div class="pp-panel"><div class="pp-banner" id="ppBan" hidden></div>'
    +'<div class="pp-stats"><div class="pp-st t"><small><i class="pp-recdot"></i><span id="ppRL">'+(rec.paused?'Paused':'Rec')+'</span></small><b id="ppT">0:00:00</b></div><div class="pp-st"><small>Distance</small><b id="ppD">0 m</b></div><div class="pp-st"><small>Stops</small><b id="ppS">0</b></div></div>'
    +'<div class="pp-now"><em>ON</em><b id="ppNow">Waiting for GPS…</b><span class="acc" id="ppAcc">—</span></div>'
+   +(rec.p.hp&&isAndroid?'<div class="pp-hp">'+IC.sat+'<span>Assisting GPS is recording too — you can lock the phone</span><button type="button" data-a="sync">Fill gaps</button></div>'
+     :helperOn()?'<div class="pp-hp off">'+IC.sat+'<span>Assisting GPS isn’t recording this patrol — keep Assisting open, or start it</span><button type="button" data-a="hpstart">Start it</button></div>':'')
    +'<div class="pp-acts"><button type="button" class="pp-sec" data-a="mark">'+IC.mark+'Note</button><button type="button" class="pp-sec" data-a="pocket">'+IC.pocket+'Pocket</button>'
    +(rec.paused?'<button type="button" class="pp-sec" data-a="resumeRec">'+IC.play+'Resume</button>':'<button type="button" class="pp-sec" data-a="pause">'+IC.pause+'Pause</button>')
    +'<button type="button" class="fin" data-a="finish">'+IC.stop+'Finish</button></div></div></div>';
@@ -563,11 +646,15 @@ function focusItem(k){ const d=det; if(!d||!map)return; const x=d.T[k]; if(!x)re
 function onClick(e){ const b=e.target.closest('[data-a],[data-k]'); if(!b||!main.contains(b))return;
   const a=b.dataset.a;
   if(!a&&b.dataset.k!=null){ focusItem(+b.dataset.k); return; }
-  if(a==='start')startPatrol();
+  if(a==='start'){ if(rec&&!rec.done){ view='rec'; render(); return; }
+    const id='pp_'+Date.now(); if(helperOn())callHelper('start',{sid:id}); startPatrol(id); }
+  else if(a==='sync'){ if(rec&&!rec.done)callHelper('sync',{sid:rec.p.id}); }
+  else if(a==='hpstart'){ if(rec&&!rec.done){ callHelper('start',{sid:rec.p.id}); rec.p.hp=1; hpRemember(rec.p.id); save(true); render(); } }
+  else if(a==='helper')helperSheet();
   else if(a==='torec'){ view='rec'; render(); }
   else if(a==='open')openDetail(b.dataset.id);
-  else if(a==='resume')resumeSaved(b.dataset.id);
-  else if(a==='close')closeSaved(b.dataset.id);
+  else if(a==='resume'){ if(helperOn()&&!(rec&&!rec.done))callHelper('start',{sid:b.dataset.id}); resumeSaved(b.dataset.id); }
+  else if(a==='close'){ if(helperOn()&&hpKnows(b.dataset.id))callHelper('stop',{sid:b.dataset.id}); closeSaved(b.dataset.id); }
   else if(a==='mark')markSheet();
   else if(a==='pocket')pocket(true);
   else if(a==='pause')pause();
@@ -583,18 +670,19 @@ function onClick(e){ const b=e.target.closest('[data-a],[data-k]'); if(!b||!main
   else if(a==='import')pickTrack();
   else if(a==='howlock')lockSheet(); }
 function finishSheet(){ const an=recAnalysis();
-  sheet('<h4>Finish this patrol?</h4><p><b>'+clock(elapsed())+'</b> recorded · '+km(an.dist)+' · '+an.stops.length+' stop'+(an.stops.length===1?'':'s')+'. You’ll get the route, timeline and patrol log.</p>'
+  sheet('<h4>Finish this patrol?</h4><p><b>'+clock(elapsed())+'</b> recorded · '+km(an.dist)+' · '+an.stops.length+' stop'+(an.stops.length===1?'':'s')+'. You’ll get the route, timeline and patrol log.'+(rec&&rec.p.hp&&isAndroid?' Assisting GPS stops too and sends its full route back in — it opens for a moment.':'')+'</p>'
    +'<div class="pp-row"><button type="button" class="pp-sec" data-x="1">Keep recording</button><button type="button" class="pp-sec on" id="ppFin">Finish patrol</button></div>',
-   s=>{ s.querySelector('#ppFin').onclick=()=>{ closeSheet(); finish(); }; }); }
+   s=>{ s.querySelector('#ppFin').onclick=()=>{ closeSheet(); if(rec&&rec.p.hp&&isAndroid)callHelper('stop',{sid:rec.p.id}); finish(); }; }); }
 async function resumeSaved(id){ if(rec&&!rec.done){ toast('A patrol is already recording'); return; } let p=null; try{ p=await get('patrols',id); }catch(e){} if(!p)return;
   rec={p,watch:null,last:null,cur:null,weak:0,glitch:0,paused:false,lastSave:0,an:null,anAt:0,err:null}; p.pauses=p.pauses||[]; p.marks=p.marks||[];
+  if(helperOn()){ p.hp=1; hpRemember(p.id); }
   const q=p.pauses[p.pauses.length-1]; if(q&&q[1]==null)q[1]=Math.round((Date.now()-p.start)/1000);
   try{ localStorage.setItem(AK,p.id); }catch(e){} beginWatch(); wake(true); startTick(); view='rec'; render(); paintStrips(); }
 async function closeSaved(id){ let p=null; try{ p=await get('patrols',id); }catch(e){} if(!p)return;
-  const q=(p.pauses||[])[p.pauses.length-1]; if(q&&q[1]==null)q[1]=p.pts.length?p.pts[p.pts.length-1][0]:q[0];
+  const q=(p.pauses||[])[p.pauses.length-1]; if(q&&q[1]==null)q[1]=p.hp?Math.round((Date.now()-p.start)/1000):(p.pts.length?p.pts[p.pts.length-1][0]:q[0]);
   p.end=p.pts.length?p.start+p.pts[p.pts.length-1][0]*1000:Date.now(); try{ await put('patrols',p); }catch(e){}
   try{ if(localStorage.getItem(AK)===id)localStorage.removeItem(AK); }catch(e){}
-  if(!p.pts.length){ try{ await del('patrols',id); }catch(e){} render(); return; }
+  if(!p.pts.length){ if(!p.hp){ try{ await del('patrols',id); }catch(e){} } render(); return; }
   openDetail(id); }
 function copyLog(){ const d=det; if(!d)return; const txt=logText(d.p,d.a,d.T,d.ix);
   const ok=()=>{ toast('Patrol log copied — paste it into your notes'); vib(30); };
@@ -623,7 +711,8 @@ function settingsSheet(){
    +'<p style="margin-top:14px"><b>Count a stop after</b></p><div class="pp-seg">'+seg+'</div>'
    +'<button type="button" class="pp-sw'+(S.online?' on':'')+'" data-t="online"><span>Street names from OpenStreetMap<small>Downloads the street list for the area (not your route) and keeps it on the phone</small></span><i></i></button>'
    +'<button type="button" class="pp-sw'+(S.dark?' on':'')+'" data-t="dark"><span>Dark map<small>Easier on the eyes at night</small></span><i></i></button>'
-   +'<div class="pp-row" style="margin-top:14px"><button type="button" class="pp-sec" id="ppImp">Import a track (phone locked)</button><button type="button" class="pp-sec" id="ppLk">How to lock the phone</button></div>'
+   +(isAndroid?'<button type="button" class="pp-sw'+(helperOn()?' on':'')+'" id="ppHp"><span>Assisting GPS — record with the phone locked<small>'+(hinfo().ok?(helperOn()?'Connected · starts and stops with your patrol':'Connected · switched off'):'Not set up yet — tap to install and connect')+'</small></span><i></i></button>':'')
+   +'<div class="pp-row" style="margin-top:14px"><button type="button" class="pp-sec" id="ppImp">Import a track file</button><button type="button" class="pp-sec" id="ppLk">Other ways to lock the phone</button></div>'
    +'<div class="pp-row"><button type="button" class="pp-sec" id="ppDl">Download streets around me</button><button type="button" class="pp-sec" id="ppClr">Clear downloaded streets</button></div>'
    +'<p class="pp-foot" id="ppDlMsg">Street lists are downloaded automatically as you patrol with signal. Downloading your area in advance means names work offline from the start.</p>'
    +'<div class="pp-row"><button type="button" class="pp-sec" data-x="1">Done</button></div>',
@@ -631,6 +720,8 @@ function settingsSheet(){
      s.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{ const k=b.dataset.t; S[k]=!S[k]; saveS(); b.classList.toggle('on',!!S[k]); if(k==='dark'&&ov)ov.classList.toggle('pp-dark',S.dark); });
      s.querySelector('#ppImp').onclick=()=>{ closeSheet(); pickTrack(); };
      s.querySelector('#ppLk').onclick=()=>{ closeSheet(); lockSheet(); };
+     const hb=s.querySelector('#ppHp'); if(hb)hb.onclick=()=>{ if(!hinfo().ok){ closeSheet(); helperSheet(); return; } const on=!helperOn(); hset({use:on}); hb.classList.toggle('on',on);
+       hb.querySelector('small').textContent=on?'Connected · starts and stops with your patrol':'Connected · switched off'; if(view==='list')render(); };
      s.querySelector('#ppClr').onclick=async()=>{ try{ await clearStore('streets'); }catch(e){} liveIx=null; s.querySelector('#ppDlMsg').textContent='Downloaded street lists cleared.'; };
      s.querySelector('#ppDl').onclick=()=>{ const m=s.querySelector('#ppDlMsg');
        if(N.onLine===false){ m.textContent='No signal — try again when you have signal.'; return; }
@@ -742,7 +833,7 @@ async function importShared(){ try{ const c=await caches.open('gr-share'), r=awa
     const j=await r.json(); await c.delete('./__shared-track'); if(Date.now()-(j.t||0)>30*60e3)return false;
     await importTracks((j.items||[]).filter(x=>x&&x.text)); return true; }catch(e){ return false; } }
 function lockSheet(){
-  sheet('<h4>Patrol with the phone locked</h4><p>Android stops web apps using GPS once the phone locks, so a small GPS app does the recording and Assisting does the rest — route, stops, street names, timeline and the patrol log.</p>'
+  sheet('<h4>Patrol with the phone locked</h4><p>Android stops web apps using GPS once the phone locks, so a small GPS app does the recording and Assisting does the rest — route, stops, street names, timeline and the patrol log.'+(isAndroid?' The easiest way is <b>Assisting GPS</b>, which hands the route back by itself. Another free option:':'')+'</p>'
    +'<p><b>1. Get GPS Logger</b> (BasicAirData) from Google Play — free, open source, works offline, collects no data.</p>'
    +'<p><b>2. Let it run when locked:</b> Settings → Apps → GPS Logger → Battery → <b>Unrestricted</b>.</p>'
    +'<p><b>3. On patrol:</b> open GPS Logger, tap <b>Record</b>, lock the phone as normal. You can still open Assisting for notes — recording in both is fine.</p>'
@@ -750,8 +841,22 @@ function lockSheet(){
    +'<p>If you also recorded in Assisting, the import offers to <b>merge</b> the two, so the gaps fill in and your notes stay.</p>'
    +'<p style="color:#f3d58a">Don’t use fitness apps that upload or publish routes for patrols.</p>'
    +'<div class="pp-row"><a class="pp-sec pp-a" href="'+LOGGER_URL+'" target="_blank" rel="noopener">Get GPS Logger</a><button type="button" class="pp-sec on" id="ppImp2">Import a track</button></div>'
+   +'<div class="pp-row">'+(isAndroid?'<button type="button" class="pp-sec" id="ppHp2">Assisting GPS</button>':'')+'<button type="button" class="pp-sec" data-x="1">Close</button></div>',
+   s=>{ s.querySelector('#ppImp2').onclick=()=>{ closeSheet(); pickTrack(); }; const h2=s.querySelector('#ppHp2'); if(h2)h2.onclick=()=>{ closeSheet(); helperSheet(); }; }); }
+/* set-up for the companion app */
+function helperSheet(note){ build(); if(ov.hidden)openPatrol(); const h=hinfo();
+  sheet('<h4>Assisting GPS</h4>'+(note?'<p class="pp-note">'+esc(note)+'</p>':'')
+   +'<p>A small companion app that records your patrol <b>with the phone locked</b> — it shows a notification while it records — and hands the route straight back into Assisting when you finish. The route goes only from the helper to Assisting on this phone: nothing is uploaded.</p>'
+   +'<p><b>1. Install it.</b> Download <b>assisting-gps.apk</b> (0.1 MB) and open it. Android asks you to allow installs from Chrome once — allow it, install, then you can switch that setting off again. It isn’t on Google Play.</p>'
+   +'<div class="pp-row"><a class="pp-sec pp-a on" href="'+HP_APK+'" download="assisting-gps.apk">Download Assisting GPS</a></div>'
+   +'<p><b>2. Connect.</b> Tap Connect — the helper opens for a moment and comes straight back here. (Tapping <b>Open Assisting</b> in the helper connects it too.)'+(h.ok?' <span class="pp-ok">✓ Connected'+(h.perm===false?' · location not allowed yet':'')+'</span>':'')+'</p>'
+   +'<div class="pp-row"><button type="button" class="pp-sec'+(h.ok?'':' on')+'" id="ppHello">'+(h.ok?'Connect again':'Connect')+'</button></div>'
+   +'<p><b>3. Let it run when locked.</b> Open the Assisting GPS app once: it checks location (“While using the app” is enough), notifications and battery (“Unrestricted”), with a button for each.</p>'
+   +'<p><b>On patrol:</b> tap Start patrol here as normal — the helper starts too and you can lock the phone. Tap <b>Finish</b> here (or <b>Finish &amp; send</b> in its notification) and the whole route comes in. <b>Fill gaps</b> brings in what it has so far without stopping.</p>'
+   +(h.ok?'<button type="button" class="pp-sw'+(h.use!==false?' on':'')+'" id="ppHpUse"><span>Use Assisting GPS for my patrols<small>Starts and stops with Start and Finish here</small></span><i></i></button>':'')
    +'<div class="pp-row"><button type="button" class="pp-sec" data-x="1">Close</button></div>',
-   s=>{ s.querySelector('#ppImp2').onclick=()=>{ closeSheet(); pickTrack(); }; }); }
+   s=>{ s.querySelector('#ppHello').onclick=()=>{ callHelper('hello'); };
+     const u=s.querySelector('#ppHpUse'); if(u)u.onclick=()=>{ const on=!(hinfo().use!==false); hset({use:on}); u.classList.toggle('on',on); if(view==='list')render(); }; }); }
 
 /* ================= home strip ================= */
 function mountStrip(el){ if(!el)return; strips=strips.filter(x=>x.isConnected); if(!strips.includes(el))strips.push(el); paintStrip(el); }
@@ -763,23 +868,39 @@ function paintStrip(el){ if(!rec||rec.done){ if(el.innerHTML)el.innerHTML=''; re
   b.classList.toggle('pause',!!rec.paused); b.querySelector('b').textContent=rec.paused?'Patrol paused':'Patrol rec'; b.querySelector('span').textContent=txt; }
 
 /* ================= start-up: carry on an unfinished recording ================= */
-(async function init(){
+const initP=(async function init(){
   let id=null; try{ id=localStorage.getItem(AK); }catch(e){} if(!id)return;
   let p=null; try{ p=await get('patrols',id); }catch(e){} if(!p||p.end){ try{localStorage.removeItem(AK);}catch(e){} return; }
   p.pauses=p.pauses||[]; p.marks=p.marks||[];
   const last=p.pts.length?p.start+p.pts[p.pts.length-1][0]*1000:p.start, q=p.pauses[p.pauses.length-1], wasPaused=!!(q&&q[1]==null);
-  if(Date.now()-last>8*3600e3){ try{localStorage.removeItem(AK);}catch(e){} return; }   // left over from another day: shown as "not finished" in the list
+  if(Date.now()-last>(p.hp?15:8)*3600e3){ try{localStorage.removeItem(AK);}catch(e){} return; }   // left over from another day: shown as "not finished" in the list
   rec={p,watch:null,last:null,cur:null,weak:0,glitch:0,paused:wasPaused,lastSave:0,an:null,anAt:0,err:null,resumed:true};
   if(!wasPaused){ beginWatch(); wake(true); }
   startTick(); paintStrips(); loadRefs();
 })();
 
-// opened from the share menu (a GPS app's track) or a link: ?open=patrol[&shared=1]
-(function(){ try{ const q=new URLSearchParams(location.search); if(q.get('open')!=='patrol')return; const shared=q.get('shared')==='1';
-  history.replaceState(history.state,'',location.pathname);
-  const go=async()=>{ openPatrol(); if(shared){ const ok=await importShared(); if(!ok)toast('Nothing to import — share the GPX track file from GPS Logger'); } };
+// opened from the share menu (a GPS app's track), Assisting GPS, or a link: ?open=patrol[&shared=1|&gps=1#gps1=…|&gpsok=1|0|&gpsempty=1]
+(function(){ try{ const q=new URLSearchParams((window.__entry||location).search); if(q.get('open')!=='patrol')return; const shared=q.get('shared')==='1';
+  const hm1=/(?:^#|&)gps1=([A-Za-z0-9_-]+)/.exec((window.__entry||location).hash||''), pk=hm1?hm1[1]:null;
+  const ok=q.get('gpsok'), empty=q.get('gpsempty')==='1', cmd=q.get('cmd')||'';
+  if(ok==='1')hset({ok:true,hv:+q.get('hv')||1,perm:q.get('perm')!=='0',seen:Date.now()});
+  if(ok==='0')hset({ok:false});
+  history.replaceState(history.state,'',location.pathname);           // the track never stays in the address
+  const go=async()=>{ try{ await initP; }catch(e){} openPatrol();
+    if(pk){ await importHelper(pk); return; }
+    if(ok==='1'&&cmd==='start'&&q.get('perm')==='0'){                     // the helper couldn't start: this patrol is in Assisting only
+      if(rec&&!rec.done&&rec.p.hp){ delete rec.p.hp; save(true); render(); }
+      helperSheet('Assisting GPS couldn’t record — it needs precise location. In its settings choose Location → “While using the app” and turn on “Use precise location”, then tap Start it on the recording screen. Until then, keep Assisting open.'); return; }
+    if(ok==='1'){ toast(q.get('perm')==='0'?'Assisting GPS connected — allow it precise location when it asks':'Assisting GPS is connected'); if(view==='list')render(); return; }
+    if(ok==='0'){ if(rec&&!rec.done&&rec.p.hp){ delete rec.p.hp; save(true); render(); }
+      helperSheet(cmd==='start'?'Assisting GPS isn’t installed on this phone, so this patrol is recording in Assisting only — keep Assisting open.':'Assisting GPS isn’t installed on this phone (or was removed).'); return; }
+    if(empty){ toast('Assisting GPS had no route to send — it may not have had a GPS fix');
+      let all=[]; try{ all=await getAll('patrols'); }catch(e){}
+      for(const x of all){ if(x.hp&&x.end&&!x.pts.length&&!(x.marks||[]).length){ try{ await del('patrols',x.id); }catch(e){} } }
+      if(view==='list')render(); return; }
+    if(shared){ const ok2=await importShared(); if(!ok2)toast('Nothing to import — share the GPX track file from GPS Logger'); } };
   if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(go,80)); else setTimeout(go,80); }catch(e){} })();
 W.openPatrol=openPatrol;
 W.ppBack=()=>back();
-W.GRPatrol=Object.freeze({open:openPatrol,mountStrip,recording:()=>!!(rec&&!rec.done),_feed:f=>feed(f),_analyse:analyse,_timeline:timeline,_log:logText,_buildIndex:buildIndex,_nearest:nearest,_parse:parseTrackFile,_fromFixes:patrolFromFixes,_merge:mergePatrols,_import:importTracks,_state:()=>rec,_det:()=>det});
+W.GRPatrol=Object.freeze({open:openPatrol,mountStrip,recording:()=>!!(rec&&!rec.done),_feed:f=>feed(f),_analyse:analyse,_timeline:timeline,_log:logText,_buildIndex:buildIndex,_nearest:nearest,_parse:parseTrackFile,_fromFixes:patrolFromFixes,_merge:mergePatrols,_import:importTracks,_state:()=>rec,_det:()=>det,_unpackHelper:unpackHelper,_importHelper:importHelper,_helper:{hinfo,hset,helperOn,hpUrl}});
 })();

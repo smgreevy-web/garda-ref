@@ -49,7 +49,10 @@ const IC={
  custom:'<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
  check:'<path d="m5 12.5 4.5 4.5L19 7.5"/>', bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
  copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/>', trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/>',
- plus:'<path d="M12 5v14M5 12h14"/>'
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3.5"/>',
+ images:'<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.3-1.3a2.4 2.4 0 0 0-3.4 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
+ x:'<path d="M18 6 6 18M6 6l12 12"/>'
 };
 const TYPES=[
  {k:'cctv',t:'CCTV',tip:'View, collect or preserve footage'},
@@ -177,7 +180,7 @@ let ov=null, main=null, sh=null, view='list', curId=null, tab=null, draft=null;
 function build(){
   if(ov&&ov.isConnected)return;
   ov=D.createElement('div'); ov.id='tsk'; ov.hidden=true; ov.setAttribute('role','dialog'); ov.setAttribute('aria-label','Tasks');
-  ov.innerHTML='<div class="tk-top"><button type="button" class="tk-back">‹ Back</button><div class="tk-tt"><b class="tk-title">Tasks</b><span class="hudclock" data-f="line"></span></div><button type="button" class="tk-scan" aria-label="Photograph a to-do list">'+svg(IC.scan)+'</button><button type="button" class="tk-copy" aria-label="Copy the list">'+svg(IC.copy)+'</button></div>'
+  ov.innerHTML='<div class="tk-top"><button type="button" class="tk-back">‹ Back</button><div class="tk-tt"><b class="tk-title">Tasks</b><span class="hudclock" data-f="line"></span></div><button type="button" class="tk-scan" aria-label="Photo or screenshots of a to-do list">'+svg(IC.scan)+'</button><button type="button" class="tk-copy" aria-label="Copy the list">'+svg(IC.copy)+'</button></div>'
     +'<div class="tk-main"></div><button type="button" class="tk-fab" aria-label="New task">'+svg(IC.plus)+'</button><div class="tk-shade" hidden></div><div class="tk-sheet" hidden></div><div class="tk-toast"></div>';
   D.body.appendChild(ov); main=ov.querySelector('.tk-main'); sh=ov.querySelector('.tk-sheet');
   ov.querySelector('.tk-back').onclick=()=>back();
@@ -199,7 +202,8 @@ function back(){
   if(!ov||ov.hidden)return false;
   if(!sh.hidden){closeSheet();return true;}
   if(view==='edit'){ view='list'; draft=null; render(); return true; }
-  if(view==='scan'){ if(scan&&(scan.mode==='type'||scan.mode==='key')){ scan.mode='choose'; scan.err=''; render(); return true; } scan=null; view='list'; render(); return true; }
+  if(view==='scan'){ const big=ov&&ov.querySelector('.tk-big'); if(big){ big.remove(); return true; }
+    if(scan&&(scan.mode==='type'||scan.mode==='key')){ scan.mode=scan.imgs&&scan.imgs.length?'choose':'pick'; scan.err=''; render(); return true; } scan=null; view='list'; render(); return true; }
   closeTasks(); return true;
 }
 function render(){ if(!ov||ov.hidden)return; if(view==='edit')renderEdit(); else if(view==='scan')renderScan(); else renderList(); if(W.grHudTick)W.grHudTick(); }
@@ -473,7 +477,8 @@ function followSheet(t){
 
 /* ================= photograph a to-do list → read it → sort it into tasks ================= */
 const AIKEY='gr_apikey';
-let scan=null;   // {img, items:[{on,text,type,urgent,due}], busy, err, mode}
+let scan=null;   // {imgs:[jpeg data URLs], items:[{on,text,type,urgent,due}], busy, err, mode: pick|choose|key|type|triage}
+const SCAN_MAX=8;   // images per read (a long scrolling screenshot is cut into readable parts, each counts)
 function guessType(s){ s=' '+String(s).toLowerCase()+' ';
   if(/cctv|footage|camera/.test(s))return 'cctv';
   if(/arrest|warrant|\bbench\b|wanted|detain/.test(s))return 'arrest';
@@ -490,37 +495,73 @@ function guessType(s){ s=' '+String(s).toLowerCase()+' ';
 function guessDue(s){ s=String(s).toLowerCase(); return /\btoday\b|\btonight\b|\basap\b/.test(s)?'today':/tomorrow|\btmrw\b|\btmw\b|\btmr\b/.test(s)?'tomorrow':/this week|by fri|end of week/.test(s)?'week':'none'; }
 function lineItems(txt){ return String(txt||'').split(/\r?\n/).map(l=>l.replace(/^\s*(?:[-*•·▪◦›>]|\d{1,2}[.)]|\[[ xX✓]?\]|[☐□✓✔])\s*/,'').trim()).filter(l=>l.length>1)
   .map(l=>({on:true,text:l.slice(0,120),type:guessType(l),urgent:/urgent|asap|!!/i.test(l),due:guessDue(l)})); }
-function startScan(){ const inp=D.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.setAttribute('capture','environment'); inp.style.display='none'; D.body.appendChild(inp);
-  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; inp.remove(); if(!f)return; loadPhoto(f); }; inp.click(); setTimeout(()=>{ if(inp.isConnected&&!inp.files.length)inp.remove(); },60000); }
-function loadPhoto(file){ const url=URL.createObjectURL(file), im=new Image();
-  im.onload=()=>{ const s=Math.min(1,1568/Math.max(im.naturalWidth,im.naturalHeight)), c=D.createElement('canvas'); c.width=Math.round(im.naturalWidth*s); c.height=Math.round(im.naturalHeight*s);
-    c.getContext('2d').drawImage(im,0,0,c.width,c.height); URL.revokeObjectURL(url);
-    scan={img:c.toDataURL('image/jpeg',.85),items:[],busy:false,err:'',mode:'choose'}; view='scan'; render(); };
-  im.onerror=()=>{ URL.revokeObjectURL(url); toast('Couldn’t open that photo'); }; im.src=url; }
+function startScan(){ scan={imgs:[],items:[],busy:false,err:'',mode:'pick'}; view='scan'; render(); }
+/* camera = one photo now; gallery = pick several screenshots or photos at once (e.g. screenshots of your phone's notes app) */
+function pickImages(camera){ const inp=D.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.style.display='none';
+  if(camera)inp.setAttribute('capture','environment'); else inp.multiple=true;
+  D.body.appendChild(inp);
+  inp.onchange=()=>{ const fs=[...(inp.files||[])]; inp.remove(); if(fs.length)addImages(fs); };
+  inp.click(); setTimeout(()=>{ if(inp.isConnected&&!(inp.files&&inp.files.length))inp.remove(); },60000); }
+function fileImage(file){ return new Promise((ok,no)=>{ const url=URL.createObjectURL(file), im=new Image();
+  im.onload=()=>{ ok({im,url}); }; im.onerror=()=>{ URL.revokeObjectURL(url); no(new Error('bad image')); }; im.src=url; }); }
+/* scale to Claude's best size (long side ≤1568 px); a tall scrolling screenshot is cut into overlapping parts so the text stays readable */
+function toParts(im){ const W0=im.naturalWidth, H0=im.naturalHeight, out=[]; if(!W0||!H0)return out;
+  const ratio=H0/W0, n=ratio>2.6?Math.min(6,Math.ceil(ratio/2.1)):1, ov=n>1?Math.round(W0*0.12):0, seg=Math.ceil((H0+(n-1)*ov)/n);
+  for(let i=0;i<n;i++){ const y=Math.max(0,Math.min(H0-seg,i*(seg-ov))), h=Math.min(seg,H0-y), k=Math.min(1,1568/Math.max(W0,h));
+    const c=D.createElement('canvas'); c.width=Math.round(W0*k); c.height=Math.round(h*k);
+    const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(im,0,y,W0,h,0,0,c.width,c.height);
+    out.push(c.toDataURL('image/jpeg',.85)); }
+  return out; }
+async function addImages(files){ if(!scan)scan={imgs:[],items:[],busy:false,err:'',mode:'choose'};
+  let bad=0, cut=false;
+  for(const f of files){ if(scan.imgs.length>=SCAN_MAX){ cut=true; break; }
+    try{ const {im,url}=await fileImage(f); const parts=toParts(im); URL.revokeObjectURL(url);
+      for(const d of parts){ if(scan.imgs.length>=SCAN_MAX){ cut=true; break; } scan.imgs.push(d); } }catch(e){ bad++; } }
+  if(!scan.imgs.length){ toast('Couldn’t open '+(files.length>1?'those images':'that image')); if(scan.mode==='pick')render(); return; }
+  scan.mode='choose'; scan.err=bad?(bad+' image'+(bad===1?'':'s')+' couldn’t be opened.'):(cut?'Only the first '+SCAN_MAX+' images (or parts of a long screenshot) are used.':''); view='scan'; render(); }
 async function readWithClaude(){ const key=(localStorage.getItem(AIKEY)||'').trim(); if(!key){ scan.mode='key'; render(); return; }
   if(navigator.onLine===false){ scan.err='No signal — type the list in instead, or try again when you have signal.'; render(); return; }
   scan.busy=true; scan.err=''; render();
-  const prompt='This is a photo of a Garda’s to-do list (handwritten or printed). Transcribe each separate task as one item, keeping the wording close to what is written (fix obvious spelling only). Do not invent tasks; if part of a line is unreadable, put (?) there. '
+  const n=scan.imgs.length;
+  const prompt=(n>1?'These '+n+' images are':'This image is')+' a Garda’s to-do list or work notes — a photo of handwriting or print, or a screenshot from a phone (for example a notes app). '
+   +(n>1?'Several images may be consecutive parts of one long screenshot or list, and they can overlap: list each task once. ':'')
+   +'Transcribe each separate task or action as one item, keeping the wording close to what is written (fix obvious spelling only). In a plain list, each line is an item. '
+   +'Ignore phone interface text (clock, battery, app names, buttons, menus), headings and dates that stand alone. Do not invent tasks; if part of a line is unreadable, put (?) there. '
    +'For each item give: "text" (max 120 characters), "type" — one of cctv, statement, arrest, night, call, visit, court, file, exhibit, email, limit, other — "urgent" (true only if it is marked urgent, starred or says ASAP), and "due" — one of "today", "tomorrow", "week", "none" (only if the list says when). '
    +'Reply with JSON only, no other text: {"items":[{"text":"...","type":"other","urgent":false,"due":"none"}]}';
   try{ const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-5',max_tokens:1500,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:scan.img.split(',')[1]}},{type:'text',text:prompt}]}]})});
+      body:JSON.stringify({model:'claude-sonnet-5',max_tokens:3000,messages:[{role:'user',content:[...scan.imgs.map(d=>({type:'image',source:{type:'base64',media_type:'image/jpeg',data:d.split(',')[1]}})),{type:'text',text:prompt}]}]})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.error){ const m=(d.error&&d.error.message)||('HTTP '+r.status); throw new Error(r.status===401?'The API key was refused — check it in AI search settings.':m); }
     const txt=(d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n'), a=txt.indexOf('{'), z=txt.lastIndexOf('}');
     const j=JSON.parse(txt.slice(a,z+1)), ok=TYPES.map(x=>x.k);
     const items=(j.items||[]).map(x=>({on:true,text:String(x.text||'').trim().slice(0,120),type:ok.includes(x.type)?x.type:guessType(x.text),urgent:!!x.urgent,due:['today','tomorrow','week','none'].includes(x.due)?x.due:'none'})).filter(x=>x.text);
-    if(!scan)return; scan.busy=false; if(!items.length){ scan.err='Claude couldn’t find any tasks in that photo — type them in instead.'; render(); return; }
+    if(!scan)return; scan.busy=false; if(!items.length){ scan.err='Claude couldn’t find any tasks in '+(scan.imgs.length>1?'those images':'that image')+' — type them in instead.'; render(); return; }
     scan.items=items; scan.mode='triage'; render();
-  }catch(e){ if(!scan)return; scan.busy=false; scan.err=(e&&e.message&&!/JSON|Unexpected/.test(e.message))?e.message:'Couldn’t read the list — try a clearer photo, or type it in.'; render(); } }
-function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; } ov.querySelector('.tk-title').textContent='Photo → tasks'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
-  let h='<div class="tk-wrap tk-scanv"><div class="tk-shot"><img src="'+s.img+'" alt="Your to-do list"></div>';
+  }catch(e){ if(!scan)return; scan.busy=false; scan.err=(e&&e.message&&!/JSON|Unexpected/.test(e.message))?e.message:'Couldn’t read the list — try a clearer photo or screenshot, or type it in.'; render(); } }
+function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; } ov.querySelector('.tk-title').textContent='Photos → tasks'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
+  let h='<div class="tk-wrap tk-scanv">';
+  if(s.mode==='pick'){
+    h+='<p class="tk-lead">Turn a to-do list into tasks.</p>'
+      +'<button type="button" class="tk-pick sc-cam">'+svg(IC.camera)+'<span><b>Take a photo</b><small>Notebook page, whiteboard, a printed list</small></span></button>'
+      +'<button type="button" class="tk-pick sc-gal">'+svg(IC.images)+'<span><b>Choose screenshots or photos</b><small>From your gallery — e.g. screenshots of your notes app. Pick several at once.</small></span></button>'
+      +'<button type="button" class="tk-pick sec sc-type">'+svg(IC.other)+'<span><b>Type it in</b><small>One task per line</small></span></button>'
+      +'<p class="tk-hint">Up to '+SCAN_MAX+' images at a time. Long scrolling screenshots are cut into parts so they stay readable.</p></div>';
+    main.innerHTML=h; main.scrollTop=0;
+    main.querySelector('.sc-cam').onclick=()=>pickImages(true);
+    main.querySelector('.sc-gal').onclick=()=>pickImages(false);
+    main.querySelector('.sc-type').onclick=()=>{ s.mode='type'; s.err=''; render(); setTimeout(()=>{ const t=main.querySelector('.f-lines'); if(t)t.focus(); },50); };
+    return;
+  }
+  const canEdit=s.mode==='choose'&&!s.busy;
+  if(s.imgs.length)h+='<div class="tk-shots">'+s.imgs.map((d,i)=>'<div class="tk-th"><img src="'+d+'" alt="Image '+(i+1)+' — tap to enlarge" data-i="'+i+'">'+(canEdit?'<button type="button" class="tk-thx" data-i="'+i+'" aria-label="Remove image '+(i+1)+'">'+svg(IC.x)+'</button>':'')+'</div>').join('')
+    +(s.imgs.length<SCAN_MAX&&canEdit?'<button type="button" class="tk-th add sc-addimg" aria-label="Add more images">'+svg(IC.plus)+'<small>Add</small></button>':'')+'</div>';
   if(s.err)h+='<p class="tk-err">'+esc(s.err)+'</p>';
   if(s.mode==='choose'||s.mode==='key'){
     if(s.busy)h+='<div class="tk-busy"><i></i>Reading your list…</div>';
     else if(s.mode==='key')h+='<label class="tk-lab">Your Anthropic API key</label><input class="tk-in f-key" type="password" autocomplete="off" placeholder="sk-ant-…"><p class="tk-hint">Stored only on this phone (the same key as AI search). Each photo costs about a cent.</p><div class="tk-row2"><button type="button" class="tk-sec-btn sc-back">Back</button><button type="button" class="tk-go sc-savekey">Save and read</button></div>';
-    else h+='<div class="tk-row2 col"><button type="button" class="tk-go sc-ai">✦ Read it with Claude</button><button type="button" class="tk-sec-btn sc-type">Type it in myself</button></div>'
-      +'<p class="tk-hint"><b>Read it with Claude</b> sends this photo to Anthropic’s Claude service with your API key to read the writing — handwriting included. Only do that if Garda policy allows it for what’s on the list: <b>if it has personal details of members of the public, type it in instead</b>. The photo isn’t kept on the phone either way.</p>';
+    else h+='<div class="tk-row2 col"><button type="button" class="tk-go sc-ai">✦ Read '+(s.imgs.length>1?'them':'it')+' with Claude</button><button type="button" class="tk-sec-btn sc-type">Type it in myself</button></div>'
+      +'<p class="tk-hint"><b>Read with Claude</b> sends '+(s.imgs.length>1?'these '+s.imgs.length+' images':'this image')+' to Anthropic’s Claude service with your API key to read the writing — handwriting and screenshots included. Only do that if Garda policy allows it for what’s on the list: <b>if it has personal details of members of the public, type it in instead</b>. The images aren’t kept on the phone either way.</p>';
   } else if(s.mode==='type'){
     h+='<label class="tk-lab">One task per line</label><textarea class="tk-in tk-ta big f-lines" placeholder="e.g.\nCCTV Centra Dorset St\nRing IP back re statement\nCourt Thurs 10:30">'+esc(s.lines||'')+'</textarea><div class="tk-row2"><button type="button" class="tk-sec-btn sc-back">Back</button><button type="button" class="tk-go sc-split">Sort into tasks</button></div>';
   } else {
@@ -538,7 +579,10 @@ function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; 
   if(q('.sc-ai'))q('.sc-ai').onclick=()=>readWithClaude();
   if(q('.sc-type'))q('.sc-type').onclick=()=>{ s.mode='type'; s.err=''; render(); setTimeout(()=>{ const t=q('.f-lines'); if(t)t.focus(); },50); };
   if(q('.sc-savekey'))q('.sc-savekey').onclick=()=>{ const k=q('.f-key').value.trim(); if(!/^sk-ant-/.test(k)){ s.err='That doesn’t look like an Anthropic key (it starts sk-ant-).'; render(); return; } localStorage.setItem(AIKEY,k); s.mode='choose'; s.err=''; readWithClaude(); };
-  main.querySelectorAll('.sc-back').forEach(b=>b.onclick=()=>{ if(s.mode==='triage'||s.mode==='choose'){ scan=null; view='list'; render(); } else { s.mode='choose'; s.err=''; render(); } });
+  main.querySelectorAll('.sc-back').forEach(b=>b.onclick=()=>{ if(s.mode==='triage'||s.mode==='choose'){ scan=null; view='list'; render(); } else { s.mode=s.imgs.length?'choose':'pick'; s.err=''; render(); } });
+  main.querySelectorAll('.tk-thx').forEach(b=>b.onclick=()=>{ s.imgs.splice(+b.dataset.i,1); s.err=''; if(!s.imgs.length)s.mode='pick'; render(); });
+  if(q('.sc-addimg'))q('.sc-addimg').onclick=()=>pickImages(false);
+  main.querySelectorAll('.tk-th img').forEach(im=>im.onclick=()=>{ const v=D.createElement('div'); v.className='tk-big'; v.innerHTML='<img src="'+im.src+'" alt=""><small>Tap to close</small>'; v.onclick=()=>v.remove(); ov.appendChild(v); });
   if(q('.sc-split'))q('.sc-split').onclick=()=>{ s.lines=q('.f-lines').value; const it=lineItems(s.lines); if(!it.length){ s.err='Type at least one task — one per line.'; render(); return; } s.items=it; s.mode='triage'; s.err=''; render(); };
   if(s.mode==='triage'){
     const sync=()=>{ const n=s.items.filter(x=>x.on&&x.text.trim()).length, b=q('.sc-add'); b.disabled=!n; b.textContent='Add '+n+' task'+(n===1?'':'s'); };
@@ -594,7 +638,7 @@ setInterval(()=>{ const now=Date.now(); if(now-lastChk>=30000){lastChk=now;check
   if(ov&&!ov.hidden&&view==='list'&&sh.hidden&&!main.contains(D.activeElement)&&now-(ov._r||0)>60000){ov._r=now;const st=main.scrollTop;renderList();main.scrollTop=st;} },5000);
 D.addEventListener('visibilitychange',()=>{ if(D.visibilityState==='visible'){ purge(); check(); paintStrips(); } });
 if('serviceWorker' in navigator){ navigator.serviceWorker.addEventListener('message',e=>{const m=e.data||{}; if(m.gr==='notif'&&m.data&&m.data.open==='task')openTasks(m.data.id);}); }
-(function(){ try{ const q=new URLSearchParams(location.search); if(q.get('open')==='task'){ const id=q.get('id'); history.replaceState(history.state,'',location.pathname);
+(function(){ try{ const q=new URLSearchParams((window.__entry||location).search); if(q.get('open')==='task'){ const id=q.get('id'); history.replaceState(history.state,'',location.pathname);
   const go=()=>openTasks(id); if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(go,60)); else setTimeout(go,60); } }catch(e){} })();
 setTimeout(check,1500);
 

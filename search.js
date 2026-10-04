@@ -14,10 +14,10 @@ const getKey=()=>{ try{ return (localStorage.getItem(KEY)||'').trim(); }catch(_)
 
 /* ---------- what the app can do: indexed alongside the reference content ---------- */
 const APP_HELP=[
- ['patrol','Proactive patrol — record where you walked','Proactive patrol records your foot patrol by GPS with exact times: the route on a map, street names, every stop (where you stood still), distance, and a patrol log you can copy into your notebook or PULSE, or save as a GPX file. Start patrol, keep the app open; pocket mode keeps the screen on but dark. Phone locked or screen off: a web app cannot read GPS with the screen locked, so record with the free GPS Logger app and import the track (share the GPX to Assisting, or Import in patrol settings); Assisting merges it with your patrol and fills the gaps.'],
+ ['patrol','Proactive patrol — record where you walked','Proactive patrol records your foot patrol by GPS with exact times: the route on a map, street names, every stop (where you stood still), distance, and a patrol log you can copy into your notebook or PULSE, or save as a GPX file. Start patrol, keep the app open; pocket mode keeps the screen on but dark. Phone locked or screen off: a web app cannot read GPS with the screen locked, so install the Assisting GPS companion app (Android): set it up from Proactive patrol → Set up Assisting GPS (download assisting-gps.apk, install it, tap Connect). It then starts and stops with Start patrol and Finish, records in the background with a notification while the phone is locked, and sends the whole route back into Assisting when you finish; Fill gaps brings in what it has so far. Pauses you set in Assisting are left out. Nothing is uploaded. Alternatively record with the free GPS Logger app and import the GPX track (share it to Assisting, or Import in patrol settings); Assisting merges it with your patrol and fills the gaps.'],
  ['gaol','Gaoler — cell checks','Gaoler cell board: place a prisoner in a cell, choose the check interval (every 15, 30 or 60 minutes, or constant observation), mark drink or drugs (prompts the 2-hour review), and Assisting buzzes 2 minutes before each check is due and again if it is overdue, with a distinctive vibration per cell. Tap Checked on the alert, the notification or the cell; desk mode lets you hold to check. Every check is logged with the time, including late checks.'],
  ['det','Detention clock','Detention clock for s.4 Criminal Justice Act 1984, s.30 Offences Against the State Act 1939, s.2 Criminal Justice (Drug Trafficking) Act 1996 and s.50 Criminal Justice Act 2007: enter when detention started and it works out when each period expires, extensions and who authorises them, rest periods and excluded time, with alerts before each deadline. The member in charge governs the clock.'],
- ['tasks','Tasks — to-do list','Tasks: a to-do list for CCTV collection, statements, calls, arrests, court and deadlines. Due dates move off weekends and public holidays for legal limits. Completing a task offers follow-ups (e.g. after an arrest: detention clock, statements). Photograph a handwritten list and Assisting turns it into tasks.'],
+ ['tasks','Tasks — to-do list','Tasks: a to-do list for CCTV collection, statements, calls, arrests, court and deadlines. Due dates move off weekends and public holidays for legal limits. Completing a task offers follow-ups (e.g. after an arrest: detention clock, statements). Turn a list into tasks: tap the scan button in Tasks, then take a photo of a handwritten list, or choose several screenshots or photos from your gallery (for example screenshots of your phone’s notes app — long scrolling screenshots are cut into readable parts), or type the list in. Claude reads the images with your API key; you check each task before it is added. Images are not kept.'],
  ['roster','My roster','Roster: your shift pattern, today and your next tour, leave, court dates, swaps and overtime.'],
  ['notes','Notes','Notes like Samsung Notes: text, sketches, photos, checklists, and a lock. Kept on this phone only.'],
  ['rec','Voice recorder','Voice recorder with markers you can tap during a recording; crash-safe; recordings stay on this phone.'],
@@ -29,10 +29,11 @@ const APP_HELP=[
  ['toolbox','Toolbox','Toolbox: torch, spirit level, inclinometer, compass, ruler, measure, speedometer, location, stopwatch, timer, counter, sound level, magnifier, mirror, QR and barcode scanner, NFC reader, converter, calculator, evidence camera, vibration meter, phone status.'],
  ['search','Search and AI answers','Search: one box searches the whole app offline — manual, case law, guides, offence cards, templates, stencils, first aid and tools. Ask AI gives a smart answer from the app\'s content with sources, and asks for details when they change the answer. Needs signal and your Anthropic API key (Tools → AI search).'],
  ['saved','Saved pages','Saved: tap the star on any manual page to keep it in the Saved tab.'],
- ['textsize','Text size','Text size: the A button at the top of inner screens, or Text size at the bottom of Home. Pinch to zoom while reading.'],
+ ['textsize','Theme and text size','Theme and text size: tap Aa at the top. Themes: Ivory (light, warm paper — best in daylight), Graphite & teal (dark, easy at night) and Navy & brass (dark, classic); tool screens such as patrol and the gaoler stay dark. Four text sizes. Pinch to zoom while reading.'],
+ ['judg','Judgments search — BAILII Ireland','Judgments search: search Irish judgments on BAILII by case name, topic, phrase or neutral citation; pick a court (Supreme Court, Court of Appeal, High Court, Court of Criminal Appeal) and best match or newest first. Results open on bailii.org in the browser because BAILII blocks apps from loading its pages. Also links to recent Irish decisions and Courts.ie judgments. Needs signal.'],
  ['exhibits','Exhibits builder','Exhibits builder: number exhibits (SMG1, SMG2…), describe them by voice or typing, and copy the schedule for your report. Session only.'],
  ['cctvreq','CCTV preservation request','CCTV preservation request: fills in a preservation letter for a business, plus the s.41B Data Protection Act reminder.'],
- ['news','News, radio, TV and social media','Live news (Sky News, RTÉ), Irish radio stations, Garda and crime news, and official Garda social media accounts, read-only in the app. Needs signal.']
+ ['news','News, radio, TV and social media','Live news (Sky News, RTÉ), Irish radio stations, need-to-know Garda and crime news ranked for urgency, a Dublin inner city news strip (Dublin 1, 2, 3, 7 and 8 — local papers such as DublinLive, Dublin People and Dublin Inquirer plus national stories that name the area, newest first), and official Garda social media accounts, read-only in the app. Needs signal.']
 ];
 const TOOLBOX=[['torch','Torch','Torch, flashlight, SOS strobe'],['level','Spirit level','Level, flat surface'],['angle','Inclinometer','Angle, slope'],['compass','Compass','Bearing, direction, north'],
  ['ruler','Ruler','Measure small objects on screen'],['measure','Measure','Measure distance with the camera, evidence photo'],['speed','Speedometer','GPS speed'],['location','Location','Coordinates, address, grid reference'],
@@ -84,10 +85,11 @@ const on=()=>V&&D.body.contains(V)&&V.querySelector('.tabroot[data-tab="search"]
 /* ---------- render ---------- */
 function render(view,opt){
   V=view; worker();
+  S.home=opt&&typeof opt.home==='function'?opt.home:null;
   if(opt&&typeof opt.q==='string'&&opt.q!==S.q){ S.q=opt.q; S.res=null; S.shown=20; }
   view.innerHTML=`<div class="tabroot" data-tab="search" hidden></div>
-  <div class="sx-top">
-    <div class="sx-box">${I('search')}<input id="q" type="search" placeholder="Search or ask anything…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" value="${e(S.q)}">
+  <div class="sx-top${S.home?' home':''}${S.q.trim()?'':' noq'}">
+    <div class="sx-box">${I('search')}<input id="q" type="search" placeholder="${S.home?'Search — topic, case, offence… or ask':'Search or ask anything…'}" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" value="${e(S.q)}">
       <button type="button" class="sx-clear" aria-label="Clear"${S.q?'':' hidden'}>${I('x')}</button></div>
     <div class="chips sx-f">${FILTERS.map(([k,l])=>`<button type="button" class="chip${S.filter===k?' on':''}" data-f="${k}">${l}<span class="sx-n"></span></button>`).join('')}</div>
   </div>
@@ -96,9 +98,9 @@ function render(view,opt){
   <div id="results"></div>`;
   const q=view.querySelector('#q'); let t=null;
   q.addEventListener('input',()=>{ S.q=q.value; try{ lastQuery=S.q; }catch(_){}
-    view.querySelector('.sx-clear').hidden=!S.q; clearTimeout(t); t=setTimeout(run,140); });
+    view.querySelector('.sx-clear').hidden=!S.q; view.querySelector('.sx-top').classList.toggle('noq',!S.q.trim()); clearTimeout(t); t=setTimeout(run,140); });
   q.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); q.blur(); remember(S.q); run(); } });
-  view.querySelector('.sx-clear').addEventListener('click',()=>{ S.q=''; q.value=''; try{ lastQuery=''; }catch(_){} view.querySelector('.sx-clear').hidden=true; run(); q.focus(); });
+  view.querySelector('.sx-clear').addEventListener('click',()=>{ S.q=''; q.value=''; try{ lastQuery=''; }catch(_){} view.querySelector('.sx-clear').hidden=true; view.querySelector('.sx-top').classList.add('noq'); run(); q.focus(); });
   view.querySelectorAll('.sx-f .chip').forEach(c=>c.addEventListener('click',()=>{ S.filter=c.dataset.f; S.shown=20;
     view.querySelectorAll('.sx-f .chip').forEach(x=>x.classList.toggle('on',x===c)); run(); }));
   paintPrep(); paintAI(); run();
@@ -106,13 +108,13 @@ function render(view,opt){
 function paintPrep(){
   if(!on())return; const el=V.querySelector('#sxPrep'); if(!el)return;
   if(wErr){ el.hidden=false; el.textContent='Search engine failed to start ('+wErr+'). Restart the app.'; return; }
-  if(wInfo){ el.hidden=true; if(S.q&&!S.res)run(); return; }
+  if(wInfo||!S.q.trim()){ el.hidden=true; if(wInfo&&S.q&&!S.res)run(); return; }
   el.hidden=false; el.innerHTML=`<i class="sx-spin"></i>Preparing search${prog?` · ${Math.round(prog.d/prog.n*100)}%`:'…'}`;
 }
 async function run(){
   if(!on())return;
   const box=V.querySelector('#results'); const q=S.q.trim();
-  if(q.length<2){ S.res=null; paintEmpty(box); return; }
+  if(q.length<2){ S.res=null; paintCounts(null); if(S.home){ if(!box.querySelector('.homeq'))S.home(box); } else paintEmpty(box); return; }
   const seq=++S.seq;
   if(!wInfo){ box.innerHTML=aiCard(q); wireAICard(box); return; }
   let r; try{ r=await call({t:'q',q,filter:S.filter,n:200}); }catch(err){ box.innerHTML='<div class="empty">Search failed: '+e(err.message)+'</div>'; return; }
@@ -125,6 +127,12 @@ function aiCard(q){
     <small>Smart answer from the app's content, with sources — asks for details if they matter</small></span>${I('chevron-right','chev')}</button>`;
 }
 function wireAICard(box){ const b=box.querySelector('#sxAsk'); if(b)b.addEventListener('click',()=>{ remember(S.q); ask(S.q.trim(),'ask'); }); }
+/* judgments beyond the app: one row that runs the same words on BAILII Ireland (opens in the browser) */
+function blRow(){
+  const q=S.q.trim(); if(q.length<3||!(S.filter==='all'||S.filter==='cases')||typeof W.openBailii!=='function')return '';
+  return `<div class="lgrp sx-blg"><button type="button" class="lrow sx-bl">${I('gavel')}<span class="lt"><b>Search judgments for “${e(q)}”</b><small>BAILII Ireland · all Irish courts · opens in your browser</small></span>${I('external-link','chev')}</button></div>`;
+}
+function wireBl(box){ const b=box.querySelector('.sx-bl'); if(b)b.addEventListener('click',()=>{ remember(S.q); W.openBailii(S.q.trim(),'ie/cases','rank'); }); }
 function paintEmpty(box){
   const rec=ls.get(RKEY,[]);
   const n=wInfo&&wInfo.counts||{};
@@ -152,13 +160,14 @@ function hl(txt,terms){
 function paintRes(box){
   const r=S.res; paintCounts(r.counts);
   let h=aiCard(S.q.trim());
-  if(!r.items.length){ h+=`<div class="empty">Nothing in the app matches “${e(S.q)}”${S.filter!=='all'?' in this filter':''}. Try fewer or different words${S.filter!=='all'?', or the All filter':''} — or ask AI.</div>`; box.innerHTML=h; wireAICard(box); return; }
+  if(!r.items.length){ h+=`<div class="empty">Nothing in the app matches “${e(S.q)}”${S.filter!=='all'?' in this filter':''}. Try fewer or different words${S.filter!=='all'?', or the All filter':''} — or ask AI.</div>`+blRow(); box.innerHTML=h; wireAICard(box); wireBl(box); return; }
   h+=`<h2 class="sec">${S.filter==='all'?'Best matches':e(FILTERS.find(f=>f[0]===S.filter)[1])}<span class="sec-r">${r.total} result${r.total===1?'':'s'}</span></h2><div class="lgrp">`;
   r.items.slice(0,S.shown).forEach((it,i)=>{ const T=TYPE[it.k]||['circle-dot',''];
     h+=`<button type="button" class="lrow sr" data-i="${i}">${I(T[0])}<span class="lt"><b>${e(it.t)}</b><small class="sr-l"><span class="sr-k">${e(T[1])}</span>${it.l?' · '+e(it.l):''}${it.dated?' · <span class="sr-old">verify — 2007</span>':''}</small>${it.snip&&it.k!=='az'?`<span class="sr-snip">${hl(it.snip,r.terms)}</span>`:''}</span></button>`; });
   h+='</div>';
   if(r.items.length>S.shown)h+=`<button type="button" class="sx-more">Show more (${r.items.length-S.shown})</button>`;
-  box.innerHTML=h; wireAICard(box);
+  h+=blRow();
+  box.innerHTML=h; wireAICard(box); wireBl(box);
   box.querySelectorAll('.sr').forEach(b=>b.addEventListener('click',()=>{ remember(S.q); openItem(r.items[+b.dataset.i].o); }));
   const m=box.querySelector('.sx-more'); if(m)m.addEventListener('click',()=>{ S.shown+=30; paintRes(box); });
 }
@@ -193,7 +202,8 @@ function openApp(v){
   if(v==='cctvreq'){ renderCCTV(); return; }
   if(v==='saved'){ setTab('saved'); render2(); return; }
   if(v==='search'){ W.renderAISettings(); return; }
-  if(v==='textsize'){ goHome(); setTimeout(()=>{ const f=D.querySelector('.homefoot'); if(f)f.scrollIntoView({behavior:'smooth'}); },60); return; }
+  if(v==='textsize'&&typeof W.displaySheet==='function'){ W.displaySheet(); return; }
+  if(v==='judg'&&typeof W.renderJudgments==='function'){ W.renderJudgments(); return; }
 }
 function render2(){ if(typeof W.render==='function')W.render(); }
 

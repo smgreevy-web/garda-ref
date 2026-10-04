@@ -265,7 +265,7 @@ setInterval(()=>{ paintStrips(); check();
 },20000);
 D.addEventListener('visibilitychange',()=>{ if(D.visibilityState==='visible'){ paintStrips(); check(); } });
 if('serviceWorker' in navigator){ navigator.serviceWorker.addEventListener('message',e=>{const m=e.data||{}; if(m.gr==='notif'&&m.data&&m.data.open==='roster')openRoster();}); }
-(function(){ try{ const q=new URLSearchParams(location.search); if(q.get('open')==='roster'){ history.replaceState(history.state,'',location.pathname);
+(function(){ try{ const q=new URLSearchParams((window.__entry||location).search); if(q.get('open')==='roster'){ history.replaceState(history.state,'',location.pathname);
   const go=()=>openRoster(); if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(go,60)); else setTimeout(go,60); } }catch(e){} })();
 setTimeout(check,2000);
 

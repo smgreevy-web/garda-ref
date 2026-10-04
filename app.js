@@ -1,3 +1,4 @@
+window.GRAPP='61';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -6,7 +7,7 @@ const view=$('#view'), reader=$('#reader'), rdBody=$('#rdBody');
 let META=null, AZ=null, CASES=null, OPS=null, OPS2=null, TPL=null, G3=null, STEN=null, KB=null;
 const CHUNKS={};            // file -> {start,end,pages}
 let chunksReady=false, chunksLoading=false;
-let curPage=1, tab='home', lastQuery='', lastFilter='all';
+let curPage=1, tab='search', lastQuery='', lastFilter='all';
 let toolState={};           // session-only checklist state
 const FAVKEY='gr_favs_v1';
 let favs=JSON.parse(localStorage.getItem(FAVKEY)||'[]'); // [{a,title,label}] — section IDs only
@@ -16,7 +17,7 @@ let favs=JSON.parse(localStorage.getItem(FAVKEY)||'[]'); // [{a,title,label}] �
   if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
   const [m,a,cs,op,sn,kb,o2,tpl,g3]=await Promise.all(['meta','az','cases','ops','stencils','kb','ops2','templates','guides3'].map(f=>fetch('data/'+f+'.json').then(r=>r.json())));
   META=m; AZ=a; CASES=cs; OPS=op; OPS2=o2; TPL=tpl; G3=g3; STEN=sn; KB=kb;
-  window.GRVER='v'+META.version+' · content '+META.built+' · '+META.pages+' pp'; { const vi=$('#verinfo'); if(vi)vi.textContent=GRVER; }
+  window.GRVER='v'+(window.GRAPP||'')+' · content '+META.built+' · '+META.pages+' pp'; { const vi=$('#verinfo'); if(vi)vi.textContent=GRVER; }
   wrapSubviews(); bindUI(); render();
   loadAllChunks(); // background; SW caches for offline
 })();
@@ -74,6 +75,28 @@ function isDated(abs){ return abs>=993; } // 2007 manual
 
 /* ---------- tabs ---------- */
 function applyFS(){document.documentElement.dataset.fs=localStorage.getItem('gr_fs')||'m';}
+/* ---------- display: theme + text size (the Aa button) ---------- */
+const THEMES=[['ivory','Ivory','Light · warm paper · best in daylight','#f3f0e9','#1f4e79'],['graphite','Graphite & teal','Dark · minimal · easy at night','#0f1111','#72b6a9'],['navy','Navy & brass','Dark · classic','#0c1320','#c9a96e']];
+function applyTheme(t){
+  if(!THEMES.some(x=>x[0]===t))t='ivory';
+  document.documentElement.dataset.theme=t; try{localStorage.setItem('gr_theme',t);}catch(e){}
+  const m=document.querySelector('meta[name="theme-color"]'); if(m)m.setAttribute('content',THEMES.find(x=>x[0]===t)[3]);
+}
+function displaySheet(){
+  let o=document.getElementById('dsp');
+  if(!o){ o=document.createElement('div'); o.id='dsp'; o.className='dsp hidden'; document.body.appendChild(o); }
+  const cur=document.documentElement.dataset.theme||'ivory', fs=localStorage.getItem('gr_fs')||'m';
+  o.innerHTML='<div class="dsp-shade"></div><div class="dsp-sheet" role="dialog" aria-label="Display"><div class="dsp-grip"></div><h3>Display</h3>'
+    +'<div class="dsp-l">Theme</div><div class="dsp-th">'+THEMES.map(([k,n,d,bg,ac])=>'<button type="button" class="dsp-t'+(k===cur?' on':'')+'" data-th="'+k+'"><span class="sw" style="background:'+bg+'"><i style="background:'+ac+'"></i></span><span class="lt"><b>'+esc(n)+'</b><small>'+esc(d)+'</small></span>'+(window.GRI?GRI('check','ok'):'')+'</button>').join('')+'</div>'
+    +'<div class="dsp-l">Text size</div><div class="dsp-fs">'+['s','m','l','xl'].map((k,i)=>'<button type="button" data-fs="'+k+'" class="'+(k===fs?'on':'')+'" style="font-size:'+(13+i*3)+'px" aria-label="Text size '+k+'">A</button>').join('')+'</div>'
+    +'<button type="button" class="dsp-done">Done</button></div>';
+  const close=()=>o.classList.add('hidden');
+  o.querySelector('.dsp-shade').onclick=close; o.querySelector('.dsp-done').onclick=close;
+  o.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{ applyTheme(b.dataset.th); o.querySelectorAll('[data-th]').forEach(x=>x.classList.toggle('on',x===b)); });
+  o.querySelectorAll('[data-fs]').forEach(b=>b.onclick=()=>{ localStorage.setItem('gr_fs',b.dataset.fs); applyFS(); o.querySelectorAll('[data-fs]').forEach(x=>x.classList.toggle('on',x===b)); });
+  o.classList.remove('hidden');
+}
+window.displaySheet=displaySheet;
 function updateDlBtn(){const d=$('#rdDl');if(d)d.style.display=curDoc?'':'none';}
 function bindUI(){
   applyFS();
@@ -87,16 +110,15 @@ function bindUI(){
     rdBody.addEventListener('scroll',()=>{const el=rdBody;const max=el.scrollHeight-el.clientHeight;
       const p=max>0?(el.scrollTop/max*100):0;const bar=$('#rdProg');if(bar)bar.style.width=p+'%';},{passive:true});
   }
-  $('#topbar .tb-clock').insertAdjacentHTML('afterend','<button id="fsBtn" title="Text size" aria-label="Text size"><span>A</span><span>a</span></button>');
-  $('#fsBtn').addEventListener('click',()=>{const o=['s','m','l','xl'],c=localStorage.getItem('gr_fs')||'m';
-    const n=o[(o.indexOf(c)+1)%o.length]; localStorage.setItem('gr_fs',n);applyFS();
-    const t=document.getElementById('osToast')||null; if(window.grToast)grToast('Text size: '+({s:'small',m:'normal',l:'large',xl:'extra large'})[n]);});
+  $('#topbar .tb-clock').insertAdjacentHTML('afterend','<button id="fsBtn" title="Theme and text size" aria-label="Theme and text size"><span>A</span><span>a</span></button>');
+  $('#fsBtn').addEventListener('click',displaySheet);
   $$('#tabbar .tab').forEach(b=>{
     if(window.GRI&&b.dataset.ic&&!b.querySelector('.gri'))b.insertAdjacentHTML('afterbegin',GRI(b.dataset.ic));
     b.addEventListener('click',()=>{ const t=b.dataset.tab;
       if(t===tab&&view.dataset.root===t){ view.scrollTo({top:0,behavior:'smooth'}); if(t==='search'){const i=$('#q'); if(i)i.focus();} return; }
       setTab(t); closeReader(); render(); view.scrollTop=0; if(t==='search'){const i=$('#q'); if(i&&!lastQuery)i.focus();} });
   });
+  { const bb=$('#brandBtn'); if(bb&&window.GRI&&!bb.querySelector('.brandico'))bb.insertAdjacentHTML('afterbegin',GRI('shield','brandico')); }
   $('#brandBtn').addEventListener('click',goHome);
   $('#brandBtn').insertAdjacentHTML('beforebegin','<button id="tbBack" class="tbback" aria-label="Back">'+(window.GRI?GRI('chevron-left'):'‹')+'</button>');
   $('#tbBack').addEventListener('click',()=>{ if(window.grBack)grBack(); });
@@ -109,16 +131,16 @@ function bindUI(){
 }
 
 function render(){
-  if(tab==='browse'){ ixKind='contents'; tab='index'; }
+  if(tab==='home')tab='search';
   setTab(tab); vstack.length=0; vcur=null; view.dataset.root=tab; document.body.classList.remove('subview');
-  if(tab==='home')renderHome();
-  else if(tab==='search')renderSearch();
+  if(tab==='search')renderSearch();
+  else if(tab==='browse')renderBrowse();
   else if(tab==='index')renderIndex();
   else if(tab==='tools')renderTools();
   else renderSaved();
 }
-function setTab(t){ tab=t; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t)); document.body.classList.toggle('on-home',t==='home'); }
-function goHome(){ setTab('home'); closeReader(); render(); view.scrollTop=0; }
+function setTab(t){ tab=t; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t)); }
+function goHome(){ lastQuery=''; setTab('search'); closeReader(); render(); view.scrollTop=0; }
 function searchFor(q,opt){ lastQuery=q||''; lastFilter='all'; setTab('search'); closeReader(); render(); view.scrollTop=0;
   if(opt&&opt.focus){ const i=$('#q'); if(i)i.focus(); } }
 function subView(){ view.innerHTML='<div id="results"></div>'; view.scrollTop=0; return $('#results'); }
@@ -144,7 +166,7 @@ function wrapSubviews(){
 const FILTERS=[['all','Everything'],['vols','Vols 1–11'],['v12','Vol 12'],['st','Statements'],['pb','Playbooks'],['man','2007 Manual']];
 const FRANGE={vols:[15,937],v12:[938,968],st:[969,992],pb:[986,992],man:[993,1478]};
 function renderSearch(){
-  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery}); return; }
+  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery,home:homeQuick}); return; }
   view.innerHTML=`<div class="tabroot" data-tab="search" hidden></div>
   <div class="searchbox sb-mag"><input id="q" type="search" placeholder="Search — topic, case, statute, offence…" value="${esc(lastQuery)}" autocomplete="off" enterkeyhint="search"></div>
   <div id="results"></div>`;
@@ -152,107 +174,90 @@ function renderSearch(){
   q.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(()=>doSearch(q.value,lastFilter),200);});
   q.addEventListener('keydown',e=>{if(e.key==='Enter'){q.blur();doSearch(q.value,lastFilter);}});
   lastFilter='all';
-  if(lastQuery)doSearch(lastQuery,lastFilter,true);
+  if(lastQuery)doSearch(lastQuery,lastFilter,true); else homeQuick($('#results'));
 }
 
 /* ---------- HOME ---------- */
+const HERO=[
+  ['hOsint','map','Map','stations · districts · cameras · DCC CCTV · Street View pin · draw & measure — you choose what\u2019s on'],
+  ['hFirstAid','heart-pulse','Medical emergency','call 112/999 · CPR metronome · choking · bleeding · overdose · 22 conditions · step by step','red'],
+  ['hTools','toolbox','Toolbox','ruler · measure with evidence photo · evidence camera · level · compass · torch · timers · 21 tools']];
 const HOME=[
- {h:'On the job',r:'Quick access',c:[
-  ['qbOff','shield','Offences','Elements · Arrest · Statement'],
-  ['hPatrol','walk','Proactive patrol','GPS route · Stops · Times'],
-  ['hClock','timer','Detention clock','Deadlines · Extensions · Alerts'],
-  ['hGaol','users','Gaoler / cell checks','Buzz 2 min · Check log'],
-  ['hCaution','triangle-alert','Cautions','Wording · Declarations'],
-  ['hScene','sunrise','First at scene','Golden hour']]},
- {h:'Emergency & field',r:'Offline',c:[
-  ['hFirstAid','heart-pulse','Medical emergency','Call 112 · CPR metronome · Choking · Bleeding · Overdose · 22 conditions','wide red'],
-  ['hOsint','map','Map','Stations · Districts · Cameras · Measure'],
-  ['hTools','toolbox','Toolbox','Ruler · Torch · Timers · 21 tools']]},
- {h:'My work',r:'On this phone',c:[
-  ['hRoster','calendar-days','My roster','Today · Next tour · Leave · Court'],
-  ['hTasks','square-check','Tasks','CCTV · Arrests · Deadlines'],
-  ['hNotes','notebook-pen','Notes','Sketches · Photos · Lock'],
-  ['hRec','mic','Voice recorder','Markers · Crash-safe'],
-  ['hScan','scan-text','Scanner','Documents → PDF'],
-  ['hPres','monitor','Present to TV','Photos & CCTV · Smart View']]},
- {h:'Investigation guides',r:'In depth',c:[
-  ['hAssault','hand','Assault','Scene · Evidence · Trial'],
-  ['hRobbery','wallet','Robbery from person','Force · ID · Continuing act'],
-  ['hBurglary','door-open','Burglary','Entry forensics · Possession'],
-  ['hTheft','shopping-bag','Theft & handling','Dishonesty · Claim of right'],
+ {h:'Live cameras',r:'live',c:[
+  ['hCamDist','cctv','Fitzgibbon St / Mountjoy','street cams · your district + north city'],
+  ['hCamM50','route','M50 motorway','every TII camera · J3 → J17'],
+  ['hCamPort','ship','Dublin Port','ships · Liffey · Poolbeg'],
+  ['hCamAll','video','All cameras','organised list · M1 · N4 · N7 too'],
+  ['hDccList','list-video','DCC City CCTV list','241 Dublin City Council cameras · search a street → pinpoint it on the map · locations only, no live feed','wide']]},
+ {h:'Live TV & radio',c:[
+  ['hLiveNews','tv','Live news','Sky News live · RTÉ News latest · in the app'],
+  ['hRadio','radio','Irish radio','favourites · RTÉ · Newstalk · 98 · FM104 · all'],
+  ['hSocial','message-circle','Social media','official Garda accounts · Garda Info · Garda Traffic · DMR Facebook · TikTok · read-only','wide']]},
+ {h:'On the job',c:[
+  ['qbOff','shield','Offences','elements · arrest · statement'],
+  ['hPatrol','walk','Proactive patrol','GPS route · stops · times · patrol log'],
+  ['hClock','timer','Detention clock','deadlines · extensions · alerts'],
+  ['hGaol','users','Gaoler · cell checks','buzz 2 min before each check'],
+  ['hCaution','triangle-alert','Cautions','wording · declarations'],
+  ['hScene','sunrise','First at scene','golden hour']]},
+ {h:'My work',c:[
+  ['hRoster','calendar-days','My roster','today · next tour · leave · court · swaps'],
+  ['hTasks','square-check','Tasks','CCTV · arrests · deadlines · photo a list'],
+  ['hNotes','notebook-pen','Notes','sketches · photos · checklists · lock'],
+  ['hRec','mic','Voice recorder','markers · crash-safe · stays on phone'],
+  ['hScan','scan-text','Scanner','documents → PDF · saved to phone only'],
+  ['hPres','monitor','Present to TV','photos & CCTV on the TV · Smart View · DeX']]},
+ {h:'In-depth investigation guides',c:[
+  ['hAssault','hand','Assault','scene · evidence · trial · case law'],
+  ['hRobbery','wallet','Robbery from person','force · ID · continuing act'],
+  ['hBurglary','door-open','Burglary','entry forensics · recent possession'],
+  ['hTheft','shopping-bag','Theft & handling','dishonesty · claim of right'],
   ['hDrugs2','pill','Drugs prosecutions','MDA · s.23 · s.26 warrants'],
-  ['hImm','plane','Immigration','Status · Smuggling · Trafficking']]},
- {h:'Law & authority',r:'Case law · Bail',c:[
-  ['qbEss','star','Essential case law','The ones that changed everything'],
+  ['hImm','plane','Immigration','status · smuggling · trafficking']]},
+ {h:'Law & authority',c:[
+  ['qbEss','star','Essential case law','the ones that changed everything'],
   ['qbCases','library','Full case library','383 cases, categorised'],
-  ['hBail','scale','Objecting to bail',"O'Callaghan · s.2 · Burglary"],
-  ['hOcall','clipboard-list',"O'Callaghan worksheet",'Systematic objection'],
-  ['hBailpack','folder-open','Bail pack','Case-manager worksheet'],
-  ['hAmend','file-pen-line','Recent amendments','New laws by area — verify']]},
- {h:'Files & paperwork',r:'Statements · Forms',c:[
-  ['hGuides','file-text','Statement guides','Per offence'],
-  ['hSten','layout-template','Stencils','Your templates'],
-  ['hTpl','mail','Templates','CCTV · s.41 · Agency'],
-  ['hPrecis','file-check','Précis of evidence','Build it to win']]},
- {h:'Deep guides',r:'Reference',c:[
+  ['hBail','scale','Objecting to bail',"O'Callaghan · s.2 · burglary presumption"],
+  ['hOcall','clipboard-list',"O'Callaghan worksheet",'systematic objection'],
+  ['hBailpack','folder-open','Bail pack','case-manager worksheet'],
+  ['hAmend','file-pen-line','Recent amendments','new laws by area — verify'],
+  ['hJudg','gavel','Judgments search','BAILII Ireland · Supreme · Appeal · High'],
+  ['hCourtLists','calendar-clock','Court lists','CCJ & all Dublin courts — today']]},
+ {h:'Files & paperwork',c:[
+  ['hGuides','file-text','Statement guides','per offence'],
+  ['hSten','layout-template','Stencils','your templates'],
+  ['hTpl','mail','Templates','CCTV · s.41 · agency'],
+  ['hPrecis','file-check','Précis of evidence','build it to win']]},
+ {h:'Deep guides',c:[
   ['hPO','megaphone','Public order','s.6 & s.8'],
-  ['hAffray','swords','Affray','Investigation guide'],
-  ['hClamp','car-front','Clamping & s.41','Seizure · Rogue clampers'],
-  ['hIplan','messages-square','Interview plan','Stencil'],
-  ['hRare','scroll','Rare offences','Niche statutes'],
-  ['hDeep','book-open','All deep guides','Searches · Weapons · RTC · MP']]},
- {h:'The manual',r:'Vols 1–12',c:[
+  ['hAffray','swords','Affray','investigation guide'],
+  ['hClamp','car-front','Clamping & s.41','public clamping · seizure · rogue clampers'],
+  ['hIplan','messages-square','Interview plan','stencil'],
+  ['hDrugs','pill','Drugs prosecutions','MDA · s.23 · s.26 warrants'],
+  ['hRare','scroll','Rare offences','niche statutes'],
+  ['hDeep','book-open','All deep guides','search · weapons · RTC · MP','wide']]},
+ {h:'The manual',c:[
   ['g986','book-marked','Playbooks','5-part per offence'],
-  ['g955','brain','Inference aide','ss.18 · 19 · 19A'],
-  ['g975','eye','ADVOKATE','Identification'],
-  ['g941','message-square-quote','Cross-examination','Surviving the stand'],
-  ['g945','landmark','Law of evidence','Vol 12 Part B'],
+  ['g955','brain','Inference aide','ss.18/19/19A'],
+  ['g975','eye','ADVOKATE','identification'],
+  ['g941','message-square-quote','Cross-exam','surviving the stand'],
+  ['g945','landmark','Law of evidence','V12 Part B'],
   ['g144','file-pen','Assault statements','s.2 / s.3 guide'],
   ['hLang','languages','Latin & acronyms','ABC · MMO · PEACE'],
-  ['hCourt','gavel','Court-day mode','Everything for the stand']]},
- {h:'Live',r:'Needs signal',c:[
-  ['hJudg','gavel','Latest judgments','Supreme · Appeal · High'],
-  ['hCourtLists','calendar-clock','Court lists','CCJ & Dublin courts — today'],
-  ['hCamDist','cctv','Fitzgibbon St / Mountjoy','Street cameras · North city'],
-  ['hCamM50','route','M50 motorway','Every TII camera · J3 → J17'],
-  ['hCamPort','ship','Dublin Port','Ships · Liffey · Poolbeg'],
-  ['hCamAll','video','All cameras','M1 · N4 · N7 too'],
-  ['hDccList','list-video','DCC City CCTV list','241 locations · No live feed'],
-  ['hLiveNews','tv','Live news','Sky News · RTÉ'],
-  ['hRadio','radio','Irish radio','RTÉ · Newstalk · 98 · FM104'],
-  ['hSocial','message-circle','Social media','Official Garda accounts · Read-only']]}
+  ['hCourt','gavel','Court-day mode','everything for the stand']]}
 ];
 function hsub(t){ const p=String(t).split(' · '); return p.map((x,i)=>'<span class="sb">'+esc(x)+(i<p.length-1?' ·':'')+'</span>').join(' '); }
 function hcard(c){ const [id,ic,t,sub,cls]=c; const go=/^g\d+$/.test(id)?` data-go="${id.slice(1)}"`:` id="${id}"`;
-  return `<button class="hc${cls?' '+cls:''}"${go}>${GRI(ic)}<span class="hc-t"><b>${esc(t)}</b><small>${hsub(sub)}</small></span></button>`; }
-function renderHome(){
+  return `<button class="qbtn${cls?' '+cls:''}"${go}><span class="qh">${GRI(ic)}<b>${esc(t)}</b></span><small>${hsub(sub)}</small></button>`; }
+function homeQuick(box){
+  box=box||$('#results'); if(!box)return;
   const lp=+localStorage.getItem('gr_lastpage')||0;
   let recent=[]; try{recent=JSON.parse(localStorage.getItem('gr_recent')||'[]');}catch(e){}
   let rows=recent.slice();
-  if(lp){ rows=rows.filter(r=>!(r.k!=='guide'&&+r.id===lp)); rows.unshift({k:'page',id:lp,t:titleFor(lp),s:pageLabel(lp)+' · continue reading',ts:0,cont:1}); }
-  const recentHtml=rows.length?`<h2 class="sec">Recent<span class="sec-r">Continue</span></h2><div class="recentwrap">`+
+  if(lp){ rows=rows.filter(r=>!(r.k!=='guide'&&+r.id===lp)); rows.unshift({k:'page',id:lp,t:titleFor(lp).split(' › ').pop(),s:pageLabel(lp)+' · continue reading',ts:0,cont:1}); }
+  const recentHtml=rows.length?`<h2 class="sec">Recent</h2><div class="recentwrap">`+
     rows.slice(0,2).map(r=>`<button class="recentrow${r.cont?' cont':''}" data-k="${r.k}" data-id="${esc(String(r.id))}">${GRI(r.cont?'book-open':'history')}<div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${r.cont?'':relTime(r.ts)}</div></button>`).join('')+`</div>`:'';
-  const fs=localStorage.getItem('gr_fs')||'m';
-  view.innerHTML=`<div class="tabroot home-root" data-tab="home">
-  <section class="hero">
-    <div class="hero-row">
-      <svg class="hero-emb" viewBox="0 0 64 72" aria-hidden="true"><use href="#emb"/></svg>
-      <div class="hero-txt">
-        <h1>ASSISTING</h1>
-        <div class="hero-sub">OPERATIONAL REFERENCE TOOL</div>
-        <i class="hero-rule"></i>
-        <p>Independent reference for frontline Gardaí — law, procedure and tools.</p>
-      </div>
-      <div class="hero-stat">
-        <div class="hs-net"><i></i><span>ONLINE</span></div>
-        <div class="hudclock hs-time" data-f="t"></div>
-        <div class="hudclock hs-date" data-f="d"></div>
-        <div class="hs-load">${esc(window._heroLoad||'')}</div>
-      </div>
-    </div>
-  </section>
-  <div class="home-body">
-  <button class="homesearch" id="homeSearch" type="button">${GRI('search')}<span>Search or ask anything…</span>${GRI('sparkles','ai')}</button>
+  box.innerHTML=`<div class="homeq">
   <div id="homePatrol"></div>
   <div id="homeGaol"></div>
   <div id="homeRoster"></div>
@@ -260,25 +265,17 @@ function renderHome(){
   <div id="homeTasks"></div>
   <div id="homeNews"></div>
   ${recentHtml}
-  <div id="results">
-  ${HOME.map(g=>`<h2 class="sec">${esc(g.h)}<span class="sec-r">${esc(g.r)}</span></h2><div class="hgrid">${g.c.map(hcard).join('')}</div>`).join('')}
-  </div>
-  <div class="homefoot">
-    <div class="hf-dis"><span>INDEPENDENT TOOL</span> · <span>NOT AN OFFICIAL GARDA SYSTEM</span></div>
-    <div class="hf-sub">Not legal advice · verify current wording before relying on it</div>
-    <div class="hf-ver">${esc(window.GRVER||'')}</div>
-    <div class="hf-fs">Text size ${['s','m','l','xl'].map((k,i)=>`<button type="button" data-fs="${k}" class="${k===fs?'on':''}" style="font-size:${11+i*2.5}px" aria-label="Text size ${k}">A</button>`).join('')}</div>
-  </div>
-  </div></div>`;
-  if(window.grHudTick)grHudTick(); netPaint();
-  $('#homeSearch').addEventListener('click',()=>searchFor('',{focus:true}));
-  $$('.homefoot [data-fs]').forEach(b=>b.addEventListener('click',()=>{ localStorage.setItem('gr_fs',b.dataset.fs); applyFS();
-    $$('.homefoot [data-fs]').forEach(x=>x.classList.toggle('on',x===b)); }));
-  $$('#view .recentrow').forEach(b=>b.addEventListener('click',()=>{
+  <div class="heroes">${HERO.map(c=>hcard([c[0],c[1],c[2],c[3],'hero'+(c[4]?' '+c[4]:'')])).join('')}</div>
+  <div id="homeInner"></div>
+  ${HOME.map(g=>`<h2 class="sec">${esc(g.h)}${g.r==='live'?'<span class="sec-r live"><i></i>LIVE</span>':''}</h2><div class="quick">${g.c.map(hcard).join('')}</div>`).join('')}
+  <div class="empty">Or type anything above — all 1,478 pages are searchable.</div>
+  </div>`;
+  if(window.grHudTick)grHudTick();
+  box.querySelectorAll('.recentrow').forEach(b=>b.addEventListener('click',()=>{
     const k=b.dataset.k, id=b.dataset.id;
     if(k==='guide')openGuide3(id); else openPage(+id);
   }));
-  const go=(id,fn)=>{const b=$('#'+id); if(b)b.addEventListener('click',fn);};
+  const go=(id,fn)=>{const b=box.querySelector('#'+id); if(b)b.addEventListener('click',fn);};
   go('qbOff',()=>renderOffences());
   go('qbEss',()=>renderEssentials());
   go('qbCases',()=>{ixKind='case';setTab('index');render();});
@@ -298,18 +295,18 @@ function renderHome(){
   go('hLiveNews',()=>{ if(window.GRMedia) GRMedia.openTV('sky'); });
   go('hRadio',()=>{ if(window.GRMedia) GRMedia.openRadio(); });
   go('hSocial',()=>{ if(window.openSocial) openSocial(); });
-  if(window.GRPatrol) GRPatrol.mountStrip($('#homePatrol'));
-  if(window.GRGaol) GRGaol.mountStrip($('#homeGaol'));
-  if(window.GRDet) GRDet.mountStrip($('#homeDet'));
-  if(window.GRRoster) GRRoster.mountStrip($('#homeRoster'));
-  if(window.GRTasks) GRTasks.mountStrip($('#homeTasks'));
+  if(window.GRPatrol) GRPatrol.mountStrip(box.querySelector('#homePatrol'));
+  if(window.GRGaol) GRGaol.mountStrip(box.querySelector('#homeGaol'));
+  if(window.GRDet) GRDet.mountStrip(box.querySelector('#homeDet'));
+  if(window.GRRoster) GRRoster.mountStrip(box.querySelector('#homeRoster'));
+  if(window.GRTasks) GRTasks.mountStrip(box.querySelector('#homeTasks'));
   go('hRoster',()=>{ if(window.openRoster) openRoster(); });
   go('hTasks',()=>{ if(window.openTasks) openTasks(); });
   go('hNotes',()=>{ if(window.openNotes) openNotes(); });
   go('hRec',()=>{ if(window.openRecorder) openRecorder(); });
   go('hScan',()=>{ if(window.openScanner) openScanner(); });
   go('hPres',()=>{ if(window.openPresent) openPresent(); });
-  if(window.GRMedia) GRMedia.mountNewsStrip($('#homeNews'));
+  if(window.GRMedia){ GRMedia.mountNewsStrip(box.querySelector('#homeNews')); if(GRMedia.mountInnerStrip)GRMedia.mountInnerStrip(box.querySelector('#homeInner')); }
   go('hBail',()=>openGuide3('bail'));
   go('hOcall',()=>openGuide3('ocall'));
   go('hBailpack',()=>openTemplate(TPL.findIndex(t=>t.id==='bailpack')));
@@ -318,6 +315,7 @@ function renderHome(){
   go('hBurglary',()=>openGuide3('burglary_inv'));
   go('hTheft',()=>openGuide3('theft_inv'));
   go('hDrugs2',()=>openGuide3('drugs'));
+  go('hDrugs',()=>openGuide3('drugs'));
   go('hImm',()=>openGuide3('immigration_inv'));
   go('hRare',()=>openGuide3('rare'));
   go('hPrecis',()=>openGuide3('precis2'));
@@ -334,7 +332,7 @@ function renderHome(){
   go('hDeep',()=>renderDeep());
   go('hLang',()=>renderLang());
   go('hCourt',()=>renderCourtDay());
-  $$('#view .hc[data-go]').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
+  box.querySelectorAll('.qbtn[data-go]').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
 }
 function netPaint(){ const on=navigator.onLine; document.querySelectorAll('.hs-net').forEach(el=>{ el.classList.toggle('off',!on); const sp=el.querySelector('span'); if(sp)sp.textContent=on?'ONLINE':'OFFLINE'; }); }
 addEventListener('online',netPaint); addEventListener('offline',netPaint);
@@ -706,7 +704,10 @@ function renderCourtDay(){
 }
 
 /* ---------- BROWSE ---------- */
-function renderBrowse(){ ixKind='contents'; setTab('index'); render(); }
+function renderBrowse(){
+  view.innerHTML='<div class="tabroot" data-tab="browse" hidden></div><h2 class="sec">Browse the full reference<span class="sec-r">'+META.pages+' pages</span></h2><div id="tree"></div>';
+  const root=$('#tree'); META.tree.forEach(n=>root.appendChild(treeNode(n,0)));
+}
 function treeNode(n,depth){
   const d=document.createElement('div'); d.className='tnode';
   const row=document.createElement('button'); row.className='trow';
@@ -726,19 +727,14 @@ function treeNode(n,depth){
 }
 
 /* ---------- INDEX (contents · topics · case law · statutes · A–Z) ---------- */
-let ixKind='contents';
+let ixKind='topic';
 function renderIndex(){
-  const K=[['contents','Contents'],['topic','Topics'],['case','Case law'],['statute','Statutes'],['all','All A–Z']];
+  if(ixKind==='contents')ixKind='topic';
+  const K=[['topic','Topics'],['case','Case law'],['statute','Statutes'],['all','All A–Z']];
   view.innerHTML=`<div class="tabroot" data-tab="index" hidden></div>
   <div class="ixtop"><div class="chips">${K.map(([k,l])=>`<button class="chip ${ixKind===k?'on':''}" data-k="${k}">${l}</button>`).join('')}</div></div>
   <div class="alpharail" id="rail"></div><div id="ixlist"></div>`;
   $$('.ixtop .chip').forEach(c=>c.addEventListener('click',()=>{ixKind=c.dataset.k;renderIndex();view.scrollTop=0;}));
-  if(ixKind==='contents'){
-    const list=$('#ixlist');
-    list.innerHTML='<h2 class="sec">Full reference<span class="sec-r">'+META.pages+' pages</span></h2><div id="tree"></div>';
-    META.tree.forEach(n=>$('#tree').appendChild(treeNode(n,0)));
-    return;
-  }
   if(ixKind==='case'){renderCases();return;}
   const items=AZ.filter(e=>ixKind==='all'||e.k===ixKind);
   const list=$('#ixlist'); let html='', letters=new Set(), cur='';
@@ -773,7 +769,8 @@ function renderCases(){
       const ess=CASES.map(c=>{const k=Object.keys(ESSENTIALS).find(k=>c.n.toLowerCase().includes(k));return k?{c,why:ESSENTIALS[k]}:null;}).filter(Boolean);
       if(ess.length)essHtml='<h2 class="sec">★ The essentials — know these cold</h2>'+ess.map(e=>`<button class="hit ixhit esshit" data-n="${esc(e.c.n)}"><div class="h-title"><i>${esc(e.c.n)}</i> ${e.c.c[0]?'· '+esc(e.c.c[0]):''}</div><div class="h-snip">${esc(e.why)}</div></button>`).join('')+'<h2 class="sec">Full library</h2>';
     }
-    let items=CASES.filter(c=>!q||c.n.toLowerCase().includes(q)||c.c.join(' ').toLowerCase().includes(q)||(c.d||'').toLowerCase().includes(q));
+    let items=CASES.filter(c=>!q||c.n.toLowerCase().includes(q)||c.c.join(' ').toLowerCase().includes(q)||(c.d||'').toLowerCase().includes(q))
+      .slice().sort((a,b)=>caseSurname(a.n).localeCompare(caseSurname(b.n),'en',{sensitivity:'base'}));
     if(window.caseCat&&window.caseCat!=='All')items=items.filter(c=>c.cat===window.caseCat);
     let html='', cur='', letters=new Set();
     for(const c of items){
@@ -915,12 +912,13 @@ const TOOLS_MENU=[
   ['latin','scroll','Latin & legal terms','Meaning & Garda use'],
   ['acronyms','book-text','Acronyms','ABC · MMO · ADVOKATE …']]],
  ['Live',[
-  ['judg','gavel','Latest judgments','Supreme · Appeal · High Court — from BAILII'],
+  ['judg','gavel','Judgments search','BAILII Ireland — Supreme · Appeal · High Court'],
   ['courtlists','calendar-clock',"Court lists — who's on",'CCJ & all Dublin courts — official Legal Diary'],
   ['social','message-circle','Social media','Official accounts — read-only, in the app']]],
  ['Utilities',[
   ['toolbox','toolbox','Toolbox','Ruler · measure · evidence camera · level · compass · torch · timers · QR']]],
  ['Settings',[
+  ['display','sun','Theme & text size','Ivory · Graphite & teal · Navy & brass'],
   ['aikey','sparkles','AI search','Your Anthropic key · what is sent · cost'],
   ['about','info','About Assisting','Version · disclaimer · what stays on this phone']]]
 ];
@@ -942,6 +940,7 @@ function renderTools(){
     if(v==='pres'){ if(window.openPresent) openPresent(); return; }
     if(v==='aikey'){ if(window.GRSearch) GRSearch.settings(); return; }
     if(v==='about'){ renderAbout(); return; }
+    if(v==='display'){ displaySheet(); return; }
     if(v==='clock'){ if(window.openDetention){ openDetention(); return; } renderClock();}
     else if(v==='ptp')renderPTP();
     else if(v==='guides')renderGuides();
@@ -1082,6 +1081,10 @@ function openTemplate(i){
   const mb=$('#mb'); if(mb)mb.addEventListener('click',()=>{window.location.href='mailto:?subject='+encodeURIComponent(t.sub)+'&body='+encodeURIComponent(t.b);});
   view.scrollTop=0;
 }
+// Exhibit log: the list lives in memory for this session only (never stored); only the prefix is remembered.
+let EXH=[];
+let exhPrefix=(()=>{ try{ return localStorage.getItem('gr_exhpre')||'SMG'; }catch(e){ return 'SMG'; } })();
+function saveExh(){ /* session only by design — nothing written to the phone */ }
 function renderExhibits(){
   const rec=('webkitSpeechRecognition' in window)||('SpeechRecognition' in window);
   view.innerHTML=`<button class="chip" id="backT">‹ Tools</button><h2 class="sec">📦 Exhibit log — session only</h2>
@@ -1202,56 +1205,57 @@ function renderChecklists(){
   };
   draw();let tm;$('#tq').addEventListener('input',e=>{clearTimeout(tm);tm=setTimeout(()=>draw(e.target.value),150);});
 }
-async function renderJudgments(court){
-  court=court||'ALL';
-  const TABS=[['ALL','All'],['IESC','Supreme'],['IECA','Appeal'],['IEHC','High Court']];
-  view.innerHTML=`<button class="chip" id="backT" style="margin-bottom:8px">‹ Tools</button>
-  <h2 class="sec">◉ Latest judgments — live from BAILII</h2>
-  <div class="chips">${TABS.map(([k,l])=>`<button class="chip ${k===court?'on':''}" data-c="${k}">${l}</button>`).join('')}</div>
-  <div id="jout" class="empty">Loading from bailii.org…</div>`;
-  wireBack();
-  $$('#view .chip[data-c]').forEach(c=>c.addEventListener('click',()=>renderJudgments(c.dataset.c)));
-  const out=$('#jout');
-  const parseJ=t=>{
-    const cite=(t.match(/\[(?:19|20)\d{2}\]\s+IE[A-Z]{2,4}\s+\d+/)||[])[0]||'';
-    const dm=t.match(/\((\d{1,2}\s+[A-Za-z]+\s+(?:19|20)\d{2})\)\s*$/);
-    const date=dm?dm[1]:'';
-    const name=t.replace(/\s*\(\d{1,2}\s+[A-Za-z]+\s+(?:19|20)\d{2}\)\s*$/,'').replace(/\s*\[(?:19|20)\d{2}\]\s+IE[A-Z]{2,4}\s+\d+.*$/,'').replace(/\s*\(Approved\)\s*(\(Rev\d*\))?/i,'').trim();
-    return {name,cite,date,ts:(Date.parse(date)||0)};
-  };
-  try{
-    if(!window._bailii){
-      const target='https://www.bailii.org/recent-accessions-ie.html';
-      const proxies=[u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),u=>'https://corsproxy.io/?url='+encodeURIComponent(u),u=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u)];
-      for(const p of proxies){
-        try{const r=await fetch(p(target));if(r.ok){const t=await r.text();if(t.includes('/ie/cases/')){window._bailii=t;break;}}}catch(e){}
-      }
-      if(!window._bailii)throw new Error('feed unavailable');
-    }
-    const re=/<a href="(\/ie\/cases\/([A-Z]+)\/[^"]+)">([^<]+)<\/a>/g;
-    const want=court==='ALL'?['IESC','IECA','IEHC']:[court];
-    const items=[];let m;const seen=new Set();
-    while((m=re.exec(window._bailii))!==null){
-      if(!want.includes(m[2]))continue;
-      if(seen.has(m[1]))continue; seen.add(m[1]);
-      const p=parseJ(m[3]); p.u='https://www.bailii.org'+m[1]; p.court=m[2];
-      items.push(p);
-      if(items.length>200)break;
-    }
-    if(!items.length)throw new Error('none found');
-    items.sort((a,b)=>b.ts-a.ts);
-    const CN={IESC:'Supreme',IECA:'Appeal',IEHC:'High Court'};
-    out.className='';
-    out.innerHTML=items.slice(0,40).map(it=>`<button class="hit jlink" data-u="${it.u}">
-       <div class="h-title" style="font-weight:600"><i>${esc(it.name)}</i></div>
-       <div class="h-loc">${court==='ALL'?'<b style="color:var(--gold)">'+CN[it.court]+'</b> · ':''}${esc(it.cite||'')}${it.date?' · '+esc(it.date):''}</div></button>`).join('')
-      +'<div class="toolnote">Newest first, fetched live via a public relay — needs signal. Tap to open the full judgment on bailii.org.</div>';
-    $$('.jlink').forEach(b=>b.addEventListener('click',()=>window.open(b.dataset.u,'_blank')));
-  }catch(e){
-    out.innerHTML='Feed unavailable (signal or relay down). <button class="csall" id="jopen">Open BAILII recent Irish decisions</button>';
-    $('#jopen').addEventListener('click',()=>window.open('https://www.bailii.org/recent-accessions-ie.html','_blank'));
-  }
+/* ---------- JUDGMENTS: BAILII Ireland search ----------
+   BAILII runs an anti-bot check that stops apps loading its pages, so the search is built here and the results open on bailii.org. */
+const BL_COURTS=[['ie/cases','All Irish courts'],['ie/cases/IESC','Supreme Court'],['ie/cases/IECA','Court of Appeal'],['ie/cases/IEHC','High Court'],['ie/cases/IECCA','Court of Criminal Appeal (to 2014)']];
+let blCourt='ie/cases', blSort='rank';
+function bailiiURL(q,court,sort){
+  return 'https://www.bailii.org/cgi-bin/lucy_search_1.cgi?method=boolean&query='+encodeURIComponent(q)
+    +'&mask_path='+(court||'ie/cases')+'&datelow=&datehigh=&sort='+(sort==='date'?'date':'rank')+'&highlight=1';
 }
+function blRecent(){ try{ const r=JSON.parse(localStorage.getItem('gr_bl_recent')||'[]'); return Array.isArray(r)?r:[]; }catch(e){ return []; } }
+function openBailii(q,court,sort){
+  q=String(q||'').trim(); if(!q)return false;
+  try{ const r=blRecent().filter(x=>String(x).toLowerCase()!==q.toLowerCase()); r.unshift(q); localStorage.setItem('gr_bl_recent',JSON.stringify(r.slice(0,8))); }catch(e){}
+  window.open(bailiiURL(q,court||blCourt,sort||blSort),'_blank','noopener');
+  return true;
+}
+window.openBailii=openBailii;
+const BL_BROWSE=[['newspaper','Recent Irish decisions','Everything added to BAILII lately','https://www.bailii.org/recent-accessions-ie.html'],
+  ['landmark','Supreme Court','Judgments by year','https://www.bailii.org/ie/cases/IESC/'],
+  ['scale','Court of Appeal','Civil and criminal appeals since 2014','https://www.bailii.org/ie/cases/IECA/'],
+  ['gavel','High Court','Judgments by year','https://www.bailii.org/ie/cases/IEHC/'],
+  ['scroll','Court of Criminal Appeal','Older criminal appeals, up to 2014','https://www.bailii.org/ie/cases/IECCA/'],
+  ['book-open','Courts.ie judgments','Official Courts Service site, newest first','https://www.courts.ie/judgments']];
+function bailiiScreen(q0){
+  const rec=blRecent();
+  view.innerHTML=`<button class="chip" id="backT">‹ Tools</button>
+  <h2 class="sec" data-t="1">Judgments — BAILII Ireland</h2>
+  <div class="sec-sub">Search Irish judgments · results open on bailii.org</div>
+  <form class="bl" id="blForm" autocomplete="off">
+    <label class="bl-box">${GRI('search')}<input id="blq" type="search" enterkeyhint="search" placeholder="Case name, topic or citation…" value="${esc(q0||'')}"></label>
+    <div class="bl-l">Court</div>
+    <div class="chips bl-c">${BL_COURTS.map(([k,l])=>`<button type="button" class="chip${k===blCourt?' on':''}" data-c="${k}">${esc(l)}</button>`).join('')}</div>
+    <div class="bl-l">Order</div>
+    <div class="chips bl-s"><button type="button" class="chip${blSort==='rank'?' on':''}" data-s="rank">Best match</button><button type="button" class="chip${blSort==='date'?' on':''}" data-s="date">Newest first</button></div>
+    <button class="bl-go" type="submit">${GRI('search')}<span>Search BAILII</span>${GRI('external-link')}</button>
+  </form>
+  <div class="bl-tip">Tips: put an “exact phrase” in quotes · AND, OR, NOT work · a citation like [2017] IESC 77 finds that judgment · a party name finds the case.</div>
+  ${rec.length?`<h2 class="sec" data-t="1">Recent searches<span class="sec-r"><button type="button" class="sx-clr" id="blClr">Clear</button></span></h2><div class="lgrp">${rec.map(x=>`<button type="button" class="lrow bl-r" data-q="${esc(x)}">${GRI('history')}<span class="lt"><b>${esc(x)}</b></span>${GRI('external-link','chev')}</button>`).join('')}</div>`:''}
+  <h2 class="sec" data-t="1">Browse the newest</h2>
+  <div class="lgrp">${BL_BROWSE.map(([ic,t,sb,u])=>`<button type="button" class="lrow bl-u" data-u="${u}">${GRI(ic)}<span class="lt"><b>${esc(t)}</b><small>${esc(sb)}</small></span>${GRI('external-link','chev')}</button>`).join('')}</div>
+  <div class="toolnote">BAILII doesn't allow apps to load its pages, so results open in your browser. Free · needs signal.</div>`;
+  wireBack();
+  const qi=$('#blq');
+  $$('.bl-c .chip').forEach(c=>c.addEventListener('click',()=>{ blCourt=c.dataset.c; $$('.bl-c .chip').forEach(x=>x.classList.toggle('on',x===c)); }));
+  $$('.bl-s .chip').forEach(c=>c.addEventListener('click',()=>{ blSort=c.dataset.s; $$('.bl-s .chip').forEach(x=>x.classList.toggle('on',x===c)); }));
+  $('#blForm').addEventListener('submit',ev=>{ ev.preventDefault(); const q=qi.value.trim(); if(!q){ qi.focus(); return; } qi.blur(); openBailii(q); setTimeout(()=>{ if(document.getElementById('blForm'))bailiiScreen(q); },300); });
+  $$('.bl-r').forEach(b=>b.addEventListener('click',()=>{ qi.value=b.dataset.q; openBailii(b.dataset.q); }));
+  $$('.bl-u').forEach(b=>b.addEventListener('click',()=>window.open(b.dataset.u,'_blank','noopener')));
+  const cl=$('#blClr'); if(cl)cl.addEventListener('click',()=>{ try{ localStorage.removeItem('gr_bl_recent'); }catch(e){} bailiiScreen(qi.value); });
+  view.scrollTop=0;
+}
+function renderJudgments(q){ bailiiScreen(typeof q==='string'?q:''); }
 function renderCourtLists(){
   const C=[
    ['⚖️ Supreme Court','https://legaldiary.courts.ie/supreme-court'],
@@ -1467,6 +1471,7 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
   const clk=sel=>{const b=document.querySelector(sel); if(b){b.click(); return true;} return false;};
   function closeTop(){
     if(document.getElementById('boot'))return true;                       // opening screen: stay put
+    { const d=document.getElementById('dsp'); if(d&&!d.classList.contains('hidden')){ d.classList.add('hidden'); return true; } }
     for(const id of ['mStory','mTV','mRadio']){ const el=document.getElementById(id); if(vis(el)){ el.querySelector('.m-x').click(); return true; } }
     if(window.faBack&&window.faBack())return true;                        // first aid: step/CPR → list → closed
     if(window.prsBack&&window.prsBack())return true;                      // present to TV: blank → show → grid → closed
@@ -1494,7 +1499,8 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
     if(vcur){                                                               // sub-view → the screen before it → the tab
       if(vstack.length){ const p=vstack.pop(); vcur=null; const fn=window[p.f]; if(typeof fn==='function'){ fn.apply(null,p.a); view.scrollTop=p.y||0; } return true; }
       vcur=null; render(); return true; }
-    if(tab!=='home'){ goHome(); return true; }
+    if(tab!=='search'){ goHome(); return true; }
+    if(lastQuery){ lastQuery=''; render(); view.scrollTop=0; return true; }
     if(view.scrollTop>40){ view.scrollTo({top:0,behavior:'smooth'}); return true; }
     return false;
   }

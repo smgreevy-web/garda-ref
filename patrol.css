@@ -217,3 +217,16 @@
 #pp .pp-lock b{display:block;font:600 13px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#a9c6f2}
 #pp .pp-lock span{display:block;margin-top:4px;font-size:13.5px;color:#b9d0e3;line-height:1.45}
 #pp a.pp-a{display:flex;align-items:center;justify-content:center;text-decoration:none;text-align:center}
+/* Assisting GPS helper */
+#pp .pp-warn.ok{border-color:rgba(52,199,104,.5);background:rgba(52,199,104,.08);color:#cdeedb}
+#pp .pp-warn.ok b{color:#7fe0a5}
+#pp .pp-hp{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 6px 6px 10px;border:1px solid rgba(52,199,104,.4);border-radius:10px;background:rgba(52,199,104,.07);font-size:13px;color:#cdeedb}
+#pp .pp-hp svg{width:18px;height:18px;flex:0 0 auto;color:#7fe0a5}
+#pp .pp-hp span{flex:1;min-width:0;line-height:1.3}
+#pp .pp-hp button{flex:0 0 auto;min-height:38px;padding:4px 12px;border:1px solid rgba(127,224,165,.55);border-radius:9px;background:transparent;color:#bff0d2;font-weight:700;font-size:13px}
+#pp .pp-note{padding:9px 11px;border:1px solid rgba(240,180,41,.5);border-radius:10px;background:rgba(240,180,41,.08);color:#f3e3bd}
+#pp .pp-ok{color:#7fe0a5;font-weight:700;white-space:nowrap}
+#pp .pp-lock span b{display:inline;font:inherit;font-weight:700;letter-spacing:0;text-transform:none;color:#e1ecfa}
+#pp .pp-hp.off{border-color:rgba(240,180,41,.45);background:rgba(240,180,41,.07);color:#f3e3bd}
+#pp .pp-hp.off svg{color:#f0c35a}
+#pp .pp-hp.off button{border-color:rgba(240,195,90,.6);color:#f7dfa6}

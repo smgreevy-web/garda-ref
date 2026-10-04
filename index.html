@@ -1,14 +1,19 @@
 <!DOCTYPE html>
-<html lang="en-IE">
+<html lang="en-IE" data-theme="ivory">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#070e18">
+<meta name="theme-color" content="#f3f0e9">
+<script>/* theme before first paint: ivory (default) · graphite · navy */
+(function(){var t='ivory',c={ivory:'#f3f0e9',graphite:'#0f1111',navy:'#0c1320',slate:'#121519'};try{var s=localStorage.getItem('gr_theme');if(s&&c[s])t=s;}catch(e){}
+document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',c[t]);})();
+/* deep links (?open=… and #…) are read once from here, then taken out of the address so Back or a reload can't run them again */
+(function(){try{var s=location.search,h=location.hash;window.__entry={search:s,hash:h};if(s||h)history.replaceState(null,'',location.pathname);}catch(e){window.__entry={search:'',hash:''};}})();</script>
 <meta name="description" content="Assisting — offline operational reference for frontline Gardaí. Independent tool, not an official Garda system.">
 <title>Assisting</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="preload" as="image" href="icons/hero-dublin.jpg">
+<link rel="preload" as="font" type="font/woff2" href="fonts/inter-var.woff2" crossorigin>
 <link rel="apple-touch-icon" href="icons/apple-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -40,9 +45,9 @@
   <header id="topbar">
     <div class="brand" id="brandBtn" role="button" aria-label="Home">
       <svg class="brandemb" viewBox="0 0 64 72" aria-hidden="true"><use href="#emb"/></svg>
-      <b class="wm">ASSISTING</b>
+      <div class="bt"><b class="wm">Assisting</b><small>Garda · operational reference</small></div>
     </div>
-    <div class="tb-right"><div id="loadState" class="loadstate" title="Content load status"></div><div class="hudclock tb-clock" data-f="hm"></div></div>
+    <div class="tb-right"><div class="hudclock tb-clock"></div><div id="loadState" class="loadstate" title="Content load status"></div></div>
   </header>
 
   <main id="view" tabindex="-1"></main>
@@ -67,12 +72,14 @@
   </div>
 
   <nav id="tabbar" role="tablist">
-    <button data-tab="home" data-ic="house" class="tab active" role="tab">Home</button>
-    <button data-tab="search" data-ic="search" class="tab" role="tab">Search</button>
-    <button data-tab="index" data-ic="book-open" class="tab" role="tab">Index</button>
+    <button data-tab="search" data-ic="search" class="tab active" role="tab">Search</button>
+    <button data-tab="browse" data-ic="list" class="tab" role="tab">Browse</button>
+    <button data-tab="index" data-ic="book-text" class="tab" role="tab">Indexes</button>
     <button data-tab="tools" data-ic="wrench" class="tab" role="tab">Tools</button>
     <button data-tab="saved" data-ic="bookmark" class="tab" role="tab">Saved</button>
   </nav>
+
+  <footer id="banner">Assisting — independent reference tool, not an official Garda system · not legal advice · verify current wording · <span id="verinfo"></span></footer>
 
 </div>
 <script src="vendor/leaflet.js"></script>
