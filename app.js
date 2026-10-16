@@ -1,4 +1,4 @@
-window.GRAPP='62';
+window.GRAPP='68';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -93,22 +93,67 @@ function applyTheme(t){
   const m=document.querySelector('meta[name="theme-color"]'); if(m)m.setAttribute('content',th[3]);
   try{ window.dispatchEvent(new CustomEvent('gr:theme',{detail:th[0]})); }catch(e){}
 }
+/* ---------- looks: whole-app styles on top of the colour themes (looks.css) ----------
+   [key, name, note, modes ('l' light only · 'd' dark only · 'ld' both), status-bar colours [light, dark]]
+   Keep in step with the head script in index.html. Classic = the colour themes on their own. */
+const LOOKS=[
+  ['classic','Classic','Clean cards · choose any colour theme','',null],
+  ['editorial','Editorial','Paper and serif type · reads like a briefing','ld',['#f6f1e7','#16130f']],
+  ['glass','Glass','Dublin at night behind frosted cards','d',['#0b1626']],
+  ['command','Command','Dark HUD · live countdown up front','d',['#070b10']],
+  ['bento','Bento','Widget grid · a colour for each area','ld',['#eef1f6','#0e1117']],
+  ['duty','Duty board','Hi-vis yellow · big buttons for gloves and sun','d',['#0b0b0b']],
+  ['redlight','Red light','All dim red · keeps your night vision','d',['#000000']],
+  ['material','Material','Android style · soft colour, big rounded shapes','ld',['#fef7ff','#141218']],
+  ['notebook','Notebook','Ruled paper and typewriter type','l',['#fbf8ef']],
+  ['swiss','Swiss','Bold type on a strict grid · black, white, red','l',['#ffffff']],
+  ['terminal','Terminal','Green screen — just for fun','d',['#020803']]];
+/* Red light after dark: from sunset to sunrise in Dublin the app switches to Red light (your own look comes back by day).
+   sunUp: is the sun above the horizon (−0.833°, refraction) at Dublin right now — same sum as the head script. */
+function sunUp(t){ const r=Math.PI/180, n=t/864e5+2440587.5-2451545, g=(357.528+.9856003*n)*r, l=(280.46+.9856474*n+1.915*Math.sin(g)+.02*Math.sin(2*g))*r, e=(23.439-4e-7*n)*r,
+  ra=Math.atan2(Math.cos(e)*Math.sin(l),Math.cos(l)), dec=Math.asin(Math.sin(e)*Math.sin(l)), ha=(280.46061837+360.98564736629*n-6.26)*r-ra, la=53.35*r;
+  return Math.asin(Math.sin(la)*Math.sin(dec)+Math.cos(la)*Math.cos(dec)*Math.cos(ha))/r>-0.833; }
+const nightRed=()=>{ try{ return localStorage.getItem('gr_look_night')==='1'; }catch(e){ return false; } };
+function lookOf(){ try{ const k=localStorage.getItem('gr_look'); return LOOKS.some(x=>x[0]===k)?k:'classic'; }catch(e){ return 'classic'; } }
+function lookMode(){ try{ return localStorage.getItem('gr_look_mode')||'auto'; }catch(e){ return 'auto'; } }
+const darkPref=()=>{ try{ return matchMedia('(prefers-color-scheme: dark)').matches; }catch(e){ return false; } };
+function applyLook(k,mode){
+  let L=LOOKS.find(x=>x[0]===k)||LOOKS[0]; const d=document.documentElement;
+  try{ localStorage.setItem('gr_look',L[0]); if(mode)localStorage.setItem('gr_look_mode',mode); }catch(e){}
+  if(nightRed()&&!sunUp(Date.now()))L=LOOKS.find(x=>x[0]==='redlight');   // after dark: red light, until sunrise
+  if(L[0]==='classic'){ d.removeAttribute('data-look'); applyTheme(d.dataset.theme||'ivory'); }
+  else { mode=mode||lookMode(); const tone=L[3]==='d'?'dark':L[3]==='l'?'light':(mode==='light'||mode==='dark')?mode:(darkPref()?'dark':'light');
+    d.dataset.look=L[0]; d.dataset.tone=tone; const m=document.querySelector('meta[name="theme-color"]'); if(m)m.setAttribute('content',tone==='dark'&&L[4][1]?L[4][1]:L[4][0]);
+    try{ window.dispatchEvent(new CustomEvent('gr:theme',{detail:L[0]})); }catch(e){} }
+  paintToday(); }
+try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ const k=lookOf(); if(k!=='classic'&&lookMode()==='auto')applyLook(k); }); }catch(e){}
+setInterval(()=>{ if(!nightRed())return; const want=sunUp(Date.now())?lookOf():'redlight', now=document.documentElement.dataset.look||'classic'; if(want!==now)applyLook(lookOf()); },60000);
+const lookMini=k=>'<span class="lk-mini lk-'+k+'" aria-hidden="true"><i class="m1"></i><i class="m2"></i><i class="m3"></i><i class="m4"><b></b><b></b><b></b><b></b></i><i class="m5"></i></span>';
 function displaySheet(){
   let o=document.getElementById('dsp');
   if(!o){ o=document.createElement('div'); o.id='dsp'; o.className='dsp hidden'; document.body.appendChild(o); }
-  const cur=document.documentElement.dataset.theme||'ivory', fs=localStorage.getItem('gr_fs')||'m';
+  const cur=document.documentElement.dataset.theme||'ivory', fs=localStorage.getItem('gr_fs')||'m', lk=lookOf(), LK=LOOKS.find(x=>x[0]===lk), md=lookMode();
   const tile=([k,n,d,pg,cd,tx,ac])=>'<button type="button" class="dsp-t'+(k===cur?' on':'')+'" data-th="'+k+'" aria-pressed="'+(k===cur)+'">'
     +'<span class="sw" style="background:'+pg+'" aria-hidden="true"><span class="sw-c" style="background:'+cd+'"><i style="background:'+tx+'"></i><i style="background:'+tx+'"></i><em style="background:'+ac+'"></em></span></span>'
     +'<span class="lt"><b>'+esc(n)+'</b><small>'+esc(d)+'</small></span>'+(window.GRI?GRI('check','ok'):'')+'</button>';
   o.innerHTML='<div class="dsp-shade"></div><div class="dsp-sheet" role="dialog" aria-label="Display"><div class="dsp-grip"></div><h3>Display</h3>'
-    +'<div class="dsp-l">Light themes</div><div class="dsp-th">'+THEMES.filter(x=>x[7]==='light').map(tile).join('')+'</div>'
-    +'<div class="dsp-l">Dark themes</div><div class="dsp-th">'+THEMES.filter(x=>x[7]==='dark').map(tile).join('')+'</div>'
+    +'<div class="dsp-l">Look</div><div class="dsp-looks">'+LOOKS.map(([k,n,d])=>'<button type="button" class="lk-c'+(k===lk?' on':'')+'" data-look="'+k+'" aria-pressed="'+(k===lk)+'">'+lookMini(k)+'<b>'+esc(n)+'</b><small>'+esc(d)+'</small>'+(window.GRI?GRI('check','ok'):'')+'</button>').join('')+'</div>'
+    +(LK&&LK[3]==='ld'?'<div class="dsp-mode" role="group" aria-label="Light or dark">'+[['light','Light'],['dark','Dark'],['auto','Match phone']].map(([k,l])=>'<button type="button" data-mode="'+k+'" class="'+(md===k?'on':'')+'" aria-pressed="'+(md===k)+'">'+l+'</button>').join('')+'</div>':'')
+    +'<label class="dsp-night"><input type="checkbox"'+(nightRed()?' checked':'')+'><span><b>Red light after dark</b><small>From sunset to sunrise the app turns dim red, to keep your night vision — your look comes back by day</small></span></label>'
+    +(lk==='glass'?'<label class="dsp-name">Your first name, for the greeting <small>optional · saved on this phone</small><input type="text" maxlength="24" autocomplete="given-name" value="'+esc(localStorage.getItem('gr_name')||'')+'" placeholder="e.g. Sean"></label>':'')
+    +(lk==='classic'?'<div class="dsp-l">Light themes</div><div class="dsp-th">'+THEMES.filter(x=>x[7]==='light').map(tile).join('')+'</div>'
+      +'<div class="dsp-l">Dark themes</div><div class="dsp-th">'+THEMES.filter(x=>x[7]==='dark').map(tile).join('')+'</div>'
+      :'<p class="dsp-n">The nine colour themes go with the Classic look — tap Classic to pick one.</p>')
     +'<div class="dsp-l">Text size</div><div class="dsp-fs">'+['s','m','l','xl'].map((k,i)=>'<button type="button" data-fs="'+k+'" class="'+(k===fs?'on':'')+'" style="font-size:'+(13+i*3)+'px" aria-label="Text size '+k+'">A</button>').join('')+'</div>'
-    +'<p class="dsp-n">The theme carries through every screen — tools, cameras, notes and the reader.</p>'
+    +'<p class="dsp-n">The look and colours carry through every screen — tools, cameras, notes and the reader — on the phone and on a computer.</p>'
     +'<button type="button" class="dsp-done">Done</button></div>';
   const close=()=>o.classList.add('hidden');
   o.querySelector('.dsp-shade').onclick=close; o.querySelector('.dsp-done').onclick=close;
   o.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{ applyTheme(b.dataset.th); o.querySelectorAll('[data-th]').forEach(x=>{ x.classList.toggle('on',x===b); x.setAttribute('aria-pressed',String(x===b)); }); });
+  o.querySelectorAll('[data-look]').forEach(b=>b.onclick=()=>{ if(b.dataset.look===lookOf())return; const y=o.querySelector('.dsp-sheet').scrollTop; applyLook(b.dataset.look); displaySheet(); const sh2=o.querySelector('.dsp-sheet'); if(sh2)sh2.scrollTop=y; });
+  o.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ applyLook(lookOf(),b.dataset.mode); o.querySelectorAll('[data-mode]').forEach(x=>{ x.classList.toggle('on',x===b); x.setAttribute('aria-pressed',String(x===b)); }); });
+  { const ni=o.querySelector('.dsp-name input'); if(ni)ni.oninput=()=>{ try{ localStorage.setItem('gr_name',ni.value.trim().slice(0,24)); }catch(e){} paintToday(); }; }
+  { const nc=o.querySelector('.dsp-night input'); if(nc)nc.onchange=()=>{ try{ localStorage.setItem('gr_look_night',nc.checked?'1':'0'); }catch(e){} applyLook(lookOf()); if(window.grToast)grToast(nc.checked?(sunUp(Date.now())?'Red light will come on at sunset':'Red light on until sunrise'):'Red light after dark is off'); }; }
   o.querySelectorAll('[data-fs]').forEach(b=>b.onclick=()=>{ localStorage.setItem('gr_fs',b.dataset.fs); applyFS(); o.querySelectorAll('[data-fs]').forEach(x=>x.classList.toggle('on',x===b)); if(typeof bookRelayout==='function')setTimeout(bookRelayout,60); });
   o.classList.remove('hidden');
 }
@@ -122,7 +167,7 @@ function bindUI(){
     const star=$('#rdStar');
     star.insertAdjacentHTML('beforebegin','<button id="rdBook" class="iconbtn" title="Book reading — page by page" aria-label="Book reading" aria-pressed="false">'+(window.GRI?GRI('book-open-text'):'B')+'</button><button id="rdDl" class="iconbtn" title="Download as Word" aria-label="Download Word document" style="display:none">'+(window.GRI?GRI('download'):'⬇')+'</button>');
     const rb=$('#rdBack'); if(rb&&window.GRI)rb.innerHTML=GRI('chevron-left');
-    $('#rdDl').addEventListener('click',()=>{if(curDoc)downloadDoc(curDoc.title,curDoc.text);});
+    $('#rdDl').addEventListener('click',()=>{if(curDoc){ if(curDoc.blocks)downloadBlocks(curDoc); else downloadDoc(curDoc.title,curDoc.text); }});
     $('#rdBook').addEventListener('click',bookToggle);
     bookWire();
     rdBody.addEventListener('scroll',()=>{if(book.on)return;const el=rdBody;const max=el.scrollHeight-el.clientHeight;
@@ -166,7 +211,7 @@ function subView(){ view.innerHTML='<div id="results"></div>'; view.scrollTop=0;
 const vstack=[]; let vcur=null;
 const SUBVIEWS=['renderPTP','renderGuides','renderMajor','renderEssentials','renderOffences','renderOffence','renderStencils','renderLive','renderClock',
   'renderCourtDay','renderCaution','renderKBtopic','renderLatin','renderAcronyms','renderCCTV','renderCautions','renderTemplates','openTemplate','renderExhibits',
-  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings'];
+  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings','renderWanted'];
 function sameArgs(a,b){ return JSON.stringify(a||[])===JSON.stringify(b||[]); }
 function wrapSubviews(){
   for(const name of SUBVIEWS){ const orig=window[name]; if(typeof orig!=='function'||orig._sv)continue;
@@ -214,6 +259,7 @@ const HOME=[
  {h:'On the job',c:[
   ['qbOff','shield','Offences','elements · arrest · statement'],
   ['hPatrol','walk','Proactive patrol','GPS route · stops · times · patrol log'],
+  ['hRoute','route','Emergency route','straight to a call · any road · ignores one-way'],
   ['hClock','timer','Detention clock','deadlines · extensions · alerts'],
   ['hGaol','users','Gaoler · cell checks','buzz 2 min before each check'],
   ['hCaution','triangle-alert','Cautions','wording · declarations'],
@@ -250,6 +296,7 @@ const HOME=[
   ['hPO','megaphone','Public order','s.6 & s.8'],
   ['hAffray','swords','Affray','investigation guide'],
   ['hClamp','car-front','Clamping & s.41','public clamping · seizure · rogue clampers'],
+  ['hIndec','eye-off','Indecency (s.45)','exposure · statements · file'],
   ['hIplan','messages-square','Interview plan','stencil'],
   ['hDrugs','pill','Drugs prosecutions','MDA · s.23 · s.26 warrants'],
   ['hRare','scroll','Rare offences','niche statutes'],
@@ -318,6 +365,7 @@ function homeQuick(box){
       +`<div class="quick" data-sec="${k}">${L.boxes[k].map(id=>card(id,k)).join('')}</div>`); };
   box.innerHTML=`<div class="homeq${ed?' editing':''}">
   ${ed?`<div class="he-banner"><b>Customise Home</b><span>Drag ${GRI('grip')} to move · tap ${GRI('eye')} to hide or show</span><div class="he-acts"><button type="button" id="heReset">Reset</button><button type="button" id="heDone" class="on">Done</button></div></div>`:''}
+  ${ed?'':'<div id="homeToday"></div>'}
   <div id="homePatrol"></div>
   <div id="homeGaol"></div>
   <div id="homeRoster"></div>
@@ -354,6 +402,8 @@ function homeQuick(box){
   go('hLiveNews',()=>{ if(window.GRMedia) GRMedia.openTV('sky'); });
   go('hRadio',()=>{ if(window.GRMedia) GRMedia.openRadio(); });
   go('hSocial',()=>{ if(window.openSocial) openSocial(); });
+  { const top=view.querySelector('.sx-top'); if(top&&!view.querySelector('#homeHello'))top.insertAdjacentHTML('beforebegin','<div id="homeHello" aria-hidden="true"></div>'); }
+  paintToday();
   if(window.GRPatrol) GRPatrol.mountStrip(box.querySelector('#homePatrol'));
   if(window.GRGaol) GRGaol.mountStrip(box.querySelector('#homeGaol'));
   if(window.GRDet) GRDet.mountStrip(box.querySelector('#homeDet'));
@@ -381,6 +431,8 @@ function homeQuick(box){
   go('hPO',()=>openGuide3('po'));
   go('hAffray',()=>openGuide3('affray'));
   go('hClamp',()=>openGuide3('clamping'));
+  go('hRoute',()=>{ if(window.openRoute)window.openRoute(); });
+  go('hIndec',()=>openGuide3('indecency'));
   go('hIplan',()=>openGuide3('iplan'));
   go('hAmend',()=>openGuide3('amendments'));
   go('hJudg',()=>renderJudgments());
@@ -393,6 +445,47 @@ function homeQuick(box){
   go('hCourt',()=>renderCourtDay());
   box.querySelectorAll('.qbtn[data-go]').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
 }
+/* ---------- Home "today": your tour and your list at a glance — shown in the looks (Classic keeps the roster strip) ---------- */
+const HD_DAY=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'], HD_MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const p2h=n=>String(n).padStart(2,'0'), hhmm=t=>{ const x=new Date(t); return p2h(x.getHours())+':'+p2h(x.getMinutes()); };
+const greetWord=h=>h<5?'Good night':h<12?'Good morning':h<17?'Good afternoon':'Good evening';
+function hdShort(ms){ ms=Math.max(0,ms); const d=Math.floor(ms/864e5), h=Math.floor(ms%864e5/36e5), m=Math.floor(ms%36e5/6e4); return d?d+'d '+h+'h':h?h+'h '+p2h(m)+'m':m+'m'; }
+function hdWords(ms){ ms=Math.max(0,ms); const d=Math.floor(ms/864e5), h=Math.floor(ms%864e5/36e5), m=Math.floor(ms%36e5/6e4), u=(n,w)=>n+' '+w+(n===1?'':'s');
+  return d?u(d,'day')+(h?' '+u(h,'hour'):''):h?u(h,'hour')+(m?' '+u(m,'minute'):''):u(Math.max(1,m),'minute'); }
+function hdWhen(d,now){ const a=new Date(now); a.setHours(0,0,0,0); const b=new Date(d); b.setHours(0,0,0,0); const k=Math.round((b-a)/864e5);
+  return k===0?'today':k===1?'tomorrow':k<7?'on '+HD_DAY[b.getDay()]:'on '+HD_DAY[b.getDay()].slice(0,3)+' '+b.getDate()+' '+HD_MON[b.getMonth()].slice(0,3); }
+function todayParts(now){
+  const R=window.GRRoster, rs=R&&R._state?R._state():null, st=rs&&R.status?R.status(now):null, T=window.GRTasks&&GRTasks.summary?GRTasks.summary(now):null;
+  const d=new Date(now), unit=rs&&rs.unit?'Unit '+rs.unit:'', nm=(()=>{ try{ return (localStorage.getItem('gr_name')||'').trim(); }catch(e){ return ''; } })();
+  const lab=i=>String(i&&i.label||'Tour').replace(/ \(.*\)$/,''), nT=T?T.open:0, things=n=>n===1?'one thing':n+' things';
+  const P={date:HD_DAY[d.getDay()]+' '+d.getDate()+' '+HD_MON[d.getMonth()]+(unit?' · '+unit:''),hello:greetWord(d.getHours())+(nm?', '+nm:''),kind:'none',p:null,end:null,go:'Tasks',open:'tasks'};
+  if(st&&st.on){ const L=lab(st.info), left=st.sp.e-now, tt=T?T.tourN:0;
+    Object.assign(P,{kind:'on',k:'On duty · '+L,u:unit,t:'On duty · '+L,big:hdShort(left),end:st.sp.e,sub:'until '+hhmm(st.sp.e)+(tt?' · '+tt+' task'+(tt===1?'':'s')+' this tour':''),
+      lead:'You’re on the <b>'+esc(L.toLowerCase())+'</b> tour — '+hdWords(left)+' left'+(tt?', and '+things(tt)+' to do before '+hhmm(st.sp.e):'')+'.',p:Math.max(0,Math.min(1,(now-st.sp.s)/(st.sp.e-st.sp.s))),go:'Roster',open:'roster'}); }
+  else if(st&&st.sp&&st.next){ const L=lab(st.next), until=st.sp.s-now, td=st.today;
+    Object.assign(P,{kind:'off',k:'Off duty'+(td&&td.off&&td.label?' · '+lab(td):''),u:unit,t:'Next · '+L+' '+hdWhen(st.next.d,now).replace(/^on /,''),big:'in '+hdShort(until),sub:L+' '+hhmm(st.sp.s)+'–'+hhmm(st.sp.e)+(nT?' · '+nT+' task'+(nT===1?'':'s')+' open':''),
+      lead:'You’re off'+(td&&td.off?' today':' right now')+'. Next up: the <b>'+esc(L.toLowerCase())+'</b> tour '+hdWhen(st.next.d,now)+' at '+hhmm(st.sp.s)+(nT?' — '+things(nT)+' on your list.':'.'),go:'Roster',open:'roster'}); }
+  else { Object.assign(P,{k:P.date,t:greetWord(d.getHours()),big:hhmm(now),sub:(nT?nT+' task'+(nT===1?'':'s')+' open':'Nothing on your list')+(T&&T.overdue?' · '+T.overdue+' overdue':''),
+      lead:greetWord(d.getHours())+'. '+(nT?'You have '+things(nT)+' on your list'+(T&&T.overdue?', '+T.overdue+' overdue':'')+'.':'Nothing on your list.')+(R&&!rs?' Set up My roster to see your tours here.':''),
+      go:R&&!rs?'Set up roster':'Tasks',open:R&&!rs?'roster':'tasks'}); }
+  return P; }
+function paintToday(){
+  const el=document.getElementById('homeToday'), hi=document.getElementById('homeHello'); if(!el&&!hi)return;
+  const now=Date.now(), P=todayParts(now);
+  if(hi){ const h='<small>'+esc(P.date)+'</small><b>'+esc(P.hello)+'</b>'; if(hi._h!==h){ hi._h=h; hi.innerHTML=h; } }
+  if(!el)return;
+  const pc=P.p==null?null:Math.round(P.p*100), seg=P.p==null?'':'<span class="hd-seg" aria-hidden="true">'+Array.from({length:12},(_,i)=>'<i'+(i<Math.round(P.p*12)?' class="on"':'')+'></i>').join('')+'</span>';
+  const ring='<span class="hd-ring" aria-hidden="true"'+(pc!=null?' style="--p:'+pc+'"':'')+'><b>'+esc(P.kind==='on'?P.big.replace(/^(\d+)h (\d+)m$/,'$1:$2'):P.kind==='off'?'OFF':hhmm(now))+'</b><small>'+(P.kind==='on'?'LEFT':P.kind==='off'?'DUTY':'NOW')+'</small></span>';
+  const h='<button type="button" class="hd-card '+P.kind+'" data-open="'+P.open+'" aria-label="'+esc((P.k||'')+'. '+(P.sub||''))+'">'
+    +'<span class="hd-k">'+esc(P.k)+(P.u?'<span class="hd-u"> · '+esc(P.u)+'</span>':'')+'</span><span class="hd-lead">'+P.lead+'</span>'
+    +'<span class="hd-main">'+ring+'<span class="hd-tx"><b class="hd-t">'+esc(P.t)+'</b><span class="hd-big"><span class="hd-bm">'+esc(P.big)+'</span>'+(P.end?'<span class="hd-cd" data-end="'+P.end+'"></span>':'')+'</span><span class="hd-sub">'+esc(P.sub)+'</span></span></span>'
+    +seg+'<span class="hd-go">'+esc(P.go)+' ›</span></button>';
+  if(el._h===h)return; el._h=h; el.innerHTML=h;
+  el.querySelector('.hd-card').onclick=()=>{ if(P.open==='roster'&&window.openRoster)openRoster(); else if(window.openTasks)openTasks(); };
+  if(window.grHudTick)grHudTick(); }
+setInterval(()=>{ if(document.visibilityState==='visible')paintToday(); },20000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible')paintToday(); });
+
 /* edit mode: drag a box (or a whole block) by its handle; the eye hides or shows it */
 function homeEditWire(box,L){
   const root=box.querySelector('.homeq');
@@ -458,7 +551,9 @@ function openGuide3(id){
   $('#rdTitle').textContent=g.t; $('#rdPage').textContent='Guide';
   $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
-  curDoc={title:g.t,text:g.b}; rdBody.innerHTML=formatPage(g.b); applyRdScale(); rdBody.scrollTop=0; updateDlBtn();
+  if(g.blocks){ curDoc={title:g.t,text:g.b,blocks:g.blocks}; rdBody.innerHTML=renderBlocks(g.blocks,{sections:true,link:true}); wireBlocks(rdBody); }
+  else { curDoc={title:g.t,text:g.b}; rdBody.innerHTML=formatPage(g.b); }
+  applyRdScale(); rdBody.scrollTop=0; updateDlBtn();
 }
 /* synonym groups for full-text search — a word that isn't on the page is tried as its synonyms */
 const SYN=[
@@ -624,22 +719,27 @@ function renderEssentials(){
 function openCase(name){
   const c=CASES.find(x=>x.n===name); if(!c)return;
   reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
-  $('#rdTitle').textContent=c.n; $('#rdPage').textContent=(c.cat||'General')+(c.c[0]?' · '+c.c.join(' · '):'');
+  $('#rdTitle').textContent=c.n; $('#rdPage').textContent=[c.cat||'General',c.court?(c.court+(c.y?' '+c.y:'')):'',c.c.filter(Boolean).join(' · ')].filter(Boolean).join(' · ');
   $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
   let h='';
-  if(c.why)h+='<div class="rbox note"><b>Why it matters:</b> '+esc(c.why)+'</div>';
+  if(c.chk)h+='<div class="cs-chk">'+(window.GRI?GRI('check'):'✓')+'<span>'+(c.conf==='high'?'Checked against the judgment or a reliable case note — sources below.':'Checked against one source only — read the judgment before relying on it in court.')+'</span></div>';
+  if(c.why)h+='<div class="rbox note"><b>'+(c.chk?'On the job:':'Why it matters:')+'</b> '+esc(c.why)+'</div>';
   else if(c.d)h+='<div class="rbox note">'+esc(c.d)+'</div>';
   if(c.f){if(c.f.facts)h+='<div class="rsub">Facts</div><p>'+esc(c.f.facts)+'</p>';
-    if(c.f.held)h+='<div class="rbox warn" style="background:color-mix(in srgb,var(--amber) 12%,transparent);border-left-color:var(--amber);color:var(--tx)"><b>Held:</b> '+esc(c.f.held)+'</div>';}
-  h+='<div class="rsub">In your manual</div>';
-  h+=(c.s||[]).map(sn=>'<p><span class="xref" data-a="'+sn.a+'">'+esc(pageLabel(sn.a))+'</span> — '+esc(sn.t)+'</p>').join('')||'<p>Open the pages below for full context.</p>';
-  h+='<div class="rsub">Every page it appears on</div><p>'+c.p.map(p=>'<span class="xref" data-a="'+p+'">'+esc(pageLabel(p))+'</span>').join(' · ')+'</p>';
+    if(c.f.held)h+='<div class="rbox held"><b>Held:</b> '+esc(c.f.held)+'</div>';}
+  if(c.st)h+='<div class="rsub">Still the law?</div><p>'+esc(c.st)+'</p>';
+  if(c.src&&c.src.length)h+='<div class="rsub">Where it was checked (needs signal)</div><p>'+c.src.map(x=>'<span class="extj" data-href="'+esc(x.u)+'">'+esc(x.t||x.u.replace(/^https?:\/\/(www\.)?/,'').split('/')[0])+'</span>').join(' · ')+'</p>';
+  if((c.s||[]).length||c.p.length){
+    h+='<div class="rsub">In your manual</div>'+(c.chk?'<p class="cs-man">Your manual’s notes on this case haven’t been re-checked — where they differ, go by the checked summary above.</p>':'');
+    h+=(c.s||[]).map(sn=>'<p><span class="xref" data-a="'+sn.a+'">'+esc(pageLabel(sn.a))+'</span> — '+esc(sn.t)+'</p>').join('')||'<p>Open the pages below for full context.</p>';
+    h+='<div class="rsub">Every page it appears on</div><p>'+c.p.map(p=>'<span class="xref" data-a="'+p+'">'+esc(pageLabel(p))+'</span>').join(' · ')+'</p>'; }
   h+='<div class="rsub">Full judgment (needs signal)</div><p><span class="extj" data-u="bailii">BAILII</span> · <span class="extj" data-u="courts">Courts.ie</span> · <span class="extj" data-u="westlaw">Westlaw (your login)</span></p>';
-  rdBody.innerHTML=h; curDoc={title:c.n,text:(c.why||c.d||"")+"\n\n"+((c.f&&(("Facts: "+(c.f.facts||""))+"\nHeld: "+(c.f.held||"")))||"")+"\n\n"+(c.s||[]).map(x=>pageLabel(x.a)+" — "+x.t).join("\n\n")}; updateDlBtn();
+  rdBody.innerHTML=h; curDoc={title:c.n,text:[c.c.filter(Boolean).join(' · '),c.court?(c.court+(c.y?' '+c.y:'')):'',c.why?'On the job: '+c.why:(c.d||''),c.f?('Facts: '+(c.f.facts||'')+'\nHeld: '+(c.f.held||'')):'',c.st?'Still the law? '+c.st:'',(c.src||[]).length?'Checked against: '+c.src.map(x=>x.t+' — '+x.u).join('\n'):'',(c.s||[]).map(x=>pageLabel(x.a)+' — '+x.t).join('\n\n')].filter(Boolean).join('\n\n')}; updateDlBtn();
   rdBody.querySelectorAll('.xref').forEach(x=>x.addEventListener('click',()=>openPage(+x.dataset.a)));
   rdBody.querySelectorAll('.extj').forEach(x=>x.addEventListener('click',()=>{
-    const q=encodeURIComponent(c.n);
+    if(x.dataset.href){ window.open(x.dataset.href,'_blank','noopener'); return; }
+    const q=encodeURIComponent(c.n.replace(/\s*\((19|20)\d\d\)$/,''));
     window.open({bailii:'https://www.bailii.org/cgi-bin/lucy_search_1.cgi?sort=rank&highlight=1&mask_path=ie&query='+q,
       courts:'https://www.courts.ie/judgments?search_api_fulltext='+q,westlaw:'https://www.westlaw.ie'}[x.dataset.u],'_blank');}));
   rdBody.scrollTop=0;
@@ -700,9 +800,11 @@ function openStencil(i){
   reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
   $('#rdTitle').textContent=st.t; $('#rdPage').textContent='Stencil · '+st.cat;
   const star=$('#rdStar'); star.textContent='⧉';
-  const body=reflow(String(st.b).replace(/^\s*\.\s*\n/,''));
+  const body=st.blocks?String(st.b):reflow(String(st.b).replace(/^\s*\.\s*\n/,''));
   star.onclick=()=>{navigator.clipboard.writeText(body).then(()=>{$('#rdPage').textContent='Copied ✓';setTimeout(()=>$('#rdPage').textContent='Stencil · '+st.cat,1500);}).catch(()=>{$('#rdPage').textContent='Copy failed';});};
   $('#rdFlag').classList.add('hidden');
+  if(st.blocks){ curDoc={title:st.t,text:body,blocks:st.blocks,notitle:!!st.notitle}; rdBody.innerHTML='<div class="rb-doc">'+renderBlocks(st.blocks,{ph:true})+'</div>'; wireBlocks(rdBody); rdBody.scrollTop=0; updateDlBtn();
+    $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden'; return; }
   let h=esc(body);
   h=h.replace(/(\[[^\]\n]{1,60}\]|_{3,}|\bXXXX?\b|\bTIME\b|\bDATE\b|\bLOCATION\b|\bNAME\b|\bSTATION\b|\bOFFENCE\b)/g,'<mark class="ph">$1</mark>');
   h=paraHtml(h);
@@ -868,10 +970,11 @@ function renderCases(){
     const q=caseQ.trim().toLowerCase();
     let essHtml='';
     if(!q&&(!window.caseCat||window.caseCat==='All')){
-      const ess=CASES.map(c=>{const k=Object.keys(ESSENTIALS).find(k=>c.n.toLowerCase().includes(k));return k?{c,why:ESSENTIALS[k]}:null;}).filter(Boolean);
+      const nn=n=>n.toLowerCase().replace(/^the\s+/,'').replace(/^people \((dpp|ag)\)/,'$1');
+      const seenE=new Set(); const ess=CASES.map(c=>{const k=Object.keys(ESSENTIALS).find(k=>nn(c.n).includes(k));if(!k||seenE.has(k))return null;seenE.add(k);return {c,why:ESSENTIALS[k]};}).filter(Boolean);
       if(ess.length)essHtml='<h2 class="sec">★ The essentials — know these cold</h2>'+ess.map(e=>`<button class="hit ixhit esshit" data-n="${esc(e.c.n)}"><div class="h-title"><i>${esc(e.c.n)}</i> ${e.c.c[0]?'· '+esc(e.c.c[0]):''}</div><div class="h-snip">${esc(e.why)}</div></button>`).join('')+'<h2 class="sec">Full library</h2>';
     }
-    let items=CASES.filter(c=>!q||c.n.toLowerCase().includes(q)||c.c.join(' ').toLowerCase().includes(q)||(c.d||'').toLowerCase().includes(q))
+    let items=CASES.filter(c=>!q||c.n.toLowerCase().includes(q)||c.c.join(' ').toLowerCase().includes(q)||(c.d||'').toLowerCase().includes(q)||((c.topic||'')+' '+(c.why||'')).toLowerCase().includes(q))
       .slice().sort((a,b)=>caseSurname(a.n).localeCompare(caseSurname(b.n),'en',{sensitivity:'base'}));
     if(window.caseCat&&window.caseCat!=='All')items=items.filter(c=>c.cat===window.caseCat);
     let html='', cur='', letters=new Set();
@@ -879,9 +982,10 @@ function renderCases(){
       const L=(caseSurname(c.n)[0]||'#').toUpperCase().replace(/[^A-Z]/,'#');
       if(L!==cur&&!q){cur=L;letters.add(L);html+=`<div class="letterhead" id="L${L}">${L}</div>`;}
       html+=`<div class="cslot"><button class="ixrow case cshead"><span class="term">${esc(c.n)}</span>
-        <div class="refs"><span class="catpill">${esc(c.cat||'General')}</span> ${c.c.length?esc(c.c.join(' · ')):'cited in text'} · ${c.p.length}pp ▾</div>
+        <div class="refs">${c.chk?'<span class="chkpill" title="Checked summary">✓ checked</span>':''}<span class="catpill">${esc(c.cat||'General')}</span> ${c.c.filter(Boolean).length?esc(c.c.filter(Boolean).slice(0,2).join(' · ')):'cited in text'} · ${c.p.length?c.p.length+'pp':esc(c.court||'')+(c.y?' '+c.y:'')} ▾</div>
         <div class="csdesc">${esc((c.d||'').slice(0,150))}</div></button>
         <div class="csbody hidden">
+          ${c.chk?`<button class="cssum" data-n="${esc(c.n)}"><b>Held</b> — ${esc((c.f&&c.f.held)||c.d||'')}${c.why?`<span><b>On the job</b> — ${esc(c.why)}</span>`:''}<em>Open the full summary ›</em></button>`:''}
           ${c.s.map(sn=>`<button class="cssnip" data-a="${sn.a}"><b>${esc(pageLabel(sn.a))}${sn.a>=993?' · 2007':''}</b> — ${esc(sn.t)}</button>`).join('')}
           <div class="cspages">${c.p.map(p=>`<button class="cspg" data-a="${p}">${esc(pageLabel(p))}</button>`).join('')}</div>
           <button class="csall" data-n="${esc(c.n)}">⌕ Every mention in full text</button>
@@ -896,6 +1000,7 @@ function renderCases(){
       const nm=h.querySelector('.term');if(nm)nm.addEventListener('click',e=>{e.stopPropagation();openCase(nm.textContent);});
     });
     list.querySelectorAll('.cssnip,.cspg').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.a)));
+    list.querySelectorAll('.cssum').forEach(b=>b.addEventListener('click',()=>openCase(b.dataset.n)));
     list.querySelectorAll('.csall').forEach(b=>b.addEventListener('click',()=>{
       searchFor(b.dataset.n.replace(/^(The\s)?(People\s\((DPP|AG)\)|DPP)\sv\s/i,'').trim());
     }));
@@ -1016,11 +1121,13 @@ const TOOLS_MENU=[
  ['Live',[
   ['judg','gavel','Judgments search','BAILII Ireland — Supreme · Appeal · High Court'],
   ['courtlists','calendar-clock',"Court lists — who's on",'CCJ & all Dublin courts — official Legal Diary'],
-  ['social','message-circle','Social media','Official accounts — read-only, in the app']]],
+  ['social','message-circle','Social media','Official accounts — read-only, in the app'],
+  ['wanted','user-search','Most wanted','Interpol · FBI · Europe · UK · wanted by Ireland — live']]],
  ['Utilities',[
   ['toolbox','toolbox','Toolbox','Ruler · measure · evidence camera · level · compass · torch · timers · QR']]],
  ['Settings',[
-  ['display','palette','Theme & text size','Nine themes, light and dark · text size'],
+  ['display','palette','Look, theme & text size','Eleven looks · nine colour themes · light and dark · text size'],
+  ['sync','cloud','Sync across devices','Tasks · My roster · Saved — encrypted, in your own Google Drive'],
   ['homelayout','sliders-horizontal','Home screen','Move, hide or bring back boxes'],
   ['applock','lock','App lock','Username and password to open Assisting'],
   ['aikey','sparkles','AI search','Your Anthropic key · what is sent · cost'],
@@ -1035,6 +1142,7 @@ function renderTools(){
     if(v==='patrol'){ if(window.openPatrol) openPatrol(); return; }
     if(v==='gaol'){ if(window.openGaol) openGaol(); return; }
     if(v==='social'){ if(window.openSocial) openSocial(); return; }
+    if(v==='wanted'){ renderWanted(); return; }
     if(v==='firstaid'){ if(window.openFirstAid) openFirstAid(); return; }
     if(v==='tasks'){ if(window.openTasks) openTasks(); return; }
     if(v==='roster'){ if(window.openRoster) openRoster(); return; }
@@ -1045,6 +1153,7 @@ function renderTools(){
     if(v==='aikey'){ if(window.GRSearch) GRSearch.settings(); return; }
     if(v==='about'){ renderAbout(); return; }
     if(v==='display'){ displaySheet(); return; }
+    if(v==='sync'){ if(window.openSync) openSync(); return; }
     if(v==='homelayout'){ homeEditOpen(); return; }
     if(v==='applock'){ if(window.GRLock)GRLock.sheet(); return; }
     if(v==='clock'){ if(window.openDetention){ openDetention(); return; } renderClock();}
@@ -1362,6 +1471,54 @@ function bailiiScreen(q0){
   view.scrollTop=0;
 }
 function renderJudgments(q){ bailiiScreen(typeof q==='string'?q:''); }
+/* ---------- most wanted: official public lists, fetched live (nothing is stored on the phone) ---------- */
+const WL_TABS=[['ie','Wanted by Ireland'],['irl','Irish nationals'],['red','Interpol Red Notices'],['fbi','FBI'],['eu','Europe'],['uk','UK']];
+const WL_LINKS={
+  ie:[['Interpol — Red Notices (search by country)','https://www.interpol.int/How-we-work/Notices/Red-Notices/View-Red-Notices']],
+  irl:[['Interpol — Red Notices','https://www.interpol.int/How-we-work/Notices/Red-Notices/View-Red-Notices']],
+  red:[['Interpol — Red Notices','https://www.interpol.int/How-we-work/Notices/Red-Notices/View-Red-Notices'],['Interpol — Yellow Notices (missing people)','https://www.interpol.int/How-we-work/Notices/Yellow-Notices/View-Yellow-Notices']],
+  fbi:[['FBI — Ten Most Wanted','https://www.fbi.gov/wanted/topten'],['FBI — all wanted notices','https://www.fbi.gov/wanted']],
+  eu:[["Europe's Most Wanted (EU police network ENFAST)",'https://eumostwanted.eu/'],['Interpol — Red Notices','https://www.interpol.int/How-we-work/Notices/Red-Notices/View-Red-Notices']],
+  uk:[['National Crime Agency — Most Wanted','https://www.nationalcrimeagency.gov.uk/most-wanted-search'],['Crimestoppers UK — Most Wanted','https://crimestoppers-uk.org/give-information/most-wanted']]};
+const WL_NAT={IE:'Ireland',GB:'United Kingdom',US:'United States',FR:'France',DE:'Germany',ES:'Spain',IT:'Italy',NL:'Netherlands',BE:'Belgium',PL:'Poland',LT:'Lithuania',LV:'Latvia',RO:'Romania',BG:'Bulgaria',PT:'Portugal',AL:'Albania',RU:'Russia',UA:'Ukraine',TR:'Türkiye',NG:'Nigeria',BR:'Brazil',CN:'China',IN:'India',PK:'Pakistan',MA:'Morocco',DZ:'Algeria',CO:'Colombia',MX:'Mexico',GE:'Georgia',RS:'Serbia',HR:'Croatia',BA:'Bosnia and Herzegovina',CZ:'Czechia',SK:'Slovakia',HU:'Hungary',SE:'Sweden',NO:'Norway',DK:'Denmark',FI:'Finland',AT:'Austria',CH:'Switzerland',GR:'Greece',EE:'Estonia',MD:'Moldova',BY:'Belarus',AE:'UAE',ZA:'South Africa'};
+const wlMem={};
+function renderWanted(){
+  let cur=(()=>{try{return localStorage.getItem('gr_wanted_tab')||'ie';}catch(e){return 'ie';}})();
+  view.innerHTML=`<button class="chip" id="backT">‹ Tools</button><h2 class="sec">Most wanted</h2>
+  <div class="sec-sub">Official public lists, live · needs signal</div>
+  <div class="chips wl-c">${WL_TABS.map(([k,l])=>`<button type="button" class="chip${k===cur?' on':''}" data-k="${k}">${esc(l)}</button>`).join('')}</div>
+  <div id="wlBody"></div>
+  <p class="wl-note">Shown straight from the official notices — nothing is saved on this phone. A notice is not grounds for arrest on its own: confirm on PULSE and through the Garda international liaison / Interpol office before acting, and never rely on a photo match alone.</p>`;
+  wireBack(); view.scrollTop=0;
+  view.querySelectorAll('.wl-c .chip').forEach(b=>b.addEventListener('click',()=>{ cur=b.dataset.k; try{localStorage.setItem('gr_wanted_tab',cur);}catch(e){}
+    view.querySelectorAll('.wl-c .chip').forEach(x=>x.classList.toggle('on',x===b)); draw(); }));
+  const links=k=>'<div class="wl-links">'+WL_LINKS[k].map(([t,u])=>`<button type="button" class="wl-link" data-u="${esc(u)}">${GRI('external-link')}<span>${esc(t)}</span></button>`).join('')+'</div>';
+  const wire=()=>{ $('#wlBody').querySelectorAll('[data-u]').forEach(b=>b.addEventListener('click',()=>window.open(b.dataset.u,'_blank','noopener'))); };
+  const age=d=>{ const m=String(d||'').match(/^(\d{4})(?:\/(\d\d)\/(\d\d))?/); if(!m)return ''; const b=new Date(+m[1],(+m[2]||1)-1,+m[3]||1); return Math.floor((Date.now()-b)/31557600000)+' yrs'; };
+  const tc=s=>String(s||'').toLowerCase().replace(/(^|[\s'-])\p{L}/gu,x=>x.toUpperCase());
+  async function getJSON(u){ const ac=new AbortController(); const t=setTimeout(()=>ac.abort(),12000);
+    try{ const r=await fetch(u,{signal:ac.signal,headers:{Accept:'application/json'}}); if(!r.ok)throw new Error('HTTP '+r.status); return await r.json(); } finally{ clearTimeout(t); } }
+  async function draw(){
+    const k=cur, B=$('#wlBody'); if(!B)return;
+    if(k==='eu'||k==='uk'){ B.innerHTML='<p class="wl-sub">'+(k==='eu'?'Europe’s Most Wanted is run by the EU’s fugitive-tracking police network. It has no public data feed, so it opens on its own site.':'The UK lists have no public data feed, so they open on their own sites.')+'</p>'+links(k); wire(); return; }
+    B.innerHTML='<div class="wl-load"><span class="sx-spin"></span> Loading the live list…</div>';
+    try{
+      let rows=wlMem[k];
+      if(!rows){
+        if(k==='fbi'){ const j=await getJSON('https://api.fbi.gov/wanted/v1/list?pageSize=40&page=1');
+          rows=(j.items||[]).map(x=>({img:(x.images&&x.images[0]&&(x.images[0].thumb||x.images[0].original))||'',n:x.title||'',sub:[x.subjects&&x.subjects.join(', '),x.reward_text].filter(Boolean).join(' · '),d:String(x.description||'').replace(/<[^>]+>/g,' ').trim(),u:x.url||'https://www.fbi.gov/wanted'})); }
+        else { const q=k==='ie'?'arrestWarrantCountryId=IE&':k==='irl'?'nationality=IE&':''; const j=await getJSON('https://ws-public.interpol.int/notices/v1/red?'+q+'resultPerPage=160&page=1');
+          rows=((j._embedded&&j._embedded.notices)||[]).map(x=>({img:(x._links&&x._links.thumbnail&&x._links.thumbnail.href)||'',n:tc((x.forename?x.forename+' ':'')+(x.name||'')),
+            sub:[age(x.date_of_birth),(x.nationalities||[]).map(c=>WL_NAT[c]||c).join(', ')].filter(Boolean).join(' · '),d:'',u:'https://www.interpol.int/How-we-work/Notices/Red-Notices/View-Red-Notices#'+String(x.entity_id||'').replace('/','-')})); }
+        wlMem[k]=rows; }
+      if(!rows.length){ B.innerHTML='<p class="wl-sub">No notices on this list right now.</p>'+links(k); wire(); return; }
+      B.innerHTML='<p class="wl-sub">'+rows.length+' notice'+(rows.length===1?'':'s')+' · tap one for the official notice</p><div class="wl-grid">'+rows.map(r=>`<button type="button" class="wl-card" data-u="${esc(r.u)}">${r.img?`<img src="${esc(r.img)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:'<span class="wl-noimg">'+GRI('user')+'</span>'}<b>${esc(r.n)}</b>${r.sub?`<small>${esc(r.sub)}</small>`:''}${r.d?`<em>${esc(r.d.slice(0,120))}</em>`:''}</button>`).join('')+'</div>'+links(k);
+      wire();
+    }catch(e){ B.innerHTML='<p class="wl-sub">Couldn’t load the live list — no signal, or the site didn’t allow it from the app. Open the official list instead:</p>'+links(k); wire(); }
+  }
+  draw();
+}
+window.renderWanted=renderWanted;
 function renderCourtLists(){
   const C=[
    ['⚖️ Supreme Court','https://legaldiary.courts.ie/supreme-court'],
@@ -1391,7 +1548,8 @@ function renderSaved(){
   $$('.savedrow .lrow').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
   $$('.unsave').forEach(b=>b.addEventListener('click',()=>{favs.splice(+b.dataset.i,1);saveFavs();renderSaved();}));
 }
-function saveFavs(){localStorage.setItem(FAVKEY,JSON.stringify(favs));}
+function saveFavs(){localStorage.setItem(FAVKEY,JSON.stringify(favs)); if(window.grTouch)grTouch('favs');}
+window.grFavsReload=()=>{ try{ favs=JSON.parse(localStorage.getItem(FAVKEY)||'[]'); }catch(e){} if(tab==='saved'&&!document.body.classList.contains('subview'))try{ renderSaved(); }catch(e){} };
 function toggleFav(){
   const i=favs.findIndex(f=>f.a===curPage);
   if(i>=0)favs.splice(i,1); else favs.push({a:curPage,title:titleFor(curPage),label:pageLabel(curPage)});
@@ -1494,6 +1652,41 @@ function printedToAbs(p){
 }
 let curDoc=null;
 // every downloadable document: a real Word file (.docx) — the title, then the text line for line in a ruled box
+/* ---------- structured documents (guides and stencils with tables, callouts, checklists) ---------- */
+function rbInline(t,o){ o=o||{};
+  const seg=(str,f)=>{ let h=o.link?linkify(str):esc(str);
+    if(o.ph)h=h.replace(/(\[[^\]\n]{1,90}\]|_{4,})/g,'<mark class="ph">$1</mark>');
+    f=f||''; if(f.indexOf('u')>=0)h='<u>'+h+'</u>'; if(f.indexOf('i')>=0)h='<i>'+h+'</i>'; if(f.indexOf('b')>=0)h='<b>'+h+'</b>'; return h; };
+  return Array.isArray(t)?t.map(r=>seg(String(r[0]),r[1])).join(''):seg(String(t==null?'':t),''); }
+function renderBlocks(B,o){ o=o||{}; let h='', open=false, first=true;
+  const cell=v=>rbInline(v,o).replace(/\n/g,'<br>');
+  const close=()=>{ if(open){ h+='</div></details>'; open=false; } };
+  for(const b of B||[]){
+    if(b.h1!=null){ if(o.sections){ close(); h+='<details class="rsec"'+(first?' open':'')+'><summary><span class="rs-txt">'+esc(b.h1)+'</span></summary><div class="rsecb">'; open=true; first=false; } else h+='<h2 class="rb-h1">'+esc(b.h1)+'</h2>'; }
+    else if(b.h2!=null)h+='<h3 class="rb-h2">'+rbInline(b.h2,o)+'</h3>';
+    else if(b.h3!=null)h+='<h4 class="rb-h3">'+rbInline(b.h3,o)+'</h4>';
+    else if(b.p!=null)h+='<p class="rb-p'+(b.al==='right'?' r':b.al==='center'?' c':'')+(b.small?' sm':'')+'">'+rbInline(b.p,o)+'</p>';
+    else if(b.note!=null)h+='<p class="rb-p sm">'+rbInline(b.note,o)+'</p>';
+    else if(b.ul||b.dl)h+='<ul class="rlist'+(b.dl?' rb-dl':'')+'">'+(b.ul||b.dl).map(li=>'<li>'+rbInline(li,o)+'</li>').join('')+'</ul>';
+    else if(b.chk)h+='<ul class="rb-chk" aria-label="'+esc(b.chk.head||'Checklist')+' — tap to tick (not saved)">'+b.chk.items.map(li=>'<li role="checkbox" aria-checked="false" tabindex="0"><i></i><span>'+rbInline(li,o)+'</span></li>').join('')+'</ul>';
+    else if(b.box){ const x=b.box; h+='<div class="rb-box '+(x.tone==='warn'?'warn':'info')+'">'+(x.t?'<b class="rb-bt">'+esc(x.t)+'</b>':'')+(x.p||[]).map(p=>'<p>'+rbInline(p,o)+'</p>').join('')+(x.ul&&x.ul.length?'<ul class="rlist">'+x.ul.map(li=>'<li>'+rbInline(li,o)+'</li>').join('')+'</ul>':'')+'</div>'; }
+    else if(b.hdr)h+='<div class="rb-hdr"><div>'+(b.hdr.l||[]).map(l=>rbInline(l,o)).join('<br>')+'</div><div>'+(b.hdr.r||[]).map(l=>rbInline(l,o)).join('<br>')+'</div></div>';
+    else if(b.table){ const t=b.table, hd=t.head&&t.head.some(x=>x), st=hd&&t.head.length>=3;   // 3+ columns stack into cards on a phone
+      const plain=v=>Array.isArray(v)?v.map(r=>r[0]).join(''):String(v==null?'':v), sum=(t.cols||[]).reduce((a,c)=>a+c,0);
+      const cg=t.cols&&sum&&t.cols.length===(t.head||t.rows[0]).length?'<colgroup>'+t.cols.map(c=>'<col style="width:'+(c/sum*100).toFixed(1)+'%">').join('')+'</colgroup>':'';
+      h+='<div class="rb-tw"><table class="rb-t'+(t.first?' first':'')+(st?' stack':'')+(cg?' fx':'')+'">'+cg+(hd?'<thead><tr>'+t.head.map(c=>'<th>'+cell(c)+'</th>').join('')+'</tr></thead>':'')
+        +'<tbody>'+t.rows.map(r=>'<tr>'+r.map((c,i)=>'<td'+(st&&plain(t.head[i])?' data-l="'+esc(plain(t.head[i]))+'"':'')+'>'+cell(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>'; }
+    else if(b.gap)h+='<div class="rb-gap"></div>';
+  }
+  close(); return h; }
+function wireBlocks(root){ root.querySelectorAll('.rb-chk li').forEach(li=>{ const tg=()=>{ const on=!li.classList.contains('on'); li.classList.toggle('on',on); li.setAttribute('aria-checked',on); };
+  li.addEventListener('click',tg); li.addEventListener('keydown',e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); tg(); } }); }); }
+function downloadBlocks(d){
+  if(!window.GRDocs){ if(typeof toast==='function')toast('Download isn’t available — reload the app'); return; }
+  const name=GRDocs.safeName(d.title)+'.docx';
+  try{ GRDocs.save(GRDocs.docx({title:d.title,notitle:!!d.notitle,footer:d.notitle?false:undefined,blocks:d.blocks}),name); if(typeof toast==='function')toast('Saved '+name+' to your downloads'); }
+  catch(e){ if(typeof toast==='function')toast('Couldn’t make the Word file on this phone'); }
+}
 function downloadDoc(title,text){
   if(!window.GRDocs){ if(typeof toast==='function')toast('Download isn’t available — reload the app'); return; }
   const name=GRDocs.safeName(title)+'.docx';
@@ -1580,6 +1773,7 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
         : '<b>'+hm+'</b><small>'+(f==='noyear'?ds.slice(0,-5):ds)+'</small>';
       if(el._h!==h){el.innerHTML=h;el._h=h;}
     });
+    document.querySelectorAll('.hd-cd[data-end]').forEach(el=>{ const s=Math.max(0,Math.floor((+el.dataset.end-Date.now())/1000)), v=p(Math.floor(s/3600))+':'+p(Math.floor(s%3600/60))+':'+p(s%60); if(el.textContent!==v)el.textContent=v; });
   }
   tick(); setInterval(tick,250); window.grHudTick=tick;   // 4×/s so new screens never show a blank clock
   window.grToast=function(m){let t=document.getElementById('osToast');if(!t){t=document.createElement('div');t.id='osToast';document.body.appendChild(t);}
@@ -1603,6 +1797,8 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
     if(window.detBack&&window.detBack())return true;                      // detention clock: desk → sheet → clock → list → closed
     if(window.gaolBack&&window.gaolBack())return true;                    // gaoler: desk → sheet → closed
     if(window.ppBack&&window.ppBack())return true;                        // proactive patrol: pocket → sheet → detail → list → closed
+    if(window.synBack&&window.synBack())return true;                        // sync settings
+    if(window.rteBack&&window.rteBack())return true;                      // emergency route: search results → turns → closed
     if(window.tskBack&&window.tskBack())return true;                      // tasks: sheet → editor → list → closed
     if(window.rstBack&&window.rstBack())return true;                      // roster: sheet → wizard step → main → closed
     if(window.ntsBack&&window.ntsBack())return true;

@@ -7,7 +7,16 @@
 <script>/* theme before first paint (ivory is the default) — keep in step with THEMES in app.js */
 (function(){var t='ivory',c={ivory:'#f3f0e9',daylight:'#f2f3f5',sepia:'#eee4d1',mist:'#eef1f5',slate:'#121519',graphite:'#0f1111',navy:'#0c1320',forest:'#0f1411',midnight:'#000000'},L={ivory:1,daylight:1,sepia:1,mist:1};
 try{var s=localStorage.getItem('gr_theme');if(s&&c[s])t=s;}catch(e){}
-var d=document.documentElement;d.setAttribute('data-theme',t);d.setAttribute('data-tone',L[t]?'light':'dark');var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',c[t]);})();
+var d=document.documentElement;d.setAttribute('data-theme',t);d.setAttribute('data-tone',L[t]?'light':'dark');var bar=c[t];
+/* looks (looks.css) sit on top of the colour theme — keep in step with LOOKS in app.js: [modes, light bar, dark bar] */
+var K={editorial:['ld','#f6f1e7','#16130f'],glass:['d','#0b1626'],command:['d','#070b10'],bento:['ld','#eef1f6','#0e1117'],duty:['d','#0b0b0b'],redlight:['d','#000000'],material:['ld','#fef7ff','#141218'],notebook:['l','#fbf8ef'],swiss:['l','#ffffff'],terminal:['d','#020803']};
+try{var k=localStorage.getItem('gr_look');
+/* "red light after dark": is the sun down in Dublin? (solar altitude below -0.833°) — same sum as sunUp in app.js */
+if(localStorage.getItem('gr_look_night')==='1'){var r=Math.PI/180,n=Date.now()/864e5+2440587.5-2451545,g=(357.528+.9856003*n)*r,l=(280.46+.9856474*n+1.915*Math.sin(g)+.02*Math.sin(2*g))*r,e=(23.439-4e-7*n)*r,ra=Math.atan2(Math.cos(e)*Math.sin(l),Math.cos(l)),de=Math.asin(Math.sin(e)*Math.sin(l)),ha=(280.46061837+360.98564736629*n-6.26)*r-ra,la=53.35*r;
+if(Math.asin(Math.sin(la)*Math.sin(de)+Math.cos(la)*Math.cos(de)*Math.cos(ha))/r<=-0.833)k='redlight';}
+if(k&&K[k]){var md=K[k][0],m0=localStorage.getItem('gr_look_mode')||'auto',tone=md==='d'?'dark':md==='l'?'light':(m0==='light'||m0==='dark')?m0:(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+d.setAttribute('data-look',k);d.setAttribute('data-tone',tone);bar=md==='d'?K[k][1]:(tone==='dark'?K[k][2]:K[k][1]);}}catch(e){}
+var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',bar);})();
 /* deep links (?open=… and #…) are read once from here, then taken out of the address so Back or a reload can't run them again */
 (function(){try{var s=location.search,h=location.hash;window.__entry={search:s,hash:h};if(s||h)history.replaceState(null,'',location.pathname);}catch(e){window.__entry={search:'',hash:''};}})();
 /* app lock: nothing shows until the password is entered (lock.js decides) */
@@ -36,7 +45,10 @@ var d=document.documentElement;d.setAttribute('data-theme',t);d.setAttribute('da
 <link rel="stylesheet" href="social.css">
 <link rel="stylesheet" href="patrol.css">
 <link rel="stylesheet" href="gaoler.css">
+<link rel="stylesheet" href="route.css">
 <link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="sync.css">
+<link rel="stylesheet" href="looks.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -105,5 +117,7 @@ var d=document.documentElement;d.setAttribute('data-theme',t);d.setAttribute('da
 <script src="social.js"></script>
 <script src="patrol.js"></script>
 <script src="gaoler.js"></script>
+<script src="route.js"></script>
+<script src="sync.js"></script>
 </body>
 </html>

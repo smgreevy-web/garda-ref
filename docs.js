@@ -46,16 +46,22 @@ function core(title){ return HEAD+'<cp:coreProperties xmlns:cp="http://schemas.o
 function app(){ return HEAD+'<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Assisting</Application></Properties>'; }
 
 /* ---------- Word ---------- */
-// blocks: {h:'Heading'} · {p:'text', b, i, sz (pt), color, mono} · {box:'text kept line for line'} · {table:{cols:[twips…], head:[…], rows:[[…]]}} · {note:'small grey text'} · {gap:1}
+// blocks: {h:'Heading'} · {p:'text', b, i, sz (pt), color, mono} · {box:'text kept line for line'} · {table:{cols:[twips…], head:[…], rows:[[…]], first}} · {note:'small grey text'} · {gap:1}
+// reader blocks (guides, stencils): {h1|h2|h3} · {p: 'text' | [[text,'b'|'i'|'u'…]…], al:'right'|'both'|'center', small, i, keep} · {ul:[…]} · {dl:[…]} (dash list)
+//   · {chk:{head, items:[…]}} (tick-box table) · {box:{t, p:[…], ul:[…], tone:'info'|'warn'}} (callout) · {hdr:{l:[lines], r:[lines]}} (two-column letterhead)
 const PAGE_W=11906, PAGE_H=16838, MARGIN=1134, TEXT_W=PAGE_W-2*MARGIN;
 function run(t,o){ o=o||{}; const f=o.mono?'Courier New':(o.font||'Calibri');
   return '<w:r><w:rPr><w:rFonts w:ascii="'+f+'" w:hAnsi="'+f+'" w:cs="'+f+'" w:eastAsia="'+f+'"/>'+(o.b?'<w:b/><w:bCs/>':'')+(o.i?'<w:i/><w:iCs/>':'')
-    +(o.color?'<w:color w:val="'+o.color+'"/>':'')+'<w:sz w:val="'+Math.round((o.sz||11)*2)+'"/><w:szCs w:val="'+Math.round((o.sz||11)*2)+'"/></w:rPr>'
-    +'<w:t xml:space="preserve">'+x(t)+'</w:t></w:r>'; }
+    +(o.color?'<w:color w:val="'+o.color+'"/>':'')+'<w:sz w:val="'+Math.round((o.sz||11)*2)+'"/><w:szCs w:val="'+Math.round((o.sz||11)*2)+'"/>'+(o.u?'<w:u w:val="single"/>':'')+'</w:rPr>'
+    +String(t==null?'':t).split('\t').map(s=>'<w:t xml:space="preserve">'+x(s)+'</w:t>').join('<w:tab/>')+'</w:r>'; }
+// a paragraph's text: plain, or runs [[text,'b'|'i'|'u'…]…]
+function runs(t,o){ if(!Array.isArray(t))return run(t,o);
+  return t.map(r=>{ const f=r[1]||''; return run(r[0],Object.assign({},o,{b:o.b||f.indexOf('b')>=0,i:o.i||f.indexOf('i')>=0,u:o.u||f.indexOf('u')>=0})); }).join(''); }
 function para(t,o){ o=o||{};
   const sp='<w:spacing w:before="'+(o.before||0)+'" w:after="'+(o.after==null?120:o.after)+'" w:line="'+(o.line||252)+'" w:lineRule="auto"/>';
-  const ppr='<w:pPr>'+(o.keep?'<w:keepNext/>':'')+sp+(o.align?'<w:jc w:val="'+o.align+'"/>':'')+(o.border?'<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="2" w:color="999999"/></w:pBdr>':'')+'</w:pPr>';
-  return '<w:p>'+ppr+(t===''||t==null?'':run(t,o))+'</w:p>'; }
+  const ind=o.ind||o.hang?'<w:ind w:left="'+(o.ind||0)+'"'+(o.hang?' w:hanging="'+o.hang+'"':'')+'/>':'';
+  const ppr='<w:pPr>'+(o.keep?'<w:keepNext/>':'')+(o.border?'<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="2" w:color="999999"/></w:pBdr>':'')+sp+ind+(o.align?'<w:jc w:val="'+o.align+'"/>':'')+'</w:pPr>';
+  return '<w:p>'+ppr+(t===''||t==null||(Array.isArray(t)&&!t.length)?'':runs(t,o))+'</w:p>'; }
 function borders(sz,color,inner){ const b=s=>'<w:'+s+' w:val="single" w:sz="'+sz+'" w:space="0" w:color="'+color+'"/>';
   return '<w:tblBorders>'+b('top')+b('left')+b('bottom')+b('right')+(inner?b('insideH')+b('insideV'):'')+'</w:tblBorders>'; }
 function box(text,TW){ TW=TW||TEXT_W;
@@ -68,24 +74,45 @@ function table(t,TW){ TW=TW||TEXT_W;
   const cols=t.cols&&t.cols.length?t.cols:(t.head||t.rows[0]||[]).map(()=>Math.floor(TW/((t.head||t.rows[0]||[1]).length)));
   const sum=cols.reduce((a,b)=>a+b,0), k=TW/sum, w=cols.map(c=>Math.floor(c*k));
   const cell=(v,i,head)=>'<w:tc><w:tcPr><w:tcW w:w="'+w[i]+'" w:type="dxa"/>'+(head?'<w:shd w:val="clear" w:color="auto" w:fill="E7E6E6"/>':'')+'</w:tcPr>'
-    +String(v==null?'':v).split('\n').map(l=>para(l,{sz:t.sz||9,b:head,after:0,line:240})).join('')+'</w:tc>';
+    +(Array.isArray(v)?para(v,{sz:t.sz||9,b:head||(t.first&&i===0),after:0,line:240}):String(v==null?'':v).split('\n').map(l=>para(l,{sz:t.sz||9,b:head||(t.first&&i===0),after:0,line:240})).join(''))+'</w:tc>';
   let h='<w:tbl><w:tblPr><w:tblW w:w="'+TW+'" w:type="dxa"/>'+borders(4,'8C8C8C',true)
     +'<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr>'
     +'<w:tblGrid>'+w.map(c=>'<w:gridCol w:w="'+c+'"/>').join('')+'</w:tblGrid>';
-  if(t.head)h+='<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>'+t.head.map((v,i)=>cell(v,i,true)).join('')+'</w:tr>';
+  if(t.head&&t.head.some(v=>v!==''&&v!=null))h+='<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>'+t.head.map((v,i)=>cell(v,i,true)).join('')+'</w:tr>';
   for(const r of t.rows)h+='<w:tr><w:trPr><w:cantSplit/></w:trPr>'+cols.map((_,i)=>cell(r[i],i,false)).join('')+'</w:tr>';
   return h+'</w:tbl>'; }
+// a shaded note with a coloured edge — info (blue) or warn (red)
+function callout(c,TW){ const warn=c.tone==='warn', fill=warn?'FBECEC':'EEF3F9', edge=warn?'A23B3B':'2F5496', thin=warn?'E2B4B4':'B8C7DD';
+  const inner=(c.t?para(c.t,{b:true,sz:10.5,color:edge,after:60,keep:true}):'')+(c.p||[]).map(p=>para(p,{sz:10,after:80})).join('')
+    +(c.ul||[]).map(li=>para([['•\t','']].concat(Array.isArray(li)?li:[[li,'']]),{sz:10,after:40,ind:300,hang:300})).join('');
+  const b=s=>'<w:'+s+' w:val="single" w:sz="'+(s==='left'?24:4)+'" w:space="0" w:color="'+(s==='left'?edge:thin)+'"/>';
+  return '<w:tbl><w:tblPr><w:tblW w:w="'+TW+'" w:type="dxa"/><w:tblBorders>'+b('top')+b('left')+b('bottom')+b('right')+'</w:tblBorders>'
+    +'<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="100" w:type="dxa"/><w:left w:w="160" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="160" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+    +'<w:tblGrid><w:gridCol w:w="'+TW+'"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/></w:trPr><w:tc><w:tcPr><w:tcW w:w="'+TW+'" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="'+fill+'"/></w:tcPr>'+(inner||para('',{}))+'</w:tc></w:tr></w:tbl>'; }
+// two-column letterhead text (left and right blocks), no borders
+function letterhead(h,TW){ const a=Math.floor(TW/2), bw=TW-a;
+  const col=(L,al)=>(L||[]).map(l=>para(l,{sz:9,after:0,line:240,align:al,color:'333333'})).join('')||para('',{});
+  return '<w:tbl><w:tblPr><w:tblW w:w="'+TW+'" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+    +'<w:tblGrid><w:gridCol w:w="'+a+'"/><w:gridCol w:w="'+bw+'"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="'+a+'" w:type="dxa"/></w:tcPr>'+col(h.l,'left')+'</w:tc>'
+    +'<w:tc><w:tcPr><w:tcW w:w="'+bw+'" w:type="dxa"/></w:tcPr>'+col(h.r,'right')+'</w:tc></w:tr></w:tbl>'; }
 function docx(o){
   const parts=[], land=!!o.landscape, pw=land?PAGE_H:PAGE_W, ph=land?PAGE_W:PAGE_H, TW=pw-2*MARGIN;
-  parts.push(para(o.title||'Document',{b:true,sz:15,after:o.sub?40:200,keep:true}));
+  if(!o.notitle)parts.push(para(o.title||'Document',{b:true,sz:15,after:o.sub?40:200,keep:true}));
   if(o.sub)parts.push(para(o.sub,{sz:9.5,color:'555555',after:200}));
   for(const b of o.blocks||[]){
     if(b.h!=null)parts.push(para(b.h,{b:true,sz:12,before:200,after:100,keep:true}));
+    else if(b.h1!=null)parts.push(para(b.h1,{b:true,sz:14,color:'1F3864',before:300,after:120,keep:true,border:true}));
+    else if(b.h2!=null)parts.push(para(b.h2,{b:true,sz:12,color:'1F3864',before:220,after:80,keep:true}));
+    else if(b.h3!=null)parts.push(para(b.h3,{b:true,sz:11,color:'44546A',before:140,after:60,keep:true}));
+    else if(b.ul||b.dl)parts.push((b.ul||b.dl).map(li=>para([[(b.ul?'•':'–')+'\t','']].concat(Array.isArray(li)?li:[[li,'']]),{after:40,ind:360,hang:360})).join(''),para('',{after:60}));
+    else if(b.chk)parts.push(table({cols:[500,TW-500],head:['',b.chk.head||''],rows:b.chk.items.map(i=>['☐',i]),sz:10},TW),para('',{after:120}));
+    else if(b.box)parts.push(callout(b.box,TW),para('',{after:120}));
+    else if(b.hdr)parts.push(letterhead(b.hdr,TW),para('',{after:200}));
     else if(b.box!=null)parts.push(box(b.box,TW),para('',{after:120}));
     else if(b.table)parts.push(table(b.table,TW),para('',{after:120}));
     else if(b.note!=null)parts.push(para(b.note,{sz:8.5,color:'666666',after:80}));
     else if(b.gap)parts.push(para('',{after:0}));
-    else if(b.p!=null)parts.push(para(b.p,b));
+    else if(b.p!=null)parts.push(para(b.p,Object.assign({},b,{align:b.al||b.align,sz:b.small?9.5:b.sz,color:b.small?'555555':b.color})));
   }
   if(o.footer!==false)parts.push(para(o.footer||('Assisting — independent reference tool, not an official Garda system · not legal advice · verify current wording · '+new Date().toLocaleDateString('en-IE')),{sz:8,color:'777777',before:120,after:0}));
   const doc=HEAD+'<w:document xmlns:w="'+NS_W+'" xmlns:r="'+NS_R+'"><w:body>'+parts.join('')

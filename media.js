@@ -209,6 +209,10 @@ const INNER_RE=new RegExp('\\b('+[
   'spencer dock\\b','grand canal dock\\b','ringsend\\b',"st\\.? stephen['’]?s green","stephen['’]?s green",'christ ?church cathedral',
   'heuston\\b','connolly station','bus[aá]ras\\b','croke park\\b','mater hospital','rotunda\\b','luas (?:red|green) line'
 ].join('|')+')','i');
+/* stories about Britain only (Irish outlets syndicate a lot of UK crime) are left out; anything that also mentions Ireland or Northern Ireland stays */
+const UK_RE=/\b(england|english|scotland|scottish|wales|welsh|britain|british|uk|u\.k\.|london|manchester|birmingham|liverpool|leeds|sheffield|bristol|newcastle|nottingham|leicester|coventry|bradford|glasgow|edinburgh|aberdeen|cardiff|swansea|kent|essex|surrey|sussex|yorkshire|lancashire|merseyside|cornwall|devon|met police|metropolitan police|scotland yard|crown court|old bailey|westminster|downing street|home office|starmer|sunak|tories|tory|nhs england|police scotland|cps)\b/i;
+const IE_RE=/\b(ireland|irish|dublin|cork|galway|limerick|waterford|kilkenny|wexford|wicklow|kildare|meath|louth|drogheda|dundalk|donegal|kerry|clare|mayo|sligo|tipperary|offaly|laois|westmeath|longford|roscommon|leitrim|cavan|monaghan|carlow|athlone|navan|swords|tallaght|garda|gardaí|gardai|psni|belfast|derry|northern ireland|antrim|armagh|tyrone|fermanagh|newry|taoiseach|tánaiste|dáil|dail|oireachtas|hse|rté|rte|dpp|special criminal court|central criminal court|circuit court|district court|courts service)\b/i;
+function isUKStory(it){ const txt=(it.t||'')+' '+String(it.d||'').slice(0,320); return UK_RE.test(txt)&&!IE_RE.test(txt); }
 function isInner(it){ const txt=it.t+' '+(it.d||''); return (LOCAL_SK.has(it.sk)||/\bdublin\b/i.test(txt))&&INNER_RE.test(txt); }
 // weight, category — what a Garda needs to know first
 const NW=[
@@ -257,7 +261,8 @@ async function fetchFeed(F){
       const j=await r.json(); if(j.status!=='ok'||!(j.items||[]).length)continue;
       return (j.items||[]).map(i=>{ const d=clean(i.description), c=clean(i.content);
         const ts=Date.parse(String(i.pubDate||'').replace(' ','T')+'Z')||Date.parse(i.pubDate)||0;
-        return {id:(i.guid||i.link||i.title||'').slice(-120),t:clean(i.title),d:d.slice(0,700),c:(c.length>d.length?c:d).slice(0,6000),ts,src:F.t,sk:F.k}; });
+        return {id:(i.guid||i.link||i.title||'').slice(-120),t:clean(i.title),d:d.slice(0,700),c:(c.length>d.length?c:d).slice(0,6000),ts,src:F.t,sk:F.k,l:/^https:\/\//.test(i.link||'')?String(i.link).slice(0,400):''}; })
+        .filter(it=>!isUKStory(it)); 
     }catch(e){} finally{clearTimeout(tm);}
   }
   return null;
@@ -361,12 +366,14 @@ function drawStory(C){
   const it=C.lead;
   $('#mSsrc').textContent=(it.urgent?'URGENT · ':'')+'NEED-TO-KNOW';
   let h='<h2>'+esc(it.t)+'</h2><div class="m-when">'+esc(when(it.ts))+' · '+esc(ago(it.ts))+' · <button class="m-srcbtn" data-s="'+esc(it.src)+'">'+esc(it.src)+' ›</button></div>'
-    +(paras(it.c||it.d)||'<p>No summary provided by the source.</p>');
+    +(paras(it.c||it.d)||'<p>No summary provided by the source.</p>')
+    +(it.l?'<button class="m-full" data-u="'+esc(it.l)+'">Read the full article on '+esc(it.src)+' ↗</button>':'');
   if(C.also.length){
-    h+='<h3 class="m-h">Also reported by</h3>'+C.also.map(x=>'<div class="m-persp"><div class="m-when">'+esc(x.src)+' · '+esc(when(x.ts))+'</div><b>'+esc(x.t)+'</b>'+(x.d?'<p>'+esc(x.d.slice(0,420))+(x.d.length>420?'…':'')+'</p>':'')+'</div>').join('');
+    h+='<h3 class="m-h">Also reported by</h3>'+C.also.map(x=>'<div class="m-persp"><div class="m-when">'+esc(x.src)+' · '+esc(when(x.ts))+'</div><b>'+esc(x.t)+'</b>'+((x.c||x.d)?'<p>'+esc((x.c||x.d).slice(0,900))+((x.c||x.d).length>900?'…':'')+'</p>':'')+(x.l?'<button class="m-full sm" data-u="'+esc(x.l)+'">Full article on '+esc(x.src)+' ↗</button>':'')+'</div>').join('');
   }
-  h+='<p class="m-note">Text as published in each outlet’s news feed — some outlets only publish a summary.</p>';
+  h+='<p class="m-note">Text as published in each outlet’s news feed — some outlets only publish a summary, so tap Read the full article for the whole story (needs signal).</p>';
   $('#mSbody').innerHTML=h;
+  $('#mSbody').querySelectorAll('.m-full').forEach(b=>b.addEventListener('click',()=>window.open(b.dataset.u,'_blank','noopener')));
   $('#mSbody').querySelectorAll('.m-srcbtn').forEach(b=>b.addEventListener('click',()=>openSource(b.dataset.s)));
 }
 function openSource(name){

@@ -235,6 +235,8 @@ function crosshair(c,w,h){const r=Math.round(Math.min(w,h)*0.045),L=r*2.6;c.save
 
 /* ---------- icons (stroke line art, currentColor) ---------- */
 const IC={
+  pomodoro:'<circle cx="12" cy="13.5" r="7.5"/><path d="M12 6V3.5M9.3 4.6 12 6l2.7-1.4M12 10v3.5l2.4 1.6"/>',
+  fakecall:'<path d="M5 3.5h3l1.5 4-2 1.3a11 11 0 0 0 6.7 6.7l1.3-2 4 1.5v3a1.5 1.5 0 0 1-1.6 1.5A16.5 16.5 0 0 1 3.5 5.1 1.5 1.5 0 0 1 5 3.5z"/><path d="M15 3.5v5h5M20.5 3 15 8.5"/>',
   torch:'<path d="M8 2.5h8v4.2l-2 3V20a1.5 1.5 0 0 1-1.5 1.5h-1A1.5 1.5 0 0 1 10 20V9.7l-2-3z"/><path d="M8 6.7h8M12 12.5V15"/>',
   level:'<rect x="2" y="8" width="20" height="8" rx="2.5"/><path d="M9 8v8M15 8v8"/><circle cx="12" cy="12" r="1.6"/>',
   angle:'<path d="M3.5 20h17M3.5 20 16 7.5"/><path d="M10 20a6.5 6.5 0 0 0-1.9-4.6"/>',
@@ -309,7 +311,7 @@ function openTool(id){
   hud();return true;
 }
 function closeToolbox(){endTool();if(keyOn){W.removeEventListener('keydown',onKey,true);keyOn=false;}if(ov){ov.hidden=true;mainEl.textContent='';clearTimeout(toastT);toastEl.classList.remove('tbx-on');}}
-function tbxBack(){if(!ov||ov.hidden||!ov.isConnected)return false;if(cur)showGrid();else closeToolbox();return true;}
+function tbxBack(){if(W.grFakeCallClose&&W.grFakeCallClose())return true;if(!ov||ov.hidden||!ov.isConnected)return false;if(cur)showGrid();else closeToolbox();return true;}
 function segBind(seg,fn){seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!seg.contains(b))return;
   qa(seg,'button').forEach(x=>x.classList.toggle('tbx-on',x===b));fn(b);});}
 
@@ -828,6 +830,38 @@ tool('counter','Counter',1,'counter',function(s,box){
 /* =====================================================================
    SOUND & VISION
    ===================================================================== */
+tool('pomodoro','Pomodoro',1,'pomodoro',function(s,box){
+  const PRE=[[25,5,15,'25 / 5'],[45,15,20,'45 / 15'],[50,10,20,'50 / 10']];
+  let pi=+LSget('tbx_pomo',0)||0; if(!PRE[pi])pi=0;
+  box.innerHTML='<div class="tbx-body tbx-center"><div class="tbx-pm-ph">Focus</div><div class="tbx-clock tbx-pm-t tbx-num">25:00</div><div class="tbx-pm-dots"></div>'
+    +'<div class="tbx-seg tbx-pm-pre">'+PRE.map((x,i)=>'<button type="button" data-p="'+i+'" class="'+(i===pi?'tbx-on':'')+'">'+x[3]+'</button>').join('')+'</div>'
+    +'<div class="tbx-row"><button type="button" class="tbx-btn tbx-lg tbx-pm-rs">Reset</button><button type="button" class="tbx-btn tbx-lg tbx-pm-sk">Skip</button><button type="button" class="tbx-btn tbx-gold tbx-lg tbx-pm-go">Start</button></div>'
+    +'<label class="tbx-chk"><input type="checkbox" class="tbx-pm-wk" checked> Keep the screen on</label>'
+    +'<p class="tbx-note">Focus, then a short break; every fourth break is a long one. It beeps and vibrates at each change and carries on into the next part. It stops if you leave this screen.</p></div>';
+  const tEl=q(box,'.tbx-pm-t'),phEl=q(box,'.tbx-pm-ph'),dots=q(box,'.tbx-pm-dots'),go=q(box,'.tbx-pm-go'),wk=q(box,'.tbx-pm-wk');
+  let ph='focus',done=0,rem=PRE[pi][0]*60000,end=0,run=null,ac=null;
+  const durOf=x=>PRE[pi][x==='focus'?0:x==='short'?1:2]*60000;
+  const fmt=ms=>{const t=Math.max(0,Math.ceil(ms/1000));return Math.floor(t/60)+':'+p2(t%60);};
+  const LBL={focus:'Focus',short:'Short break',long:'Long break'};
+  function ui(){ tEl.textContent=fmt(rem); phEl.textContent=LBL[ph]+(ph==='focus'?' · '+(done%4+1)+' of 4':'');
+    phEl.classList.toggle('tbx-pm-brk',ph!=='focus'); go.textContent=run?'Pause':(rem<durOf(ph)?'Resume':'Start');
+    go.classList.toggle('tbx-gold',!run); go.classList.toggle('tbx-red',!!run);
+    dots.innerHTML=[0,1,2,3].map(i=>'<i class="'+(i<done%4||(done>0&&done%4===0&&ph==='long')?'on':'')+'"></i>').join(''); }
+  function chime(toBreak){ if(!ac)return; const t=ac.currentTime; if(toBreak){beep(ac,660,0.18,t);beep(ac,880,0.18,t+0.24);beep(ac,1100,0.32,t+0.48);} else {beep(ac,1100,0.18,t);beep(ac,880,0.18,t+0.24);beep(ac,660,0.32,t+0.48);} }
+  function next(){ if(ph==='focus'){ done++; ph=done%4===0?'long':'short'; } else ph='focus';
+    rem=durOf(ph); end=Date.now()+rem; chime(ph!=='focus'); vib(ph==='focus'?[300,120,300]:[600]); ui(); }
+  function start(){ if(!ac)ac=audioCtx(s); if(ac&&ac.resume)ac.resume().catch(()=>{});
+    end=Date.now()+rem; run=s.child(); if(wk.checked)wake(run);
+    run.every(250,()=>{ rem=end-Date.now(); if(rem<=0)next(); else tEl.textContent=fmt(rem); }); ui(); }
+  function pause(){ rem=Math.max(0,end-Date.now()); if(run){run.end();run=null;} ui(); }
+  go.addEventListener('click',()=>{ if(run)pause(); else start(); });
+  q(box,'.tbx-pm-sk').addEventListener('click',()=>{ const was=!!run; if(run){run.end();run=null;} next(); if(was)start(); else ui(); });
+  q(box,'.tbx-pm-rs').addEventListener('click',()=>{ if(run){run.end();run=null;} ph='focus'; done=0; rem=durOf('focus'); ui(); });
+  q(box,'.tbx-pm-pre').addEventListener('click',e=>{ const b=e.target.closest('[data-p]'); if(!b||run)return; pi=+b.dataset.p; LSset('tbx_pomo',pi);
+    q(box,'.tbx-pm-pre').querySelectorAll('button').forEach(x=>x.classList.toggle('tbx-on',x===b)); rem=durOf(ph); ui(); });
+  s.clean(()=>vib(0)); ui();
+});
+
 tool('sound','Sound level',2,'sound',function(s,box){
   box.innerHTML='<div class="tbx-body tbx-center">'
     +'<div><span class="tbx-big tbx-so-v tbx-num">—</span> <span class="tbx-unit tbx-nc">dB (approx.)</span></div>'
@@ -1009,6 +1043,32 @@ function conv(cat,v,from,to){
   const U=UNITS[cat].u,f=U.find(x=>x[0]===from),t=U.find(x=>x[0]===to);return v*f[1]/t[1];
 }
 const nf=v=>{if(!isFinite(v))return '';const a=Math.abs(v);if(a!==0&&(a>=1e9||a<1e-4))return v.toPrecision(6);return String(parseFloat(v.toFixed(a>=1000?2:4)));};
+tool('fakecall','Fake call',3,'fakecall',function(s,box){
+  const QN=['Sergeant','Station','Mam','Dad','Home'], WAIT=[[5,'5 s'],[10,'10 s'],[30,'30 s'],[60,'1 min'],[300,'5 min']];
+  let name=String(LSget('tbx_fc_name','Sergeant')||'Sergeant'), wait=+LSget('tbx_fc_wait',10)||10, timer=null, endAt=0;
+  box.innerHTML='<div class="tbx-body">'
+    +'<p class="tbx-note">A realistic incoming call to give you a reason to step away. It rings and vibrates; answer it and act out the call.</p>'
+    +'<label class="tbx-fc-l">Caller name<input class="tbx-in tbx-fc-n" maxlength="30" autocomplete="off" value="'+esc(name)+'"></label>'
+    +'<div class="tbx-fc-q">'+QN.map(n=>'<button type="button" class="tbx-btn" data-n="'+esc(n)+'">'+esc(n)+'</button>').join('')+'</div>'
+    +'<div class="tbx-fc-l">Ring in</div><div class="tbx-seg tbx-fc-w">'+WAIT.map(x=>'<button type="button" data-w="'+x[0]+'" class="'+(x[0]===wait?'tbx-on':'')+'">'+x[1]+'</button>').join('')+'</div>'
+    +'<button type="button" class="tbx-btn tbx-gold tbx-lg tbx-fc-go">Start</button><p class="tbx-fc-st" aria-live="polite"></p>'
+    +'<p class="tbx-note">Keep Assisting open: the screen stays on until it rings, and you can put the phone face down or in a pocket. On an iPhone it rings but can’t vibrate.</p></div>';
+  const nIn=q(box,'.tbx-fc-n'), go=q(box,'.tbx-fc-go'), st=q(box,'.tbx-fc-st');
+  nIn.addEventListener('input',()=>{ name=nIn.value.trim()||'Sergeant'; LSset('tbx_fc_name',name); });
+  q(box,'.tbx-fc-q').addEventListener('click',e=>{ const b=e.target.closest('[data-n]'); if(!b)return; nIn.value=name=b.dataset.n; LSset('tbx_fc_name',name); });
+  q(box,'.tbx-fc-w').addEventListener('click',e=>{ const b=e.target.closest('[data-w]'); if(!b)return; wait=+b.dataset.w; LSset('tbx_fc_wait',wait);
+    q(box,'.tbx-fc-w').querySelectorAll('button').forEach(x=>x.classList.toggle('tbx-on',x===b)); });
+  const fmt=ms=>{const t=Math.max(0,Math.ceil(ms/1000));return Math.floor(t/60)+':'+p2(t%60);};
+  function cancel(){ if(timer){timer.end();timer=null;} go.textContent='Start'; go.classList.add('tbx-gold'); go.classList.remove('tbx-red'); st.textContent=''; }
+  go.addEventListener('click',()=>{
+    if(timer){ cancel(); return; }
+    const ac=audioCtx(s); if(ac&&ac.resume)ac.resume().catch(()=>{});   // unlock sound now, while we have the tap
+    endAt=Date.now()+wait*1000; timer=s.child(); wake(timer); go.textContent='Cancel'; go.classList.remove('tbx-gold'); go.classList.add('tbx-red');
+    timer.every(250,()=>{ const r=endAt-Date.now(); if(r<=0){ cancel(); W.grFakeCall(name,ac); } else st.textContent='Ringing in '+fmt(r)+' · tap Cancel to stop'; });
+  });
+  s.clean(()=>{ if(timer){timer.end();timer=null;} });
+});
+
 tool('converter','Converter',3,'converter',function(s,box){
   let cat=LSget('tbx_cvcat','speed');if(!UNITS[cat])cat='speed';
   box.innerHTML='<div class="tbx-body"><div class="tbx-cats">'+Object.keys(UNITS).map(k=>'<button type="button" class="tbx-btn'+(k===cat?' tbx-gold':'')+'" data-c="'+k+'">'+UNITS[k].l+'</button>').join('')+'</div>'
@@ -1168,6 +1228,32 @@ tool('device','Phone status',3,'device',function(s,box){
 });
 
 /* ---------- public API ---------- */
+
+/* ---- fake incoming call: full-screen, above everything, ends with Decline / End ---- */
+W.grFakeCall=function(name,ac){
+  const old=D.getElementById('tbxCall'); if(old)old.remove();
+  const ini=String(name||'?').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const ov=D.createElement('div'); ov.id='tbxCall'; ov.setAttribute('role','dialog'); ov.setAttribute('aria-label','Incoming call');
+  ov.innerHTML='<div class="fc-top"><small class="fc-k">Incoming call</small><b class="fc-n">'+esc(name)+'</b><span class="fc-m">Mobile</span></div>'
+    +'<div class="fc-av">'+esc(ini)+'</div>'
+    +'<div class="fc-ring"><button type="button" class="fc-b fc-no" aria-label="Decline"><svg viewBox="0 0 24 24"><path d="M3.6 14.2c4.8-4.4 12-4.4 16.8 0l-2 2.3-3-1.1-.4-2.3a9 9 0 0 0-6 0l-.4 2.3-3 1.1z"/></svg><span>Decline</span></button>'
+    +'<button type="button" class="fc-b fc-yes" aria-label="Answer"><svg viewBox="0 0 24 24"><path d="M5 3.5h3l1.5 4-2 1.3a11 11 0 0 0 6.7 6.7l1.3-2 4 1.5v3a1.5 1.5 0 0 1-1.6 1.5A16.5 16.5 0 0 1 3.5 5.1 1.5 1.5 0 0 1 5 3.5z"/></svg><span>Answer</span></button></div>'
+    +'<div class="fc-in" hidden><div class="fc-tools"><button type="button" class="fc-t">Mute</button><button type="button" class="fc-t">Keypad</button><button type="button" class="fc-t">Speaker</button></div>'
+    +'<button type="button" class="fc-b fc-no fc-end" aria-label="End call"><svg viewBox="0 0 24 24"><path d="M3.6 14.2c4.8-4.4 12-4.4 16.8 0l-2 2.3-3-1.1-.4-2.3a9 9 0 0 0-6 0l-.4 2.3-3 1.1z"/></svg><span>End</span></button></div>';
+  D.body.appendChild(ov);
+  let t0=0, iv=0, ringT=0, stop=0, lock=null;
+  try{ if(navigator.wakeLock)navigator.wakeLock.request('screen').then(l=>{lock=l;}).catch(()=>{}); }catch(e){}
+  const ring=()=>{ if(ac&&ac.state!=='closed'){ const t=ac.currentTime; for(let i=0;i<2;i++){ beep(ac,523,0.22,t+i*0.5); beep(ac,659,0.22,t+i*0.5+0.22); } } vib([700,300,700]); };
+  ring(); ringT=setInterval(ring,2600); stop=setTimeout(()=>close(),45000);
+  function close(){ clearInterval(ringT); clearInterval(iv); clearTimeout(stop); vib(0); try{ if(lock)lock.release(); }catch(e){} ov.remove(); }
+  ov.querySelector('.fc-ring .fc-no').addEventListener('click',close);
+  ov.querySelector('.fc-end').addEventListener('click',close);
+  ov.querySelectorAll('.fc-t').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('on')));
+  ov.querySelector('.fc-yes').addEventListener('click',()=>{ clearInterval(ringT); clearTimeout(stop); vib(0); t0=Date.now();
+    ov.classList.add('live'); ov.querySelector('.fc-ring').hidden=true; ov.querySelector('.fc-in').hidden=false;
+    const k=ov.querySelector('.fc-k'); k.textContent='0:00'; iv=setInterval(()=>{ const s2=Math.floor((Date.now()-t0)/1000); k.textContent=Math.floor(s2/60)+':'+p2(s2%60); },500); });
+  W.grFakeCallClose=()=>{ if(ov.isConnected){ close(); return true; } return false; };
+};
 W.openToolbox=openToolbox;W.openTool=openTool;W.closeToolbox=closeToolbox;W.tbxBack=tbxBack;
 W.tbxLib=Object.freeze({toITM,calc,cardinal,camTilt,upVec,headingOf,tools:()=>TOOLS.map(t=>t.id)});
 })();

@@ -1,7 +1,10 @@
 /* Assisting — Tasks: a to-do scheduler for the job.
-   Types with their own icons (CCTV camera, statement paper, moon for nights…), time windows (business hours,
-   early morning, lunchtime, nights…), deadlines with reminders, an urgent flag, and helpers for CCTV overwrite
-   dates and the 6-month summary time limit. Saved only on this phone (localStorage). Nothing is uploaded. */
+   Types and sub-types with their own icons (CCTV, statements, enquiries, files — charged, for directions, traffic, sudden
+   death…), steps inside a task — and steps inside steps, up to six levels — time windows (business hours, early morning, nights…), deadlines with reminders, an urgent
+   flag, planning around My roster (your next tours, "you're off that day"), a place lookup for phone / email / opening hours,
+   email-to-myself and calendar files, and helpers for CCTV overwrite dates and the 6-month summary time limit.
+   Saved only on this phone (localStorage). Nothing is uploaded — except, when you tap Find, the place name you typed
+   (to OpenStreetMap; or to Claude with your own API key if you choose that). */
 (function(){
 'use strict';
 const W=window, D=document;
@@ -25,21 +28,96 @@ const uid=()=>'t'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const vib=p=>{try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}};
 const svg=(p,c)=>'<svg viewBox="0 0 24 24" aria-hidden="true"'+(c?' class="'+c+'"':'')+'>'+p+'</svg>';
 
-/* ================= icons ================= */
+/* ================= icons =================
+   Line icons on a 24-px grid. Parts with class "d" also get a soft fill in the type's colour, "f" is fill only, "s" solid. */
 const IC={
- cctv:'<path d="M3 8h3l2-3h8l2 3h3v11H3z"/><circle cx="12" cy="13" r="4"/>',
- statement:'<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 11h7M9 14h7M9 17h4"/>',
- night:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
- call:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
- visit:'<path d="M3 11 12 4l9 7"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/>',
- court:'<path d="M12 3v18M7 21h10M4 7h16"/><path d="M4 7l-2.5 6a2.5 2.5 0 0 0 5 0zM20 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/>',
- file:'<path d="M3 6h6l2 2h10v11H3z"/><path d="M3 11h18"/>',
- exhibit:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
- email:'<path d="M3 6h18v12H3z"/><path d="m3 7 9 7 9-7"/>',
- limit:'<path d="M6 3h12M6 21h12M7 3c0 5 5 6 5 9 0-3 5-4 5-9M7 21c0-5 5-6 5-9 0 3 5 4 5 9"/>',
- arrest:'<circle cx="6.5" cy="15.5" r="4"/><circle cx="17.5" cy="15.5" r="4"/><path d="M9.6 12.9 11 11h2l1.4 1.9"/><path d="M6.5 11.5V9M17.5 11.5V9M5 9h3M16 9h3"/>',
- scan:'<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9h8M8 12h8M8 15h5"/>',
+ // types
+ cctv:'<path class="d" d="M4 5.5h11.5A1.5 1.5 0 0 1 17 7v4a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 11V7A1.5 1.5 0 0 1 4 5.5z"/><path d="m17 7.8 4.5-1.8v6L17 10.2M9.5 12.5V17h-5M4.5 14.5v5.5"/><circle class="s" cx="6" cy="9" r="1"/>',
+ statement:'<path class="d" d="M11.5 21H6.5A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3H14l5 5v3.5"/><path d="M14 3v5h5M8.5 12h6M8.5 15.5h3.5"/><path d="M19.4 13.6a1.5 1.5 0 0 1 2.1 2.1l-6 6-2.8.7.7-2.8z"/>',
+ arrest:'<circle cx="7" cy="16" r="4.5"/><circle cx="17" cy="16" r="4.5"/><path class="d" d="M5.3 11.8V9.4a1 1 0 0 1 1-1h1.4a1 1 0 0 1 1 1v2.4M15.3 11.8V9.4a1 1 0 0 1 1-1h1.4a1 1 0 0 1 1 1v2.4"/><path d="M7 8.4V6.8M17 8.4V6.8"/><rect x="7.6" y="4.3" width="3.2" height="2.2" rx="1.1"/><rect x="13.2" y="4.3" width="3.2" height="2.2" rx="1.1"/><path d="M10.8 5.4h2.4"/>',
+ enquiry:'<circle class="d" cx="10.5" cy="10.5" r="7"/><path d="m15.8 15.8 5 5"/><path d="M8.6 8.7a2 2 0 1 1 2.8 1.8c-.6.3-.9.7-.9 1.3v.3M10.5 14.2h.01"/>',
+ visit:'<path class="f" d="M5 9.5 12 4l7 5.5V20H5z"/><path d="M3 11 12 3.8 21 11M5 9.5V20h14V9.5M10 20v-5h4v5"/>',
+ call:'<path class="d" d="M5 4h3.5l2 5-2.5 1.5a11 11 0 0 0 5.5 5.5L15 13.5l5 2V19a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/><path d="M14.5 3.5a6.5 6.5 0 0 1 6 6M14.5 7a3 3 0 0 1 2.5 2.5"/>',
+ file:'<path class="d" d="M3 7a1.5 1.5 0 0 1 1.5-1.5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/><path d="M3 11h18"/>',
+ court:'<path d="M12 4.8V20M8 20.5h8M4.5 7h15M4.5 7 2 13M4.5 7 7 13M19.5 7 17 13M19.5 7 22 13"/><path class="d" d="M2 13a2.5 2.5 0 0 0 5 0zM17 13a2.5 2.5 0 0 0 5 0z"/><circle cx="12" cy="3.8" r="1.1"/>',
+ limit:'<path d="M6.5 3h11M6.5 21h11M7.5 3v2.6a4.5 4.5 0 0 0 2 3.7L12 11l2.5-1.7a4.5 4.5 0 0 0 2-3.7V3M7.5 21v-2.6a4.5 4.5 0 0 1 2-3.7L12 13l2.5 1.7a4.5 4.5 0 0 1 2 3.7V21"/><path class="f" d="M8.6 21v-1.9a3.4 3.4 0 0 1 1.5-2.8L12 15l1.9 1.3a3.4 3.4 0 0 1 1.5 2.8V21z"/>',
+ exhibit:'<path class="d" d="M3 5a2 2 0 0 1 2-2h6.2a2 2 0 0 1 1.4.6l8 8a2 2 0 0 1 0 2.8l-6.2 6.2a2 2 0 0 1-2.8 0l-8-8A2 2 0 0 1 3 11.2z"/><circle cx="7.8" cy="7.8" r="1.7"/><path d="m10.5 14.5 4-4M12.8 16.8l2.4-2.4"/>',
+ traffic:'<path d="M5.2 10.5 6.7 6.3A2 2 0 0 1 8.6 5h6.8a2 2 0 0 1 1.9 1.3l1.5 4.2"/><path class="d" d="M3.5 12a1.5 1.5 0 0 1 1.5-1.5h14a1.5 1.5 0 0 1 1.5 1.5v5h-17z"/><path d="M5.5 17v2.5h3V17M15.5 17v2.5h3V17M6.5 13.8h1.5M16 13.8h1.5"/>',
+ victim:'<path class="d" d="M12 13.8s-4.6-2.7-4.6-5.9A2.5 2.5 0 0 1 12 6.5a2.5 2.5 0 0 1 4.6 1.4c0 3.2-4.6 5.9-4.6 5.9z"/><path d="M2.5 14.5h2.8l3.6 2.3h5a1.3 1.3 0 0 1 0 2.6H10.2M17 17.6l3.5-2.4a1.3 1.3 0 0 1 1.5 2.1L16.2 21H8.6l-3.3-1.6H2.5"/>',
+ email:'<rect class="d" x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/>',
+ night:'<path class="d" d="M19.5 14.6A8 8 0 1 1 9.4 4.5a6.4 6.4 0 0 0 10.1 10.1z"/><path d="M17 2.8v3.4M15.3 4.5h3.4M20.6 8.4v1.8M19.7 9.3h1.8"/>',
+ admin:'<rect class="d" x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5h18M10.5 12.5v2h3v-2"/>',
  other:'<path d="M10 6h10M10 12h10M10 18h10"/><path d="m3.5 6 1.5 1.5L8 4.5M3.5 12l1.5 1.5L8 10.5M3.5 18l1.5 1.5L8 16.5"/>',
+ // sub-types
+ pin:'<path class="d" d="M12 21.5s-6.5-6-6.5-11.5a6.5 6.5 0 0 1 13 0c0 5.5-6.5 11.5-6.5 11.5z"/><circle cx="12" cy="10" r="2.4"/>',
+ shield:'<path class="d" d="M12 3 5 5.8v5.4c0 4.4 3 8.1 7 9.8 4-1.7 7-5.4 7-9.8V5.8z"/><path d="m8.8 12 2.2 2.2 4.3-4.4"/>',
+ download:'<path d="M12 3.5v10.5M7.5 9.5 12 14l4.5-4.5"/><path class="d" d="M3.5 15v3.5A1.5 1.5 0 0 0 5 20h14a1.5 1.5 0 0 0 1.5-1.5V15"/>',
+ play:'<rect class="d" x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8.5 21h7M12 17v4"/><path class="s" d="M10.2 7.9v5.2l4.4-2.6z"/>',
+ stills:'<rect x="3" y="3" width="18" height="18" rx="2.5"/><circle class="d" cx="12" cy="10" r="3.2"/><path d="M6.3 21a5.7 5.7 0 0 1 11.4 0"/>',
+ plaster:'<g transform="rotate(-45 12 12)"><rect class="d" x="2" y="8.5" width="20" height="7" rx="3.5"/><path d="M9 8.5v7M15 8.5v7"/></g><path d="M11.2 12h.01M12.8 12h.01"/>',
+ eye:'<path class="d" d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+ userpen:'<circle cx="9" cy="7.5" r="3.5"/><path class="d" d="M2.5 20.5a6.5 6.5 0 0 1 10.6-5"/><path d="M19.6 12.2a1.6 1.6 0 0 1 2.3 2.3L16.5 20l-3 .7.7-3z"/>',
+ speech:'<path class="d" d="M4.5 4.5h15A1.5 1.5 0 0 1 21 6v9.5a1.5 1.5 0 0 1-1.5 1.5H11l-4.5 3.5V17h-2A1.5 1.5 0 0 1 3 15.5V6a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M7.5 9h9M7.5 12.5h6"/>',
+ clipcross:'<rect class="d" x="5" y="4" width="14" height="17.5" rx="2"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M12 10v6.5M8.8 13.2h6.4"/>',
+ fileheart:'<path class="d" d="M6.5 3H14l5 5v12.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20.5v-16A1.5 1.5 0 0 1 6.5 3z"/><path d="M14 3v5h5"/><path d="M12 18.3s-3.3-1.9-3.3-4.3a1.8 1.8 0 0 1 3.3-1 1.8 1.8 0 0 1 3.3 1c0 2.4-3.3 4.3-3.3 4.3z"/>',
+ user:'<circle class="d" cx="12" cy="8" r="4"/><path class="d" d="M4.5 21a7.5 7.5 0 0 1 15 0z"/>',
+ gavel:'<path class="d" d="m9.6 6.2 3.6-3.6 7.2 7.2-3.6 3.6z"/><path d="M13.2 9.8 4.5 18.5M3 21.5h9"/>',
+ warrant:'<path d="M13 21H6.5A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3H14l5 5v3.5"/><path d="M14 3v5h5M8.5 11h6M8.5 14h3.5"/><circle class="d" cx="17" cy="16.5" r="3.2"/><path d="m15.3 19.3-.8 3.2 2.5-1.2 2.5 1.2-.8-3.2"/>',
+ target:'<circle cx="12" cy="12" r="8.5"/><path d="M12 1.8v3.4M12 18.8v3.4M1.8 12h3.4M18.8 12h3.4"/><circle class="d" cx="12" cy="10.3" r="2.3"/><path class="d" d="M8.4 16.6a3.6 3.6 0 0 1 7.2 0z"/>',
+ chain:'<rect x="12.9" y="3" width="6.6" height="10" rx="3.3" transform="rotate(45 16.2 8)"/><rect x="4.5" y="11" width="6.6" height="10" rx="3.3" transform="rotate(45 7.8 16)"/><path d="M10.4 10.4 9 9M13.6 13.6 15 15"/>',
+ bars:'<rect class="d" x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8.5 3v18M12 3v18M15.5 3v18M4 9h16"/>',
+ houses:'<path class="d" d="M2.5 12.5 7 8.5l4.5 4V20h-9z"/><path class="d" d="M12.5 11 17 7l4.5 4v9h-9z"/><path d="M6 20v-3h2v3M16 20v-3h2v3"/>',
+ shop:'<path class="f" d="M3 9.5 4.6 4.5h14.8L21 9.5z"/><path d="M4.6 4.5h14.8L21 9.5H3zM3 9.5a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0M4.5 12v8h15v-8M10 20v-4.5h4V20"/>',
+ civic:'<path class="d" d="M3 9 12 4l9 5z"/><path d="M5.5 10.5v7M10 10.5v7M14 10.5v7M18.5 10.5v7M3.5 20.5h17M4.5 18h15"/>',
+ feet:'<path class="d" d="M7.5 3.5c1.6 0 2.7 1.7 2.7 4.1 0 1.9-.6 3.4-.9 4.4H6.1c-.4-1-.9-2.5-.9-4.2 0-2.5 1-4.3 2.3-4.3z"/><path d="M6.2 14.5h3.2v1.3a1.6 1.6 0 0 1-3.2 0z"/><path class="d" d="M16.5 7.5c1.3 0 2.3 1.8 2.3 4.3 0 1.7-.5 3.2-.9 4.2h-3.2c-.3-1-.9-2.5-.9-4.4 0-2.4 1.1-4.1 2.7-4.1z"/><path d="M14.6 18.5h3.2v1.3a1.6 1.6 0 0 1-3.2 0z"/>',
+ globe:'<circle class="d" cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"/>',
+ idcard:'<rect class="d" x="2.5" y="5" width="19" height="14" rx="2"/><circle cx="8.3" cy="10.8" r="2"/><path d="M5.2 16a3.2 3.2 0 0 1 6.2 0M14 10h4.5M14 13.5h3"/>',
+ taxi:'<rect class="f" x="9.3" y="2.3" width="5.4" height="2.7" rx=".6"/><rect x="9.3" y="2.3" width="5.4" height="2.7" rx=".6"/><path d="M5.2 11 6.6 7.3A2 2 0 0 1 8.5 6h7a2 2 0 0 1 1.9 1.3l1.4 3.7"/><path class="d" d="M3.5 12.5A1.5 1.5 0 0 1 5 11h14a1.5 1.5 0 0 1 1.5 1.5V17h-17z"/><path d="M5.5 17v2.5h3V17M15.5 17v2.5h3V17M6.5 14h1.5M16 14h1.5"/>',
+ hosp:'<rect class="d" x="4" y="3.5" width="16" height="17.5" rx="1.5"/><path d="M12 7.5v6M9 10.5h6M10 21v-3.5h4V21"/>',
+ radio:'<rect class="d" x="6.5" y="7.5" width="11" height="14" rx="2"/><path d="M9.5 7.5V2.5M9.5 11.5h5M9.5 14.5h5M9.5 17.5h5"/>',
+ door:'<path class="d" d="M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21"/><path d="M3.5 21h17M14.5 12.5h.01"/>',
+ again:'<path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20.5 3.5v5h-5"/><path d="M12 8v4.5l3 1.8"/>',
+ heartpulse:'<path class="d" d="M12 20.5s-8.5-4.9-8.5-11A4.8 4.8 0 0 1 12 6.6a4.8 4.8 0 0 1 8.5 2.9c0 6.1-8.5 11-8.5 11z"/><path d="M3.8 12.5h4.4l1.6-2.8 2.6 5 1.6-2.2h6.2"/>',
+ serve:'<path class="f" d="M5 4.5A1.5 1.5 0 0 1 6.5 3H12l4 4v12.5a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 5 19.5z"/><path d="M16 11.5V7l-4-4H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h8a1.5 1.5 0 0 0 1.5-1.5v-2M12 3v4h4M10 14.5h11M18 11.5l3 3-3 3"/>',
+ clock:'<circle class="d" cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/>',
+ pulse:'<rect class="d" x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M5.5 12.5h3l1.8-4 3.4 7.5 1.8-3.5h3"/>',
+ signpost:'<path d="M12 2.5v19M8.5 21.5h7"/><path class="d" d="M12 4.5h6.2l2.3 2.3-2.3 2.2H12z"/><path class="d" d="M12 11H5.8l-2.3 2.3 2.3 2.2H12z"/>',
+ warn:'<path class="d" d="M10.3 4.2 2.7 17.6A2 2 0 0 0 4.4 20.6h15.2a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4.5M12 17.2h.01"/>',
+ lily:'<path d="M12 21.5v-9"/><path class="d" d="M12 20c-3 .2-4.8-1.6-5.3-3.8 2.8-.2 4.6 1.4 5.3 3.8zM12 18.8c3 .2 4.8-1.6 5.3-3.8-2.8-.2-4.6 1.4-5.3 3.8z"/><path class="d" d="M7.8 4.8 10 7.3 12 3.5l2 3.8 2.2-2.5v4.5a4.2 4.2 0 0 1-8.4 0z"/>',
+ missing:'<circle cx="9" cy="8" r="3.5"/><path class="d" d="M2.5 20.5a6.5 6.5 0 0 1 13 0z"/><path d="M17.2 6.6a2.3 2.3 0 1 1 3.1 2.2c-.7.3-1.1.8-1.1 1.6v.6M19.2 14.3h.01"/>',
+ child:'<circle cx="8.5" cy="6.5" r="3"/><path class="d" d="M3 19.5a5.5 5.5 0 0 1 11 0z"/><circle cx="17.5" cy="11" r="2.2"/><path class="d" d="M13.8 19.8a3.7 3.7 0 0 1 7.4 0z"/>',
+ homeheart:'<path d="M3 11 12 3.8 21 11M5 9.5v11h14v-11"/><path class="d" d="M12 17.6s-3.3-1.9-3.3-4.3a1.8 1.8 0 0 1 3.3-1 1.8 1.8 0 0 1 3.3 1c0 2.4-3.3 4.3-3.3 4.3z"/>',
+ hand:'<path d="M8 11.5V5.2a1.4 1.4 0 0 1 2.8 0v5M10.8 10V3.9a1.4 1.4 0 0 1 2.8 0V10M13.6 10.2V5.2a1.4 1.4 0 0 1 2.8 0v6.3M16.4 11.5V8.4a1.4 1.4 0 0 1 2.8 0v5.6a7.2 7.2 0 0 1-7.2 7.2h-.6a6.4 6.4 0 0 1-5.2-2.7l-2.6-3.7a1.45 1.45 0 0 1 2.3-1.8L8 14.2v-2.7"/>',
+ cliplist:'<rect class="d" x="5" y="4" width="14" height="17.5" rx="2"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8.5 10.5h7M8.5 14h7M8.5 17.5h4"/>',
+ clipcheck:'<rect class="d" x="5" y="4" width="14" height="17.5" rx="2"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="m8.8 13.5 2.3 2.3 4.4-4.6"/>',
+ cal:'<rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path class="f" d="M3 6.5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2V10H3z"/><path d="M3 10h18M8 2.5v4M16 2.5v4"/><path class="s" d="M7 13h3v3H7z"/>',
+ fileplus:'<path class="d" d="M6.5 3H14l5 5v12.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20.5v-16A1.5 1.5 0 0 1 6.5 3z"/><path d="M14 3v5h5M12 11.5v6M9 14.5h6"/>',
+ key:'<circle class="d" cx="8" cy="15.5" r="4.5"/><path d="M11.3 12.2 20 3.5M16.3 7.2l2.6 2.6M13.9 9.6l2 2"/>',
+ cube:'<path class="f" d="M12 3 20.5 7.5 12 12 3.5 7.5z"/><path d="M12 3 20.5 7.5v9L12 21l-8.5-4.5v-9zM3.5 7.5 12 12l8.5-4.5M12 12v9"/>',
+ flask:'<path d="M9 3h6M10 3v6.2L4.6 18.6A1.6 1.6 0 0 0 6 21h12a1.6 1.6 0 0 0 1.4-2.4L14 9.2V3"/><path class="f" d="M7.2 14.5h9.6l2.6 4.1A1.6 1.6 0 0 1 18 21H6a1.6 1.6 0 0 1-1.4-2.4z"/>',
+ pill:'<g transform="rotate(-45 12 12)"><rect x="3" y="8" width="18" height="8" rx="4"/><path class="f" d="M12 8h5a4 4 0 0 1 0 8h-5z"/><path d="M12 8v8"/></g>',
+ phone:'<rect class="d" x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 5.5h3M11.2 18.5h1.6"/>',
+ undo:'<path d="M9 14.5 4 9.5l5-5"/><path d="M4 9.5h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+ bin:'<path d="M4 6.5h16M9 6.5v-2A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5v2"/><path class="d" d="M5.8 6.5 6.9 19.6A1.6 1.6 0 0 0 8.5 21h7a1.6 1.6 0 0 0 1.6-1.4l1.1-13.1"/><path d="M10 10.5V17M14 10.5V17"/>',
+ cone:'<path class="d" d="M9.9 4.2a1.1 1.1 0 0 1 1-.7h2.2a1.1 1.1 0 0 1 1 .7l4.3 14.3H5.6z"/><path d="M8.4 9.5h7.2M7 14h10M3 18.5h18v2.5H3z"/>',
+ ticket:'<path class="d" d="M5 3v18l2.3-1.5L9.7 21l2.3-1.5 2.3 1.5 2.4-1.5L19 21V3l-2.3 1.5L14.3 3 12 4.5 9.7 3 7.3 4.5z"/><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4"/>',
+ lock:'<rect class="d" x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5v-3a4 4 0 0 1 8 0v3M12 14.5V17"/>',
+ chat:'<path class="d" d="M20.5 11.5a8.5 8.5 0 0 1-12.6 7.4L3.5 20.5l1.6-4.3A8.5 8.5 0 1 1 20.5 11.5z"/><path d="M8.2 11.5h.01M12 11.5h.01M15.8 11.5h.01"/>',
+ refer:'<circle cx="8.5" cy="7.5" r="3.5"/><path class="d" d="M2 20.5a6.5 6.5 0 0 1 13 0z"/><path d="M15.5 12h6.5M19 9l3 3-3 3"/>',
+ send:'<path class="d" d="M21.5 2.5 2.8 10.2l7.4 3.6 3.6 7.4z"/><path d="M21.5 2.5 10.2 13.8"/>',
+ reply:'<path d="M9.5 6.5 4 12l5.5 5.5"/><path d="M4 12h10.5a5.5 5.5 0 0 1 5.5 5.5V19"/>',
+ memo:'<path class="d" d="M6.5 3H14l5 5v12.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20.5v-16A1.5 1.5 0 0 1 6.5 3z"/><path d="M14 3v5h5M8.5 12h7M8.5 15h7M8.5 18h4.5"/>',
+ letter:'<rect class="d" x="2.5" y="5" width="19" height="14" rx="2"/><rect x="15" y="7.5" width="4" height="4.5" rx=".6"/><path d="M5.5 13.5h7M5.5 16.2H10"/>',
+ db:'<ellipse class="d" cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-13M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/>',
+ torch:'<path class="d" d="M7 3.5h10l-2 5.5H9z"/><path d="M9 9h6v11a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 20zM12 12.5V15"/>',
+ pint:'<path d="M6 3.5h12l-1.4 16.3a1.5 1.5 0 0 1-1.5 1.4H8.9a1.5 1.5 0 0 1-1.5-1.4z"/><path class="f" d="M6.7 9.2h10.6l-.9 10.6a1.5 1.5 0 0 1-1.5 1.4H9.1a1.5 1.5 0 0 1-1.5-1.4z"/><path d="M6.5 9h11"/>',
+ euro:'<circle class="d" cx="12" cy="12" r="9"/><path d="M15.6 8.4a4.6 4.6 0 1 0 0 7.2M7 10.8h6M7 13.2h6"/>',
+ cap:'<path class="d" d="M2 9.5 12 5l10 4.5L12 14z"/><path d="M6 11.3v4.4c0 1.3 2.7 2.8 6 2.8s6-1.5 6-2.8v-4.4M21.5 9.7v5"/>',
+ shirt:'<path class="d" d="M8.5 3.5 3 6.5l2 4.2 2.3-1.1v10.9h9.4V9.6l2.3 1.1 2-4.2-5.5-3c-.4 1.5-1.8 2.5-3.5 2.5S8.9 5 8.5 3.5z"/>',
+ pen:'<path class="d" d="M16.9 3.6a2 2 0 0 1 2.8 2.8L9.3 16.8 5.5 18l1.2-3.8z"/><path d="M3.5 21h17"/>',
+ people:'<circle cx="9" cy="8" r="3.3"/><path class="d" d="M2.5 20.5a6.5 6.5 0 0 1 13 0z"/><circle cx="17" cy="8.5" r="2.6"/><path d="M16.5 14a5.3 5.3 0 0 1 5.3 5.3"/>',
+ // interface
+ scan:'<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9h8M8 12h8M8 15h5"/>',
  flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
  any:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
  business:'<path d="M3 8h18v11H3z"/><path d="M8 8V5h8v3"/><path d="M3 13h18"/>',
@@ -52,23 +130,256 @@ const IC={
  plus:'<path d="M12 5v14M5 12h14"/>',
  camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3.5"/>',
  images:'<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.3-1.3a2.4 2.4 0 0 0-3.4 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
- x:'<path d="M18 6 6 18M6 6l12 12"/>'
+ x:'<path d="M18 6 6 18M6 6l12 12"/>',
+ steps:'<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="m8 12 3 3 5-5.5"/>',
+ search:'<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
+ share:'<path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M5 12v7.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V12"/>',
+ ext:'<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5.5a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 3 19.5v-12A1.5 1.5 0 0 1 4.5 6H10"/>',
+ spark:'<path class="d" d="M12 3c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7z"/><path d="M19 15.5v4M17 17.5h4"/>',
+ // steps inside steps
+ chev:'<path d="m6 9 6 6 6-6"/>',
+ dots:'<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+ expand:'<path d="M15 3.5h5.5V9M9 20.5H3.5V15M20.5 3.5 14 10M3.5 20.5 10 14"/>',
+ indent:'<path d="M3.5 5h17M11 10h9.5M11 14.5h9.5M3.5 19.5h17"/><path d="m3.5 9 3.5 3.3-3.5 3.2"/>',
+ outdent:'<path d="M3.5 5h17M11 10h9.5M11 14.5h9.5M3.5 19.5h17"/><path d="M7 9 3.5 12.3 7 15.5"/>',
+ up:'<path d="M12 19.5v-15M6 10.5l6-6 6 6"/>',
+ down:'<path d="M12 4.5v15M6 13.5l6 6 6-6"/>',
+ sub:'<path d="M5.5 4v8.5a3.5 3.5 0 0 0 3.5 3.5h10.5"/><path d="m15.5 12 4 4-4 4"/>',
+ eyeoff:'<path d="M3 3l18 18"/><path d="M10.6 5.1A9.6 9.6 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-2.9 3.7M6.6 6.6C3.9 8.3 2.5 12 2.5 12S6 19 12 19a9.4 9.4 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+ colall:'<path d="m17 11.5-5-5-5 5M17 18.5l-5-5-5 5"/>',
+ expall:'<path d="m7 5.5 5 5 5-5M7 12.5l5 5 5-5"/>'
 };
+
+/* ================= types and sub-types ================= */
+const K=(k,t,i,ph)=>({k,t,i,ph});
 const TYPES=[
- {k:'cctv',t:'CCTV',tip:'View, collect or preserve footage'},
- {k:'statement',t:'Statement',tip:'Take or finish a statement'},
- {k:'arrest',t:'Arrest',tip:'Arrest to make — named suspect, warrant, person wanted'},
- {k:'night',t:'Night shift',tip:'Something to do on nights',win:'night'},
- {k:'call',t:'Phone call',tip:'Ring back / follow up'},
- {k:'visit',t:'Call to house',tip:'House call / enquiries at an address'},
- {k:'court',t:'Court',tip:'Court date, summons, warrant'},
- {k:'file',t:'File / PULSE',tip:'Update PULSE, prepare a file'},
- {k:'exhibit',t:'Exhibit',tip:'Lodge, send to the lab, return property'},
- {k:'email',t:'Email / letter',tip:'Request, reply, agency letter'},
+ {k:'cctv',t:'CCTV',tip:'View, collect or preserve footage',kinds:[
+   K('canvass','Canvass for cameras','pin','e.g. Canvass Dorset St for cameras'),
+   K('preserve','Ask them to preserve it','shield','e.g. Ask Centra to keep Friday night’s footage'),
+   K('collect','Collect / download','download','e.g. Collect CCTV — Centra, Dorset St'),
+   K('view','View the footage','play','e.g. View the bus footage'),
+   K('stills','Stills / identification','stills','e.g. Stills of the suspect for identification')]},
+ {k:'statement',t:'Statement',tip:'Take or finish a statement',kinds:[
+   K('ip','Injured party','plaster','e.g. Statement from the injured party'),
+   K('wit','Witness','eye','e.g. Statement from the shop assistant'),
+   K('own','My own statement','userpen','e.g. My statement — Tuesday’s arrest'),
+   K('sus','Suspect — memo of interview','speech','e.g. Interview the suspect'),
+   K('med','Medical report','clipcross','e.g. Medical report from the Mater'),
+   K('vis','Victim impact statement','fileheart','e.g. Victim impact statement before sentence')]},
+ {k:'arrest',t:'Arrest / warrant',tip:'Arrest to make — named suspect, warrant, person wanted',kinds:[
+   K('suspect','Named suspect','user','e.g. Arrest the suspect for the burglary'),
+   K('bench','Bench warrant','gavel','e.g. Bench warrant — address on PULSE'),
+   K('warrant','Arrest warrant','warrant','e.g. Execute the arrest warrant'),
+   K('wanted','Wanted on PULSE','target','e.g. Person wanted by another station'),
+   K('bail','Breach of bail','chain','e.g. Breach of bail conditions'),
+   K('committal','Committal warrant','bars','e.g. Committal warrant — convey to prison')]},
+ {k:'enquiry',t:'Enquiries',tip:'House-to-house, shops, agencies, tracing someone…',kinds:[
+   K('h2h','House-to-house','houses','e.g. House-to-house on Summerhill'),
+   K('shop','Shops & businesses','shop','e.g. Ask the shops on Talbot St'),
+   K('agency','Council / HSE / agency','civic','e.g. Ask the council about the CCTV'),
+   K('vehicle','Vehicle / owner','traffic','e.g. Find the registered owner'),
+   K('trace','Trace a person','feet','e.g. Trace the witness'),
+   K('online','Online / social media','globe','e.g. Check the seller’s online profile'),
+   K('spsv','SPSV / taxi licence','taxi','e.g. SPSV driver licence — new applicant'),
+   K('licence','Other licence / permit','idcard','e.g. Licence enquiry for the applicant'),
+   K('hosp','Hospital','hosp','e.g. Check on the injured party at the Mater'),
+   K('station','Other station / unit','radio','e.g. Ask Store St about their incident')]},
+ {k:'visit',t:'Call to house',tip:'House call at an address',kinds:[
+   K('enq','Enquiries at the address','door','e.g. House call — 12 Summerhill'),
+   K('callback','Call back — nobody home','again','e.g. Call back to 12 Summerhill'),
+   K('welfare','Welfare check','heartpulse','e.g. Welfare check — Gardiner St'),
+   K('serve','Serve a document','serve','e.g. Serve the summons'),
+   K('curfew','Bail / curfew check','clock','e.g. Curfew check — 22:00')]},
+ {k:'call',t:'Phone call',tip:'Ring back / follow up',kinds:[
+   K('ip','Injured party','plaster','e.g. Ring the injured party back'),
+   K('wit','Witness','eye','e.g. Ring the witness to arrange a statement'),
+   K('agency','Agency','civic','e.g. Ring Tusla'),
+   K('biz','Business','shop','e.g. Ring the shop manager'),
+   K('station','Station / unit','radio','e.g. Ring Store St'),
+   K('hosp','Hospital','hosp','e.g. Ring the hospital ward'),
+   K('again','Ring again — no answer','again','e.g. Ring again — no answer earlier')]},
+ {k:'file',t:'File / PULSE',tip:'Update PULSE, prepare a file',kinds:[
+   K('pulse','PULSE update','pulse','e.g. Update the PULSE incident'),
+   K('charged','Charged — court file','gavel','e.g. Court file — charged with theft'),
+   K('dpp','For directions — not charged','signpost','e.g. File for directions — assault'),
+   K('traffic','Traffic file','traffic','e.g. Traffic file — no insurance'),
+   K('fatal','Fatal / serious collision','warn','e.g. Fatal collision file'),
+   K('sudden','Sudden death — Coroner','lily','e.g. Sudden death — file for the Coroner'),
+   K('missing','Missing person','missing','e.g. Missing person — update the file'),
+   K('youth','Youth diversion (JLO)','child','e.g. Youth referral — shoplifting'),
+   K('domestic','Domestic abuse','homeheart','e.g. Domestic abuse incident — follow-up'),
+   K('caution','Adult caution','hand','e.g. Adult caution — report to the Superintendent'),
+   K('disclosure','Disclosure','cliplist','e.g. Disclosure schedule for the file')]},
+ {k:'court',t:'Court',tip:'Court date, summons, warrant',kinds:[
+   K('date','Court date','cal','e.g. Court 8, CCJ — 10:30'),
+   K('summons','Apply for a summons','fileplus','e.g. Apply for a summons — s.4 Public Order'),
+   K('serve','Serve a summons','serve','e.g. Serve the summons on the defendant'),
+   K('warrant','Apply for a warrant','warrant','e.g. Apply for a search warrant'),
+   K('bail','Bail / remand','key','e.g. Bail objection — Tuesday'),
+   K('outcome','Record the outcome','clipcheck','e.g. Record the court outcome')]},
  {k:'limit',t:'Time limit',tip:'Summons deadline for a summary offence'},
+ {k:'exhibit',t:'Exhibit',tip:'Lodge, send to the lab, return property',kinds:[
+   K('lodge','Lodge in the property store','cube','e.g. Lodge the seized bike'),
+   K('lab','Send to FSI (lab)','flask','e.g. Send the swabs to FSI'),
+   K('drugs','Drugs','pill','e.g. Send the drugs for analysis'),
+   K('digital','Phone / digital','phone','e.g. Phone for examination'),
+   K('return','Return to the owner','undo','e.g. Return the bike to the owner'),
+   K('dispose','Disposal','bin','e.g. Disposal of old property')]},
+ {k:'traffic',t:'Road traffic',tip:'Documents, collisions, seized vehicles, checkpoints',kinds:[
+   K('docs','Documents produced','idcard','e.g. Check licence and insurance produced'),
+   K('collision','Collision report','warn','e.g. Collision report — Dorset St'),
+   K('seized','Seized vehicle','lock','e.g. Seized car — release or dispose'),
+   K('fcn','Fixed charge notice','ticket','e.g. Fixed charge notice to issue'),
+   K('checkpoint','Checkpoint','cone','e.g. Checkpoint — North Circular'),
+   K('tax','Tax / insurance / NCT','shield','e.g. Check the NCT and tax')]},
+ {k:'victim',t:'Victim care',tip:'Keep victims informed and supported',kinds:[
+   K('update','Update the victim','chat','e.g. Update the injured party on the case'),
+   K('assess','Needs assessment','clipcheck','e.g. Victim needs assessment'),
+   K('refer','Refer to support','refer','e.g. Refer to support services'),
+   K('letter','Information letter','letter','e.g. Victim information letter')]},
+ {k:'email',t:'Email / letter',tip:'Request, reply, agency letter',kinds:[
+   K('request','Request','send','e.g. Email the council for footage'),
+   K('reply','Reply','reply','e.g. Reply to the solicitor'),
+   K('report','Internal report','memo','e.g. Report to the Superintendent'),
+   K('letter','Letter','letter','e.g. Letter to the injured party'),
+   K('records','Records request','db','e.g. Phone records request')]},
+ {k:'night',t:'Night shift',tip:'Something to do on nights',win:'night',kinds:[
+   K('premises','Premises check','torch','e.g. Check the back of the shops on Parnell St'),
+   K('pubs','Licensed premises','pint','e.g. Licensed premises check'),
+   K('curfew','Curfew check','clock','e.g. Curfew check — 23:00'),
+   K('patrol','Patrol point','pin','e.g. Patrol the lane behind the chipper')]},
+ {k:'admin',t:'Admin',tip:'Claims, training, kit, leave, forms',kinds:[
+   K('claim','Claims / overtime','euro','e.g. Submit the overtime claim'),
+   K('course','Training / course','cap','e.g. Book the driving course'),
+   K('kit','Uniform & kit','shirt','e.g. Order new boots'),
+   K('leave','Leave / roster','cal','e.g. Apply for annual leave'),
+   K('forms','Forms to sign','pen','e.g. Sign the passport form'),
+   K('meeting','Meeting / briefing','people','e.g. Unit briefing')]},
  {k:'other',t:'Other',tip:'Anything else'}
 ];
 const TY=Object.fromEntries(TYPES.map(x=>[x.k,x]));
+const tyOf=t=>TY[t&&t.type]||TY.other;
+const kindOf=t=>{ const ty=tyOf(t); return (ty.kinds&&t&&t.kind&&ty.kinds.find(k=>k.k===t.kind))||null; };
+const icOf=t=>{ const k=kindOf(t); return IC[k?k.i:tyOf(t).k]||IC.other; };
+const tyLabel=t=>{ const k=kindOf(t); return tyOf(t).t+(k?' · '+k.t:''); };
+
+/* the usual steps — a starting checklist the user can change; follow current Garda policy and your Sergeant's direction */
+const STEPS={
+ 'cctv':['Ask how long the system keeps footage','Ask them to preserve it now','Check the system clock — note any difference from the real time','Download or collect a copy (note the format and any player needed)','Exhibit it — label and continuity','Statement from whoever produced it'],
+ 'cctv.canvass':['Walk the route — note every camera (shops, homes, buses, traffic)','Note the owner or contact for each','Ask each one to preserve the footage','Add a CCTV task for each one with footage'],
+ 'cctv.preserve':['Ask how long the system keeps footage','Ask them to preserve the times you need','Send the request in writing','Arrange to collect it'],
+ 'cctv.view':['Note who viewed it, when and where','Viewing notes — times and what’s seen','Stills of anyone of interest','Viewing notes to the file'],
+ 'cctv.stills':['Clear stills — note the camera and time','Circulate for identification (with approval)','Record any identification'],
+ 'statement':['Arrange a time and place','Take the statement','Read it over — signed, alterations initialled','Add it to the file and PULSE'],
+ 'statement.ip':['Arrange a time and place','Take the statement — injuries, loss and damage','Read it over — signed, alterations initialled','Consent for a medical report, if injured','Give them the PULSE number and your contact details','Add it to the file'],
+ 'statement.wit':['Arrange a time and place','Take the statement — what they saw, from where, lighting, distance','Read it over — signed, alterations initialled','Ask about CCTV, phone footage, other witnesses','Add it to the file'],
+ 'statement.own':['From your notebook — times, words used, caution','Write and sign it','List the exhibits you’re producing','Add it to the file'],
+ 'statement.sus':['Prepare — evidence, exhibits, questions','Solicitor offered — note it in the custody record','Interview — caution, recorded','Memo signed, or refusal noted','Custody record updated'],
+ 'statement.med':['Signed consent from the patient','Request the report from the doctor or hospital','Chase it','Add it to the file'],
+ 'statement.vis':['Explain what a victim impact statement is','Take it, or help them write it','To the prosecutor before sentence'],
+ 'arrest':['Check PULSE — warnings, address, photo','Plan it — when, where, who’s with you','Arrest — tell them why, and caution','To the station — member in charge','Custody record / detention clock','Update PULSE'],
+ 'arrest.bench':['Check the warrant is still in force','Find them — address, associates, haunts','Arrest — tell them it’s on a warrant','Bring them before the court as the warrant directs','Update the warrant on PULSE'],
+ 'arrest.warrant':['Check the warrant is still in force','Find them','Arrest — tell them it’s on a warrant and why','Bring them before the court as the warrant directs','Update the warrant on PULSE'],
+ 'arrest.wanted':['Confirm they’re still wanted (PULSE / circulating station)','Find them','Arrest or detain as the circulation says','Tell the circulating station','Update PULSE'],
+ 'arrest.bail':['Check the bail conditions (court order)','Evidence of the breach — statements, CCTV','Report it — arrest or bail application, as directed','Update PULSE'],
+ 'arrest.committal':['Check the warrant is still in force','Find them','Arrest on the warrant','Convey them to the prison named on the warrant','Update the warrant on PULSE'],
+ 'enquiry':['What you need to find out','Make the enquiries','Record the result (PULSE / notes)'],
+ 'enquiry.h2h':['Set the area — streets and numbers','Call to each house — note answers and no replies','Leave a card where nobody’s home','Call back to the no replies','Note CCTV and doorbell cameras','Statements from anyone who saw something'],
+ 'enquiry.shop':['Ask the staff on duty at the time','Ask about CCTV and how long it’s kept','Manager’s name and number','Record the result'],
+ 'enquiry.agency':['Find the right contact (department, email)','Request in writing, with the PULSE number','Chase a reply','Record the result'],
+ 'enquiry.vehicle':['Check the registration on PULSE','Registered owner — contact or call to the address','Who was driving at the time?','Record the result'],
+ 'enquiry.trace':['Last known address and phone (PULSE)','Family, friends, work','Social media (open sources)','Other stations and units','Record the result'],
+ 'enquiry.online':['Screenshot with the link, date and time','Note the account details','Request data through the proper channel','Record the result'],
+ 'enquiry.spsv':['Application, photographs, ID and proof of address received','Identity and address verified (originals seen)','PULSE person and address searches — all name and DOB variants','Convictions, pending prosecutions, penalty points','Driving licence (and immigration status) verified','Enquiries where the applicant lived before','Interview the applicant','Meet both referees — ID verified, PULSE checks','Cover report with recommendation — SPSV stencil'],
+ 'enquiry.licence':['Check the applicant on PULSE','Call to the address','Your report and recommendation','Submit through your Sergeant'],
+ 'enquiry.hosp':['Speak to the ward or ED staff','Condition (with consent)','Consent for a medical report','Record the result'],
+ 'enquiry.station':['Which station or unit, and who','Ring or email with the PULSE number','Chase a reply','Record the result'],
+ 'visit':['Check PULSE for the address (warnings)','Call to the address','Record the result'],
+ 'visit.callback':['Leave a card','Try another time — early or evening','Ring, if you have a number','Note each attempt'],
+ 'visit.welfare':['Check PULSE and history at the address','Call to the address','See the person — safe and well?','Refer on if needed (HSE, family)','Record the result'],
+ 'visit.serve':['Check the document and who it’s for','Serve it','Note the time, place and who you served','Proof of service'],
+ 'visit.curfew':['Check the bail conditions — times and address','Call within the curfew hours','Note the time and who answered','Report any breach'],
+ 'file':['Statements in','Exhibits listed','Cover report','Submit for review','Update PULSE'],
+ 'file.pulse':['Create or update the incident','Persons, vehicles, property added','Narrative up to date','Status / outcome updated'],
+ 'file.charged':['Charge sheet — copy to the accused','Court date (station bail or custody)','Statements and exhibits in order','Cover report and file','Disclosure schedule','Update PULSE'],
+ 'file.dpp':['All statements taken','Interview notes / memo','Exhibits and lab results','Cover report with your recommendation','Submit through your Sergeant for directions','Update PULSE'],
+ 'file.traffic':['Driver — licence and insurance','Vehicle — registration, tax, NCT','Statements','Photos or a sketch of the scene','Breath print-out or MBRS certificate (drink / drug driving)','Cover report and PULSE'],
+ 'file.fatal':['Scene preserved — Forensic Collision Investigators','Next of kin informed','Coroner informed','Family Liaison Officer','Statements, CCTV, dash cam','Vehicles examined','File for the Coroner and the DPP'],
+ 'file.sudden':['Death pronounced (doctor or paramedic) — note who and when','Identify the deceased','Next of kin informed','Report to the Coroner','Statements — who found them, who last saw them alive, the doctor','Property and valuables recorded','Removal / post-mortem as the Coroner directs'],
+ 'file.missing':['Full description and a recent photo','Risk assessment','Circulate on PULSE','Check the home, hospitals, friends, social media','Keep the family updated','When found — safe and well check, cancel the circulation'],
+ 'file.youth':['Under 18 at the time, and accepts responsibility','Referral to the Garda National Youth Diversion Bureau','Victim’s views','Parent or guardian informed','Update PULSE'],
+ 'file.domestic':['Victim safety and risk','Any orders in place (safety, protection, barring)','Statements and photos','Support services information','Recorded as domestic abuse on PULSE','Follow-up contact with the victim'],
+ 'file.caution':['Offence covered by the Adult Caution Scheme','Accepts responsibility and agrees to a caution','Victim’s views','Report to the Superintendent for a decision','Caution given','Update PULSE'],
+ 'file.disclosure':['List all material — used and unused','Flag anything sensitive','Schedule to the prosecutor','Keep it under review'],
+ 'court.date':['Check the court list and time','Notebook, statements and exhibits ready','Witnesses told','Record the outcome on PULSE'],
+ 'court.summons':['Check the time limit','Apply to the District Court office','Summons issued','Serve it','Proof of service'],
+ 'court.serve':['Check the summons — name, address, court date','Serve it','Note the time, place and how it was served','Proof of service'],
+ 'court.warrant':['Grounds — sworn information','Apply to the judge (or as the Act allows)','Execute it within the time on the warrant','Record what was done and found'],
+ 'court.bail':['Grounds for objecting — or not','Your evidence ready','Conditions to ask for','Record the outcome'],
+ 'court.outcome':['Result and next date','Update PULSE','Tell the injured party','Exhibits — keep or return'],
+ 'exhibit':['Label — number, description, where and when found, by whom','Seal it','Lodge it','Property record / PULSE'],
+ 'exhibit.lab':['Labelled and sealed','FSI submission form','Deliver it — continuity recorded','Chase the result','Result to the file'],
+ 'exhibit.drugs':['Seal and label — description and count','Lodge it (drugs safe / property store)','Send to FSI for analysis','Certificate of analysis to the file'],
+ 'exhibit.digital':['Isolate it from the network (flight mode / Faraday bag)','Note make, model, condition, whether locked','Authority to examine (consent or warrant)','Request the examination','Continuity recorded'],
+ 'exhibit.return':['Check it’s no longer needed','Contact the owner','ID and signature on return','Update the property record'],
+ 'exhibit.dispose':['Authority to dispose','Dispose of it as policy says','Update the property record'],
+ 'traffic.docs':['Check the licence and insurance','Note the details','Not produced — follow up','Update PULSE'],
+ 'traffic.collision':['Injuries? Scene safe?','Details — drivers, insurers, witnesses','Photos and measurements','Statements','Collision report on PULSE'],
+ 'traffic.seized':['Notice given','Removal to the pound','Check the documents when produced','Release or disposal','Update PULSE'],
+ 'traffic.checkpoint':['Authorisation in place','Results recorded','Follow-ups added'],
+ 'traffic.tax':['Check the vehicle on PULSE','Contact the owner','Proof produced?','Fixed charge or summons'],
+ 'victim.update':['What’s happened since the last update','Call or meet the victim','Your name, station and the PULSE number','Note the update on PULSE'],
+ 'victim.assess':['Needs assessment done','Protection / special measures noted','Recorded on PULSE'],
+ 'victim.refer':['Ask what support they want','Details of support services','Refer, with their consent','Note it on PULSE'],
+ 'email.request':['Right contact or department','Send the request with the PULSE number','Chase a reply','Reply to the file'],
+ 'email.records':['Check the legal route and authority','Request through the proper channel','Chase it','Result to the file'],
+ 'night.premises':['Check doors and windows','Anything wrong — contact the keyholder','Record the check'],
+ 'night.curfew':['Check the bail conditions — times and address','Call within the curfew hours','Note the time and who answered','Report any breach'],
+ 'admin.course':['Apply or book','Roster sorted','Attend','Certificate recorded'],
+ 'admin.claim':['Fill in the claim','Signed off','Submitted']
+};
+const stepsFor=t=>STEPS[(t.type||'other')+'.'+(t.kind||'')]||STEPS[t.type||'other']||null;
+const sid=()=>'s'+Math.random().toString(36).slice(2,8);
+
+/* ================= steps: as many levels as the job needs =================
+   A step: {id, t, done, due, rem:[minutes before], n:note, c:collapsed, u:changed, steps:[…sub-steps]}.
+   A step with sub-steps is done when all of them are — ticking it ticks them all. */
+const MAXD=6, MAXN=800;
+const kids=n=>(n&&Array.isArray(n.steps))?n.steps:[];
+function walk(list,fn,d,par){ (list||[]).forEach((n,i)=>{ fn(n,d||1,par||null,i); if(kids(n).length)walk(n.steps,fn,(d||1)+1,n); }); }
+const isDone=n=>kids(n).length?kids(n).every(isDone):!!n.done;
+function cnt(list){ let n=0,m=0; walk(list,x=>{ if(!kids(x).length){ m++; if(x.done)n++; } }); return {n,m}; }
+function nodeCount(list){ let k=0; walk(list,()=>{ k++; }); return k; }
+function locate(list,id,par){ list=list||[]; for(let i=0;i<list.length;i++){ const x=list[i]; if(x.id===id)return {n:x,list,i,par:par||null}; const r=locate(x.steps,id,x); if(r)return r; } return null; }
+function pathTo(list,id){ const p=[]; (function f(L){ for(const x of (L||[])){ p.push(x); if(x.id===id||f(x.steps))return true; p.pop(); } return false; })(list); return p; }
+const levelOf=(list,id)=>pathTo(list,id).length;
+const height=n=>1+Math.max(0,...kids(n).map(height));
+function norm(list){ (list||[]).forEach(n=>{ if(!n.id)n.id=sid(); if(Array.isArray(n.steps)&&!n.steps.length)delete n.steps;
+    if(kids(n).length){ norm(n.steps); n.done=n.steps.every(isDone)?(Math.max(...n.steps.map(k=>k.done||0))||Date.now()):null; } });
+  return list; }
+function pruneEmpty(list,keep){ for(let i=(list||[]).length-1;i>=0;i--){ const x=list[i]; if(kids(x).length)pruneEmpty(x.steps,keep); if(!String(x.t||'').trim()&&!kids(x).length&&x.id!==keep)list.splice(i,1); } return list; }
+function nextStepDue(t){ let b=null; walk(t&&t.steps,n=>{ if(n.due&&!isDone(n)&&(b==null||n.due<b))b=n.due; }); return b; }
+function firstOpen(list){ for(const n of (list||[])){ if(isDone(n))continue; if(kids(n).length){ const k=firstOpen(n.steps); if(k)return k; } else return n; } return null; }
+const tplText=x=>Array.isArray(x)?x[0]:x;
+function tplNodes(a){ return (a||[]).map(x=>Array.isArray(x)?{id:sid(),t:String(x[0]),done:null,steps:tplNodes(x[1])}:{id:sid(),t:String(x),done:null}); }
+// a pasted list → steps.  A line starting "-" (or "•") goes under the plain line above it, "--" two levels in; indenting
+// (spaces or tabs) and "1.2.3" numbering also set the level; "[x]" or "✓" marks a step done
+function parseOutline(txt,maxd){ maxd=Math.max(1,maxd||MAXD);
+  const root=[], st=[{ind:-1,list:root}];
+  String(txt||'').replace(/\r/g,'').split('\n').forEach(raw=>{ if(!raw.trim())return;
+    const m=/^([ \t\u00a0]*)(.*)$/.exec(raw); let ind=m[1].replace(/\t/g,'    ').length, s=m[2].trim(), done=false;
+    const num=/^(\d+(?:\.\d+)*)[.)]?\s+(?=\S)/.exec(s);
+    if(num){ ind=ind||(num[1].split('.').length-1)*4; s=s.slice(num[0].length); }
+    else{ const b=/^(-{1,6}|[*•·▪◦›>+])\s*(?=\S)/.exec(s); if(b&&(b[1][0]!=='-'||/\s/.test(s.charAt(b[0].length-1))||b[1].length>1)){ ind+=(b[1][0]==='-'?b[1].length:1)*4; s=s.slice(b[0].length); } }
+    const ck=/^(\[[ xX✓✔]?\]|[☐□✓✔☑])\s*/.exec(s); if(ck){ done=/[xX✓✔☑]/.test(ck[1]); s=s.slice(ck[0].length); }
+    s=s.replace(/\s+/g,' ').trim().slice(0,200); if(!s)return;
+    while(st.length>1&&st[st.length-1].ind>=ind)st.pop();
+    while(st.length>maxd)st.pop();
+    const node={id:sid(),t:s,done:done?Date.now():null}; st[st.length-1].list.push(node); st.push({ind,list:(node.steps=[])}); });
+  return norm(root); }
+function stepDues(t){ const out=[]; walk(t.steps,n=>{ if(n.due&&!isDone(n))[...new Set(n.rem&&n.rem.length?n.rem:[0])].forEach(m=>out.push(['s'+m+':'+n.id+':'+n.due,n.due-m*MIN,n])); }); return out; }
+function stepLines(list,ind,notes){ const L=[]; (list||[]).forEach(n=>{ const d=isDone(n); L.push(ind+'['+(d?'x':' ')+'] '+n.t+(n.due&&!d?' — by '+full(n.due):'')); if(notes&&n.n)L.push(ind+'      ('+n.n.replace(/\s*\n\s*/g,' · ')+')'); L.push(...stepLines(n.steps,ind+'  ',notes)); }); return L; }
+
 const WINS=[
  {k:'any',t:'Any time'},
  {k:'business',t:'Business hours',from:'09:00',to:'17:30',days:'weekdays',tip:'Shops, offices, agencies'},
@@ -86,7 +397,7 @@ const REMS=[[0,'At the time'],[15,'15 min before'],[60,'1 hour before'],[DAY/MIN
 let DB=load();
 function load(){try{const d=JSON.parse(localStorage.getItem(LS)||'null');if(d&&Array.isArray(d.tasks))return d;}catch(e){}return {v:1,tasks:[]};}
 function persist(){try{localStorage.setItem(LS,JSON.stringify(DB));}catch(e){}}
-function save(){persist();paintStrips();}
+function save(){persist();paintStrips();if(W.grSyncDirty)W.grSyncDirty();}
 function prefs(){try{return JSON.parse(localStorage.getItem(LSP)||'{}')||{};}catch(e){return {};}}
 function setPref(k,v){const p=prefs();p[k]=v;try{localStorage.setItem(LSP,JSON.stringify(p));}catch(e){}}
 function purge(){const now=Date.now(),n=DB.tasks.length;DB.tasks=DB.tasks.filter(t=>!t.done||now-t.done<30*DAY);if(n!==DB.tasks.length)persist();}
@@ -113,6 +424,36 @@ function nextOpen(w,now){ // start of the next window after now
   return null; }
 function winState(t,now){ const w=winOf(t); if(!w)return {any:true,open:true};
   const o=inWin(w,now); return {w,open:o,next:o?null:nextOpen(w,now)}; }
+
+/* ================= roster: your tours ================= */
+// Uses My roster (roster.js) when it is set up. A tour is {s,e,code,label,ico}: start and end of a working day's tour.
+function RO(){ try{ return W.GRRoster&&W.GRRoster._state&&W.GRRoster._state()?W.GRRoster:null; }catch(e){ return null; } }
+function dayInf(d){ const R=RO(); if(!R)return null; try{ return R.dayInfo(d); }catch(e){ return null; } }
+function tourOf(i){ if(!i||i.off||!i.from||!i.to)return null; const a=hmMin(i.from), b=hmMin(i.to); if(a==null||b==null)return null; const d=i.d;
+  return {s:new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,a).getTime(), e:new Date(d.getFullYear(),d.getMonth(),d.getDate()+(b<=a?1:0),0,b).getTime(),
+    code:i.code,label:String(i.label||'Tour').replace(/ \(.*\)$/,''),ico:i.ico||'',tag:i.tag||null}; }
+const d0=(ms,k)=>{ const d=new Date(ms); return new Date(d.getFullYear(),d.getMonth(),d.getDate()+(k||0)); };
+function tours(from,n,maxDays){ const out=[]; if(!RO())return out;
+  for(let k=-1;k<(maxDays||42)&&out.length<n;k++){ const sp=tourOf(dayInf(d0(from,k))); if(sp&&sp.e>from)out.push(sp); }
+  return out; }
+function tourAt(ms){ for(const k of [0,-1]){ const sp=tourOf(dayInf(d0(ms,k))); if(sp&&ms>=sp.s&&ms<=sp.e)return sp; } return null; }
+// the latest tour that starts before `ms` — null if it has already finished
+function lastTourBefore(ms,now){ for(let k=0;k>-28;k--){ const sp=tourOf(dayInf(d0(ms,k))); if(sp&&sp.s<ms)return sp.e>now?sp:null; } return null; }
+// the first stretch of a coming tour (30 min or more) that falls inside the task's time window — "next chance on duty"
+function nextChance(t,now){ const w=winOf(t);
+  for(const sp of tours(now,14,42)){ const s0=Math.max(sp.s,now);
+    if(!w){ if(sp.e-s0>=30*MIN)return {s:s0,e:sp.e,tour:sp}; continue; }
+    for(let k=-1;k<=1;k++){ const d=d0(sp.s,k); if(!dayOK(w.days,d.getDay()))continue;
+      const ws=new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,w.a).getTime(), we=new Date(d.getFullYear(),d.getMonth(),d.getDate()+(w.b<=w.a?1:0),0,w.b).getTime();
+      const s=Math.max(s0,ws), e=Math.min(sp.e,we); if(e-s>=30*MIN)return {s,e,tour:sp}; } }
+  return null; }
+const planned=t=>!!(t&&t.tour&&t.tour.ts!=null&&t.tour.e===t.due);
+const tourShort=(tr,now)=>(now>=tr.ts&&now<tr.te?'this tour':String(tr.label||'Tour').split(' ')[0]+' '+DAYS[new Date(tr.ts).getDay()]+' '+new Date(tr.ts).getDate());
+// tasks for a tour: planned for it, or (not planned elsewhere) due before it ends
+function tourTasks(sp){ return open_().filter(t=>planned(t)?(t.tour.ts<sp.e&&t.tour.te>sp.s):((t.due&&t.due<=sp.e)||(x=>x&&x<=sp.e)(nextStepDue(t)))); }
+// a reminder at the start of the planned tour (or of the window inside it)
+function tourRem(t){ if(!planned(t)||!(t.tour.s<t.tour.e))return null;
+  return [Math.round((t.tour.e-t.tour.s)/MIN), t.tour.s===t.tour.ts?'Start of tour':'When it opens ('+hm(t.tour.s)+')']; }
 
 /* ================= helpers: CCTV + time limits ================= */
 function addMonths(ms,n){ const d=new Date(ms), dd=d.getDate(); const r=new Date(d); r.setDate(1); r.setMonth(r.getMonth()+n);
@@ -153,15 +494,21 @@ function check(){
     const w=t.remWin?winOf(t):null;
     if(w){ if(!t.nextWin){t.nextWin=nextOpen(w,now);dirty=true;}
       else if(now>=t.nextWin){ const at=t.nextWin; t.nextWin=nextOpen(w,now); dirty=true;
-        if(now-at<=12*H)notify((t.urgent?'🚩 ':'')+TY[t.type||'other'].t+': '+(t.title||'Task'),{
+        if(now-at<=12*H)notify((t.urgent?'🚩 ':'')+tyOf(t).t+': '+(t.title||'Task'),{
           body:'Window open now — '+w.label.trim()+(now-at>5*MIN?' (reminder was delayed — phone asleep)':'')+(t.due?' · due '+rel(t.due,now):'')+(t.notes?' · '+t.notes.slice(0,80):''),
           tag:'gr-task-'+t.id,renotify:true,vibrate:[120,80,120],data:{open:'task',id:t.id}}); } }
+    const sds=stepDues(t).filter(([k,at])=>!t.fired[k]&&at<=now);
+    if(sds.length){ sds.forEach(([k])=>{t.fired[k]=now;}); dirty=true; const by={};
+      sds.forEach(x=>{ const id=x[2].id; if(!by[id]||x[1]>by[id][1])by[id]=x; });
+      Object.values(by).forEach(([k,at,n])=>{ if(now-at>12*H||at<Math.max(n.u||0,t.updated||t.created||0)-MIN)return;
+        notify((t.urgent?'🚩 ':'')+'Step: '+String(n.t).slice(0,80),{body:(n.due<=now+MIN?(n.due<now-MIN?'Overdue since '+rel(n.due,now):'Due now'):'Due '+rel(n.due,now))+(now-at>5*MIN?' (reminder was delayed — phone asleep)':'')+' · '+(t.title||tyOf(t).t),
+          tag:'gr-step-'+n.id,renotify:true,vibrate:[200,100,200],data:{open:'task',id:t.id},timestamp:n.due}); }); }
     const due=dueTimes(t).filter(([k,at])=>!t.fired[k]&&at<=now);
     if(due.length){ due.forEach(([k])=>{t.fired[k]=now;}); dirty=true;
       const [k,at]=due.reduce((a,b)=>b[1]>a[1]?b:a);
       if(now-at>12*H||at<(t.updated||t.created||0)-MIN)continue;   // long missed, or already past when saved — the list shows it
       const late=now-at>5*MIN;
-      notify((t.urgent?'🚩 ':'')+TY[t.type||'other'].t+': '+(t.title||'Task'),{
+      notify((t.urgent?'🚩 ':'')+tyOf(t).t+': '+(t.title||'Task'),{
         body:(t.due<=now+MIN?(t.due<now-MIN?'Overdue since '+rel(t.due,now):'Due now'):'Due '+rel(t.due,now))+(late?' (reminder was delayed — phone asleep)':'')+(t.notes?' · '+t.notes.slice(0,80):''),
         tag:'gr-task-'+t.id,renotify:true,vibrate:t.urgent?[250,120,250,120,250]:[200,100,200],data:{open:'task',id:t.id},timestamp:t.due||at});
     }
@@ -180,14 +527,21 @@ let ov=null, main=null, sh=null, view='list', curId=null, tab=null, draft=null;
 function build(){
   if(ov&&ov.isConnected)return;
   ov=D.createElement('div'); ov.id='tsk'; ov.hidden=true; ov.setAttribute('role','dialog'); ov.setAttribute('aria-label','Tasks');
-  ov.innerHTML='<div class="tk-top"><button type="button" class="tk-back">‹ Back</button><div class="tk-tt"><b class="tk-title">Tasks</b><span class="hudclock" data-f="line"></span></div><button type="button" class="tk-scan" aria-label="Photo or screenshots of a to-do list">'+svg(IC.scan)+'</button><button type="button" class="tk-copy" aria-label="Copy the list">'+svg(IC.copy)+'</button></div>'
-    +'<div class="tk-main"></div><button type="button" class="tk-fab" aria-label="New task">'+svg(IC.plus)+'</button><div class="tk-shade" hidden></div><div class="tk-sheet" hidden></div><div class="tk-toast"></div>';
+  ov.innerHTML='<div class="tk-top"><button type="button" class="tk-back">‹ Back</button><div class="tk-tt"><b class="tk-title">Tasks</b><span class="hudclock" data-f="line"></span></div><button type="button" class="tk-sync" hidden aria-label="Sync across devices"></button><button type="button" class="tk-scan" aria-label="Photo or screenshots of a to-do list">'+svg(IC.scan)+'</button><button type="button" class="tk-copy" aria-label="Share or copy the list">'+svg(IC.share)+'</button></div>'
+    +'<div class="tk-main"></div><button type="button" class="tk-fab" aria-label="New task">'+svg(IC.plus)+'</button><div class="tk-shade" hidden></div><div class="tk-sheet" hidden></div><div class="tk-toast"></div>'
+    +'<div class="tk-edbar" hidden role="toolbar" aria-label="Step tools">'+[['out','outdent','Out'],['in','indent','In'],['up','up','Up'],['down','down','Down'],['sub','sub','Sub-step'],['more','dots','More'],['done','check','Done']].map(([k,i,l])=>'<button type="button" class="eb-'+k+'" data-eb="'+k+'">'+svg(IC[i])+l+'</button>').join('')+'</div>';
   D.body.appendChild(ov); main=ov.querySelector('.tk-main'); sh=ov.querySelector('.tk-sheet');
   ov.querySelector('.tk-back').onclick=()=>back();
   ov.querySelector('.tk-copy').onclick=()=>copyList();
   ov.querySelector('.tk-scan').onclick=()=>startScan();
   ov.querySelector('.tk-fab').onclick=()=>editTask(null);
   ov.querySelector('.tk-shade').onclick=()=>closeSheet();
+  const eb=ov.querySelector('.tk-edbar');
+  ['pointerdown','mousedown'].forEach(ev=>eb.addEventListener(ev,e=>{ if(e.target.closest('button'))e.preventDefault(); }));   // keep the keyboard up
+  eb.addEventListener('click',e=>{ const b=e.target.closest('[data-eb]'); if(!b)return; const k=b.dataset.eb;
+    if(k==='done'){ const a=D.activeElement; if(a&&a.blur)a.blur(); return; }
+    if(k==='more'){ if(sEd)stepSheet(sEd); return; }
+    stepOp(k); });
 }
 function toast(m){ if(!ov){if(W.grToast)W.grToast(m);return;} const t=ov.querySelector('.tk-toast'); t.innerHTML=m; t.classList.add('on'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('on'),3400); }
 function openTasks(id){
@@ -195,76 +549,104 @@ function openTasks(id){
   const bt=D.getElementById('boot'); if(bt&&bt.parentNode)bt.parentNode.removeChild(bt);
   ov.hidden=false; D.body.classList.add('tsk-open'); closeSheet();
   if(id&&byId(id))editTask(id); else {view='list';render();}
+  { const sc=ov.querySelector('.tk-sync'); let on=false; try{ on=!!(JSON.parse(localStorage.getItem('gr_sync')||'{}')||{}).on; }catch(e){} sc.hidden=!(on&&W.GRSync); if(on&&W.GRSync)W.GRSync.mountChip(sc); }
   if(W.grHudTick)W.grHudTick(); check(); return true;
 }
-function closeTasks(){ if(!ov)return; closeSheet(); ov.hidden=true; D.body.classList.remove('tsk-open'); main.innerHTML=''; draft=null; paintStrips(); }
+function closeTasks(){ if(!ov)return; closeSheet(); commitEdit(); if(curId&&draft&&(view==='plan'||view==='edit'))stepsSync(); edbar(false); sEd=null; zoomId=null; ov.hidden=true; D.body.classList.remove('tsk-open'); main.innerHTML=''; draft=null; paintStrips(); }
 function back(){
   if(!ov||ov.hidden)return false;
   if(!sh.hidden){closeSheet();return true;}
-  if(view==='edit'){ view='list'; draft=null; render(); return true; }
+  if(view==='plan'){ commitEdit(); if(curId)stepsSync(); sEd=null; edbar(false);
+    if(zoomId){ const p=pathTo(draft.steps,zoomId); zoomId=p.length>1?p[p.length-2].id:null; renderPlan(); return true; }
+    view='edit'; renderEdit(); const s=main.querySelector('.tk-tree')||main.querySelector('.tk-stadd'); if(s)s.scrollIntoView({block:'center'}); return true; }
+  if(view==='edit'){ commitEdit(); if(curId)stepsSync(); sEd=null; edbar(false); view='list'; draft=null; render(); return true; }
   if(view==='scan'){ const big=ov&&ov.querySelector('.tk-big'); if(big){ big.remove(); return true; }
     if(scan&&(scan.mode==='type'||scan.mode==='key')){ scan.mode=scan.imgs&&scan.imgs.length?'choose':'pick'; scan.err=''; render(); return true; } scan=null; view='list'; render(); return true; }
   closeTasks(); return true;
 }
-function render(){ if(!ov||ov.hidden)return; if(view==='edit')renderEdit(); else if(view==='scan')renderScan(); else renderList(); if(W.grHudTick)W.grHudTick(); }
+function render(){ if(!ov||ov.hidden)return; if(view==='edit')renderEdit(); else if(view==='plan')renderPlan(); else if(view==='scan')renderScan(); else renderList(); if(W.grHudTick)W.grHudTick(); }
 
 /* ================= list ================= */
 function classify(t,now){
-  const ws=winState(t,now), od=t.due&&t.due<now, today=t.due&&sod(t.due)===sod(now);
-  return {ws,od,today};
+  const ws=winState(t,now), od=t.due&&t.due<now, today=t.due&&sod(t.due)===sod(now), sd=t.done?null:nextStepDue(t);
+  return {ws,od,today,sd,sdo:!!(sd&&sd<now),sdt:!!(sd&&sd>=now&&sod(sd)===sod(now))};
 }
-function sortKey(t,now){ const c=classify(t,now); return [t.urgent?0:1, c.od?0:1, t.due||9e15, t.created]; }
+function sortKey(t,now){ const c=classify(t,now); return [t.urgent?0:1, (c.od||c.sdo)?0:1, Math.min(t.due||9e15,c.sd||9e15), t.created]; }
 function cmp(a,b){ for(let i=0;i<a.length;i++){ if(a[i]!==b[i])return a[i]<b[i]?-1:1; } return 0; }
 function row(t,now){
-  const c=classify(t,now), ty=TY[t.type]||TY.other, done=!!t.done;
+  const c=classify(t,now), ty=tyOf(t), kd=kindOf(t), done=!!t.done, pl=planned(t);
   let chips='';
+  if(kd)chips+='<span class="tk-chip kd">'+esc(kd.t)+'</span>';
   if(t.urgent&&!done)chips+='<span class="tk-chip urg">'+svg(IC.flag)+'URGENT</span>';
   if(done)chips+='<span class="tk-chip">✓ done '+esc(rel(t.done,now))+'</span>';
   else{
-    if(t.due)chips+='<span class="tk-chip '+(c.od?'od':c.today?'td':'')+'">'+(c.od?'overdue '+esc(durStr(now-t.due)):'due '+esc(rel(t.due,now)))+'</span>';
+    if(pl&&!c.od)chips+='<span class="tk-chip tour'+(c.today?' td':'')+'">'+svg(IC.cal)+esc(tourShort(t.tour,now))+(now>=t.tour.ts?' · by '+esc(hm(t.due)):'')+'</span>';
+    else if(t.due)chips+='<span class="tk-chip '+(c.od?'od':c.today?'td':'')+'">'+(c.od?'overdue '+esc(durStr(now-t.due)):'due '+esc(rel(t.due,now)))+'</span>';
     if(!c.ws.any)chips+='<span class="tk-chip '+(c.ws.open?'op':'cl')+'">'+svg(IC[t.win]||IC.custom)+(c.ws.open?'open now':'opens '+esc(c.ws.next?rel(c.ws.next,now):'—'))+'</span>';
     if(t.type==='cctv'&&cctvOverwrite(t.cctv)){ const ow=cctvOverwrite(t.cctv); chips+='<span class="tk-chip '+(ow<now?'od':ow-now<2*DAY?'td':'')+'">'+(ow<now?'footage may be gone':'overwritten '+esc(rel(ow,now)))+'</span>'; }
+    if(c.sd&&(!t.due||c.sd<t.due))chips+='<span class="tk-chip sd'+(c.sdo?' od':c.sdt?' td':'')+'">'+svg(IC.sub)+(c.sdo?'a step is overdue':'next step by '+esc(rel(c.sd,now)))+'</span>';
   }
+  if(t.steps&&t.steps.length){ const s=cnt(t.steps); chips+='<span class="tk-chip st'+(s.n===s.m?' all':'')+'">'+svg(IC.steps)+s.n+'/'+s.m+'</span>'; }
+  if(t.place&&t.place.n)chips+='<span class="tk-chip pl">'+svg(IC.pin)+esc(t.place.n.slice(0,30))+'</span>';
   return '<div class="tk-row'+(done?' done':'')+(t.urgent&&!done?' urg':'')+(c.od&&!done?' od':'')+'" data-id="'+t.id+'">'
    +'<button type="button" class="tk-ck" data-ck="'+t.id+'" aria-label="'+(done?'Mark not done':'Mark done')+'">'+svg(IC.check)+'</button>'
-   +'<button type="button" class="tk-body" data-ed="'+t.id+'"><span class="tk-ico ty-'+ty.k+'">'+svg(IC[ty.k])+'</span>'
-   +'<span class="tk-txt"><b>'+esc(t.title||ty.t)+'</b>'+(t.notes?'<small>'+esc(t.notes.split('\n')[0].slice(0,90))+'</small>':'')+'<span class="tk-chips">'+chips+'</span></span></button></div>';
+   +'<button type="button" class="tk-body" data-ed="'+t.id+'"><span class="tk-ico ty-'+ty.k+'">'+svg(icOf(t))+'</span>'
+   +'<span class="tk-txt"><b>'+esc(t.title||ty.t)+'</b>'+((nx=>nx?'<small class="tk-next">Next: '+esc(nx.t.slice(0,90))+'</small>':t.notes?'<small>'+esc(t.notes.split('\n')[0].slice(0,90))+'</small>':'')(done?null:firstOpen(t.steps)))+'<span class="tk-chips">'+chips+'</span></span></button></div>';
 }
+let qry='';
+function matchQ(t,q){ if(!q)return true; const k=kindOf(t);
+  const st=[]; walk(t.steps,n=>{ st.push(n.t); if(n.n)st.push(n.n); });
+  const s=[t.title,t.notes,tyOf(t).t,k&&k.t,t.place&&t.place.n,t.place&&t.place.a,st.join(' ')].join(' ').toLowerCase();
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every(w=>s.includes(w)); }
 function renderList(){
   const now=Date.now(); ov.querySelector('.tk-title').textContent='Tasks'; ov.querySelector('.tk-fab').hidden=false; ov.querySelector('.tk-copy').hidden=false; ov.querySelector('.tk-scan').hidden=false;
   const all=open_().sort((a,b)=>cmp(sortKey(a,now),sortKey(b,now)));
-  const nowList=all.filter(t=>classify(t,now).ws.open), todayList=all.filter(t=>{const c=classify(t,now);return c.od||c.today;});
+  const nowList=all.filter(t=>classify(t,now).ws.open), todayList=all.filter(t=>{const c=classify(t,now);return c.od||c.today||c.sdo||c.sdt;});
   const done=DB.tasks.filter(t=>t.done).sort((a,b)=>b.done-a.done);
-  if(!tab)tab=prefs().tab||'now';
-  const tabs=[['now','Can do now',nowList.length],['today','Due today',todayList.length],['all','All',all.length],['done','Done',done.length]];
-  let h='<div class="tk-wrap"><div class="tk-tabs">'+tabs.map(([k,l,n])=>'<button type="button" class="tk-tab'+(tab===k?' on':'')+'" data-tab="'+k+'">'+l+' <span>'+n+'</span></button>').join('')+'</div>';
+  const tr=tours(now,1)[0]||null, on=!!(tr&&tr.s<=now), trList=tr?tourTasks(tr).sort((a,b)=>cmp(sortKey(a,now),sortKey(b,now))):[];
+  if(!tab)tab=prefs().tab||'now'; if(tab==='tour'&&!tr)tab='now';
+  const tabs=[['now','Can do now',nowList.length]].concat(tr?[['tour',on?'This tour':'Next tour',trList.length]]:[],[['today','Due today',todayList.length],['all','All',all.length],['done','Done',done.length]]);
+  let h='<div class="tk-wrap">';
+  if(tr)h+='<button type="button" class="tk-tourb'+(on?' on':'')+'" data-tab="tour"><span class="tbi">'+esc(tr.ico||'🗓')+'</span><span class="tbt"><b>'
+    +(on?'On duty · '+esc(tr.label)+' until '+hm(tr.e):'Next tour · '+esc(tr.label)+' '+esc(day(tr.s))+' '+hm(tr.s))+'</b><small>'
+    +(on?esc(durStr(tr.e-now))+' left':'in '+esc(durStr(tr.s-now)))+' · '+(trList.length?trList.length+' task'+(trList.length===1?'':'s')+' for '+(on?'this':'that')+' tour':'nothing planned for it yet')+'</small></span><em>›</em></button>';
+  h+='<div class="tk-tabs'+(tabs.length>4?' n5':'')+'">'+tabs.map(([k,l,n])=>'<button type="button" class="tk-tab'+(tab===k?' on':'')+'" data-tab="'+k+'">'+l+' <span>'+n+'</span></button>').join('')+'</div>';
+  if(DB.tasks.length>5||qry)h+='<div class="tk-srch">'+svg(IC.search)+'<input class="tk-in tk-q" type="search" enterkeyhint="search" autocomplete="off" placeholder="Search tasks" aria-label="Search tasks" value="'+esc(qry)+'"></div>';
   const type=prefs().type||'';
-  h+='<div class="tk-filters"><button type="button" class="tk-f'+(type?'':' on')+'" data-ty="">All types</button>'+TYPES.filter(x=>DB.tasks.some(t=>t.type===x.k)).map(x=>'<button type="button" class="tk-f'+(type===x.k?' on':'')+'" data-ty="'+x.k+'">'+svg(IC[x.k])+esc(x.t)+'</button>').join('')+'</div>';
-  const f=l=>type?l.filter(t=>t.type===type):l;
+  h+='<div class="tk-filters"><button type="button" class="tk-f'+(type?'':' on')+'" data-ty="">All types</button>'+TYPES.filter(x=>DB.tasks.some(t=>t.type===x.k)).map(x=>'<button type="button" class="tk-f'+(type===x.k?' on':'')+'" data-ty="'+x.k+'"><span class="tk-fi ty-'+x.k+'">'+svg(IC[x.k])+'</span>'+esc(x.t)+'</button>').join('')+'</div>';
+  const f=l=>l.filter(t=>(!type||t.type===type)&&matchQ(t,qry));
   let body='';
-  if(tab==='now'){ const l=f(nowList); body=l.length?l.map(t=>row(t,now)).join(''):empty('Nothing that can be done right now.',all.length?'Tasks waiting for their time window are under “All”.':'');
+  if(tab==='now'){ const l=f(nowList); body=l.length?l.map(t=>row(t,now)).join(''):empty(qry?'No match.':'Nothing that can be done right now.',all.length&&!qry?'Tasks waiting for their time window are under “All”.':'');
     const later=f(all.filter(t=>!classify(t,now).ws.open)); if(later.length)body+='<h3 class="tk-sec">Waiting for their time window</h3>'+later.map(t=>row(t,now)).join(''); }
+  else if(tab==='tour'){ const l=f(trList);
+    body='<p class="tk-note">'+(on?'Planned for this tour, or due before it ends at '+hm(tr.e)+'.':'Planned for your next tour ('+esc(tr.label)+' '+esc(day(tr.s))+' '+hm(tr.s)+'–'+hm(tr.e)+'), or due before it ends.')+'</p>'
+      +(l.length?l.map(t=>row(t,now)).join(''):empty('Nothing for '+(on?'this':'your next')+' tour.','Open a task and pick one of your tours under “Deadline” to plan it.')); }
   else if(tab==='today'){ const l=f(todayList); body=l.length?l.map(t=>row(t,now)).join(''):empty('Nothing due today.',''); }
   else if(tab==='done'){ const l=f(done); body=l.length?'<p class="tk-note">Completed tasks are kept for 30 days, then deleted automatically.</p>'+l.map(t=>row(t,now)).join(''):empty('No completed tasks yet.',''); }
-  else { const l=f(all); if(!l.length)body=empty('No tasks yet.','Tap ＋ to add one — CCTV to collect, a statement to take, something for nights…');
+  else { const l=f(all); if(!l.length)body=empty(qry?'No match.':'No tasks yet.',qry?'':'Tap ＋ to add one — CCTV to collect, a statement to take, something for nights…');
     else { const g={}; const order=['Overdue','Today','Tomorrow','This week','Later','No date'];
-      l.forEach(t=>{const c=classify(t,now); let k='No date'; if(t.due){const dd=Math.round((sod(t.due)-sod(now))/DAY); k=c.od?'Overdue':dd===0?'Today':dd===1?'Tomorrow':dd<7?'This week':'Later';} (g[k]=g[k]||[]).push(t);});
+      l.forEach(t=>{const c=classify(t,now); let k='No date'; const ed=Math.min(t.due||9e15,c.sd||9e15); if(ed<9e15){const dd=Math.round((sod(ed)-sod(now))/DAY); k=(c.od||c.sdo)?'Overdue':dd===0?'Today':dd===1?'Tomorrow':dd<7?'This week':'Later';} (g[k]=g[k]||[]).push(t);});
       order.forEach(k=>{ if(g[k])body+='<h3 class="tk-sec'+(k==='Overdue'?' red':'')+'">'+k+' <span>'+g[k].length+'</span></h3>'+g[k].map(t=>row(t,now)).join(''); }); } }
   h+=body;
   if(!permOK()&&open_().some(t=>t.due||t.remWin))h+='<button type="button" class="tk-remcard" data-a="rem"><b>🔕 Reminders are off</b><span>Allow notifications so due tasks can remind you.</span></button>';
-  h+='<p class="tk-foot">Saved only on this phone. Keep details of members of the public to the minimum — this isn’t your official notebook.</p></div>';
+  { let on=false; try{ on=!!(JSON.parse(localStorage.getItem('gr_sync')||'{}')||{}).on; }catch(e){}
+    h+='<p class="tk-foot">'+(on?'Saved on this device and synced, encrypted, to your Google Drive.':'Saved only on this device.')+' Keep details of members of the public to the minimum — this isn’t your official notebook.</p>'
+      +(on||!W.openSync?'':'<button type="button" class="tk-synclink">'+(W.GRI?W.GRI('cloud'):'')+'Use your tasks on your computer too — Sync across devices</button>'); }
+  h+='</div>';
   main.innerHTML=h; main.scrollTop=0;
   main.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;setPref('tab',tab);renderList();});
   main.querySelectorAll('[data-ty]').forEach(b=>b.onclick=()=>{setPref('type',b.dataset.ty);renderList();});
   main.querySelectorAll('[data-ck]').forEach(b=>b.onclick=()=>toggleDone(b.dataset.ck));
   main.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>editTask(b.dataset.ed));
   const rc=main.querySelector('[data-a="rem"]'); if(rc)rc.onclick=async()=>{ if(await enableReminders())renderList(); };
+  const sl=main.querySelector('.tk-synclink'); if(sl)sl.onclick=()=>{ closeTasks(); W.openSync(); };
+  const qi=main.querySelector('.tk-q'); if(qi)qi.oninput=()=>{ qry=qi.value; const pos=qi.selectionStart; renderList(); const q2=main.querySelector('.tk-q'); if(q2){ q2.focus(); try{ q2.setSelectionRange(pos,pos); }catch(e){} } };
 }
 function empty(a,b){ return '<div class="tk-empty"><b>'+esc(a)+'</b>'+(b?'<span>'+esc(b)+'</span>':'')+'</div>'; }
 function toggleDone(id){
   const t=byId(id); if(!t)return;
-  if(t.done){ t.done=null; save(); render(); toast('Back on the list'); return; }
-  t.done=Date.now(); save(); vib(30); render();
+  if(t.done){ t.done=null; t.m=Date.now(); save(); render(); toast('Back on the list'); return; }
+  t.done=Date.now(); t.m=t.done; save(); vib(30); render();
   closeTag('gr-task-'+id);
   followSheet(t);
 }
@@ -306,19 +688,25 @@ function dtWire(root,key,onch){ const w=root.querySelector('[data-dt="'+key+'"]'
 /* ================= editor ================= */
 function editTask(id){
   const t=id?byId(id):null; view='edit'; curId=t?t.id:null;
-  draft=t?JSON.parse(JSON.stringify(t)):{id:uid(),type:'other',title:'',notes:'',urgent:false,win:'any',wDays:null,due:null,rem:[0,60],remWin:false,created:Date.now(),done:null,fired:{}};
+  draft=t?JSON.parse(JSON.stringify(t)):{id:uid(),type:'other',kind:null,title:'',notes:'',urgent:false,win:'any',wDays:null,due:null,rem:[0,60],remWin:false,steps:[],place:null,tour:null,created:Date.now(),done:null,fired:{}};
+  if(!Array.isArray(draft.steps))draft.steps=[];
+  sEd=null; zoomId=null; hideDone=!!prefs().hideDone; pruneEmpty(draft.steps); norm(draft.steps);
   render(); main.scrollTop=0;
 }
+let edTours=[], edLast=null, edChance=null;
 function renderEdit(){
-  const t=draft, now=Date.now(); ov.querySelector('.tk-title').textContent=curId?'Edit task':'New task'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
-  const ty=TY[t.type]||TY.other, w=WN[t.win]||WN.any;
+  const t=draft, now=Date.now(); if(Array.isArray(t.steps)){ pruneEmpty(t.steps,sEd); norm(t.steps); } ov.querySelector('.tk-title').textContent=curId?'Edit task':'New task'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
+  const ty=tyOf(t), w=WN[t.win]||WN.any;
   let h='<div class="tk-wrap tk-form">'
-   +'<label class="tk-lab">Type</label><div class="tk-types">'+TYPES.map(x=>'<button type="button" class="tk-type ty-'+x.k+(x.k===t.type?' on':'')+'" data-type="'+x.k+'">'+svg(IC[x.k])+'<b>'+esc(x.t)+'</b></button>').join('')+'</div>'
-   +'<p class="tk-hint">'+esc(ty.tip)+'</p>'
-   +'<label class="tk-lab">What needs doing</label><input class="tk-in f-title" maxlength="120" autocomplete="off" placeholder="'+esc(placeholder(t.type))+'" value="'+esc(t.title)+'">'
-   +'<textarea class="tk-in tk-ta f-notes" maxlength="2000" placeholder="Notes — address, contact, reference numbers… (optional)">'+esc(t.notes)+'</textarea>'
+   +'<label class="tk-lab">Type</label><div class="tk-types">'+TYPES.map(x=>'<button type="button" class="tk-type ty-'+x.k+(x.k===t.type?' on':'')+'" data-type="'+x.k+'">'+svg(IC[x.k])+'<b>'+esc(x.t)+'</b></button>').join('')+'</div>';
+  if(ty.kinds)h+='<label class="tk-lab sm">'+esc(ty.t)+' — what kind? <small>optional</small></label><div class="tk-kinds">'+ty.kinds.map(x=>'<button type="button" class="tk-kind'+(x.k===t.kind?' on':'')+'" data-kind="'+x.k+'" aria-pressed="'+(x.k===t.kind)+'"><span class="tk-ki ty-'+ty.k+'">'+svg(IC[x.i])+'</span><span>'+esc(x.t)+'</span></button>').join('')+'</div>';
+  else h+='<p class="tk-hint">'+esc(ty.tip)+'</p>';
+  h+='<label class="tk-lab">What needs doing</label><input class="tk-in f-title" maxlength="120" autocomplete="off" placeholder="'+esc(placeholder(t))+'" value="'+esc(t.title)+'">'
+   +'<textarea class="tk-in tk-ta f-notes" maxlength="2000" placeholder="Notes — reference numbers, contact, what’s been done… (optional)">'+esc(t.notes)+'</textarea>'
    +'<button type="button" class="tk-urg'+(t.urgent?' on':'')+'">'+svg(IC.flag)+'<b>'+(t.urgent?'Urgent':'Mark as urgent')+'</b><span>'+(t.urgent?'Shown first, in red':'Tap to flag it')+'</span></button>';
-  // helpers
+  if(t.type==='enquiry'&&t.kind==='spsv')h+='<button type="button" class="tk-sec-btn wide f-psv">'+svg(IC.memo)+'Open the SPSV cover report stencil</button>';
+  h+=stepsHtml(t);
+  h+=placeHtml(t);
   if(t.type==='cctv')h+=cctvHtml(t,now);
   if(t.type==='limit')h+=limitHtml(t,now);
   // window
@@ -330,15 +718,143 @@ function renderEdit(){
   // deadline
   const RAW=t._raw||{};
   h+='<label class="tk-lab">Deadline <small>optional</small></label>'+dtHtml('due',t.due,[['Today 17:00','t17'],['Today 23:00','t23'],['Tomorrow 09:00','m09'],['+2 days','+2d'],['+1 week','+7d'],['None','none']],RAW.due);
-  h+='<div class="tk-rems"><span>Remind me</span>'+REMS.filter(([m])=>m<=DAY/MIN||t.type==='limit'||(t.rem||[]).includes(m)).map(([m,l])=>'<button type="button" class="tk-rm'+((t.rem||[]).includes(m)?' on':'')+'" data-rm="'+m+'">'+l+'</button>').join('')+'</div>';
+  h+=rosterHtml(t,now);
+  const tr=tourRem(t);
+  h+='<div class="tk-rems"><span>Remind me</span>'+(tr?'<button type="button" class="tk-rm trm'+((t.rem||[]).includes(tr[0])?' on':'')+'" data-rm="'+tr[0]+'">'+esc(tr[1])+'</button>':'')
+    +REMS.filter(([m])=>(m<=DAY/MIN||t.type==='limit'||(t.rem||[]).includes(m))&&!(tr&&m===tr[0])).map(([m,l])=>'<button type="button" class="tk-rm'+((t.rem||[]).includes(m)?' on':'')+'" data-rm="'+m+'">'+l+'</button>').join('')+'</div>';
   h+='<p class="tk-err" hidden></p><div class="tk-row2"><button type="button" class="tk-go f-save">'+(curId?'Save':'Add task')+'</button>'
    +(curId?'<button type="button" class="tk-sec-btn f-done">'+(t.done?'Not done':'✓ Mark done')+'</button>':'<button type="button" class="tk-sec-btn f-cancel">Cancel</button>')+'</div>'
+   +'<div class="tk-row2 tk-out"><button type="button" class="tk-sec-btn f-mail">'+svg(IC.email)+'Email it to me</button><button type="button" class="tk-sec-btn f-cal">'+svg(IC.cal)+'Add to calendar</button></div>'
+   +'<p class="tk-hint sm">'+(prefs().me?'Emails go to '+esc(prefs().me)+' · <button type="button" class="tk-inl f-me">change</button><br>':'')+'Keep personal details of members of the public out of emails and calendars.</p>'
    +(curId?'<button type="button" class="tk-link del f-del">'+svg(IC.trash)+'Delete task</button>':'')
    +'</div>';
   main.innerHTML=h;
   wireEdit();
 }
-function placeholder(k){ return ({cctv:'e.g. Collect CCTV — Centra, Dorset St',statement:'e.g. Statement from shop manager',arrest:'e.g. Arrest on bench warrant — address on PULSE',night:'e.g. Check back lane behind the chipper',call:'e.g. Ring the injured party back',visit:'e.g. House call — 12 Summerhill',court:'e.g. Court 8, CCJ — 10:30',file:'e.g. Update PULSE incident',exhibit:'e.g. Send exhibit to FSI',email:'e.g. Email the council for footage',limit:'e.g. Apply for summons — s.4 Public Order',other:'e.g. Anything to remember'})[k]||''; }
+function placeholder(t){ const k=kindOf(t); if(k&&k.ph)return k.ph;
+  return ({cctv:'e.g. Collect CCTV — Centra, Dorset St',statement:'e.g. Statement from shop manager',arrest:'e.g. Arrest on bench warrant — address on PULSE',enquiry:'e.g. Enquiries at the shops on Talbot St',night:'e.g. Check back lane behind the chipper',call:'e.g. Ring the injured party back',visit:'e.g. House call — 12 Summerhill',court:'e.g. Court 8, CCJ — 10:30',file:'e.g. Update PULSE incident',exhibit:'e.g. Send exhibit to FSI',traffic:'e.g. Check the insurance produced',victim:'e.g. Update the injured party',email:'e.g. Email the council for footage',limit:'e.g. Apply for summons — s.4 Public Order',admin:'e.g. Submit the overtime claim',other:'e.g. Anything to remember'})[t.type]||''; }
+
+/* ---------- steps inside a task — and steps inside steps ---------- */
+function stepsHtml(t){
+  const L=t.steps||[], c=cnt(L), tpl=stepsFor(t), kd=kindOf(t), N=nodeCount(L);
+  let h='<label class="tk-lab">Steps <small>'+(c.m?c.n+' of '+c.m+' done':'optional — break it into steps, and steps into smaller steps')+'</small></label>';
+  if(c.m)h+='<div class="tk-prog" aria-hidden="true"><i style="width:'+Math.round(100*c.n/c.m)+'%"></i></div>';
+  if(L.length){ const o={ed:sEd,now:Date.now(),budget:{left:40,cut:0}}; h+=treeHtml(L,o);
+    if(o.budget.cut)h+='<button type="button" class="tk-link st-full more">'+svg(IC.expand)+'Show all '+N+' steps</button>'; }
+  if(c.m&&c.n===c.m&&curId&&!t.done)h+='<button type="button" class="tk-alldone">'+svg(IC.check)+'All steps done — mark the task done</button>';
+  h+='<div class="tk-stadd"><input class="tk-in st-new" maxlength="200" placeholder="Add a step" enterkeyhint="done" aria-label="New step"><button type="button" class="tk-sec-btn st-add" aria-label="Add the step">'+svg(IC.plus)+'</button></div>'
+   +'<div class="tk-stbar">'+(L.length?'<button type="button" class="st-full">'+svg(IC.expand)+'Full screen</button>':'')+'<button type="button" class="st-paste">'+svg(IC.cliplist)+'Paste a list</button>'+(hasKey()?'<button type="button" class="st-ai">'+svg(IC.spark)+'Break it down</button>':'')+'</div>';
+  if(tpl){ const have=new Set(L.map(x=>x.t)), miss=tpl.filter(x=>!have.has(tplText(x)));
+    if(miss.length)h+='<button type="button" class="tk-link st-tpl">'+svg(IC.cliplist)+(L.length?'Add the rest of the usual steps ('+miss.length+')':'Add the usual steps — '+esc(kd?kd.t:tyOf(t).t))+'</button>'
+      +'<p class="tk-hint sm">A starting checklist — change it to fit. Follow current Garda policy and your Sergeant’s direction.</p>'; }
+  if(L.length&&N<=4&&!L.some(x=>kids(x).length))h+='<p class="tk-hint sm">Tap ⋯ on a step to give it sub-steps, a date or a note. Tap a step to change its wording.</p>';
+  return h; }
+function ringSvg(c){ const f=c.m?c.n/c.m:0, R=8.6, L=2*Math.PI*R;
+  return '<svg viewBox="0 0 24 24" class="sn-ring" aria-hidden="true"><circle class="rb" cx="12" cy="12" r="'+R+'"/>'
+    +(f>=1?'<circle class="rf" cx="12" cy="12" r="'+R+'"/><path class="rk" d="m7.9 12.3 2.7 2.7 5.5-5.8"/>'
+      :f>0?'<circle class="rp" cx="12" cy="12" r="'+R+'" stroke-dasharray="'+(L*f).toFixed(2)+' '+L.toFixed(2)+'" transform="rotate(-90 12 12)"/>':'')+'</svg>'; }
+function snRow(n,o){
+  if(o.budget){ if(o.budget.left<=0){ o.budget.cut++; return ''; } o.budget.left--; }
+  const ch=kids(n), has=ch.length>0, c=has?cnt(ch):null, done=isDone(n), now=o.now, ed=o.ed===n.id;
+  const od=n.due&&!done&&n.due<now, td=n.due&&!done&&!od&&sod(n.due)===sod(now);
+  let meta='';
+  if(has)meta+='<span class="sn-m'+(c.n===c.m?' all':'')+'">'+c.n+'/'+c.m+'</span>';
+  if(n.due&&!done)meta+='<span class="sn-m'+(od?' od':td?' td':'')+'">'+svg(IC.cal)+(od?'overdue — ':'by ')+esc(rel(n.due,now))+'</span>';
+  if(n.n)meta+='<span class="sn-m nt">'+svg(IC.memo)+'<span>'+esc(n.n.split('\n')[0].slice(0,80))+'</span></span>';
+  let h='<div class="sn'+(done?' done':'')+(has?' par':'')+(n.c?' col':'')+(ed?' ed':'')+'" data-sid="'+n.id+'">'
+   +(has?'<button type="button" class="sn-car" aria-expanded="'+(!n.c)+'" aria-label="'+(n.c?'Show':'Hide')+' its sub-steps">'+svg(IC.chev)+'</button>':'<span class="sn-car" aria-hidden="true"></span>')
+   +'<button type="button" class="sn-ck" aria-label="'+(done?'Mark not done':has?'Mark it and all its sub-steps done':'Mark done')+'">'+(has?ringSvg(c):svg(IC.check))+'</button>'
+   +'<div class="sn-b">'+(ed?'<textarea class="tk-in sn-in" rows="1" maxlength="200" enterkeyhint="next" aria-label="Step wording">'+esc(n.t)+'</textarea>':'<button type="button" class="sn-t">'+esc(n.t)+'</button>')
+   +(meta?'<div class="sn-meta">'+meta+'</div>':'')+'</div>'
+   +'<button type="button" class="sn-more" aria-label="Options for this step — sub-steps, date, move, delete">'+svg(IC.dots)+'</button></div>';
+  if(has&&!n.c){ const L=o.hide?ch.filter(k=>!isDone(k)||k.id===o.ed):ch; if(L.length)h+='<div class="sn-kids">'+L.map(k=>snRow(k,o)).join('')+'</div>'; }
+  return h; }
+function treeHtml(list,o){ const L=o.hide?(list||[]).filter(k=>!isDone(k)||k.id===o.ed):(list||[]); return '<div class="tk-tree">'+L.map(n=>snRow(n,o)).join('')+'</div>'; }
+
+/* ---------- place: phone, email and opening hours ---------- */
+const AIKEY='gr_apikey';
+const hasKey=()=>{ try{ return !!(localStorage.getItem(AIKEY)||'').trim(); }catch(e){ return false; } };
+const telOf=p=>String(p||'').replace(/[^\d+]/g,'');
+const webOf=u=>/^https?:\/\//i.test(u)?u:'https://'+String(u||'').replace(/^\/+/,'');
+const hostOf=u=>{ try{ return new URL(webOf(u)).hostname.replace(/^www\./,''); }catch(e){ return String(u||'').slice(0,40); } };
+const googleUrl=q=>'https://www.google.com/search?q='+encodeURIComponent(q+' phone email');
+function guessPlace(s){ s=String(s||''); const m=s.split(/\s[—–-]\s/);
+  if(m.length>1){ const x=m[m.length-1].trim(); if(/[a-z]{3}/i.test(x)&&!/^\d/.test(x))return x.slice(0,80); }
+  const a=/\b(?:at|from)\s+([A-Z].{2,60})$/.exec(s); return a?a[1].trim():''; }
+function contactsHtml(x,big){ const L=[];
+  if(x.ph)L.push('<a href="tel:'+esc(telOf(x.ph))+'"'+(big?' class="pri"':'')+'>'+svg(IC.call)+esc(x.ph)+'</a>');
+  if(x.em)L.push('<a href="mailto:'+esc(x.em)+'">'+svg(IC.email)+esc(x.em)+'</a>');
+  if(x.web)L.push('<a href="'+esc(webOf(x.web))+'" target="_blank" rel="noopener">'+svg(IC.globe)+esc(hostOf(x.web))+'</a>');
+  if(big&&x.lat!=null&&x.lon!=null){ L.push('<a href="https://www.google.com/maps/search/?api=1&amp;query='+(+x.lat).toFixed(6)+','+(+x.lon).toFixed(6)+'" target="_blank" rel="noopener">'+svg(IC.pin)+'Map</a>');
+    if(W.openRoute)L.push('<button type="button" class="pl-route">'+svg(IC.traffic)+'Route</button>'); }
+  let h=L.length?'<div class="tk-pla">'+L.join('')+'</div>':(x.src==='typed'?'':'<p class="tk-plnone">No phone or email listed'+(x.src==='osm'?' on OpenStreetMap':'')+'.</p>');
+  if(x.oh)h+='<p class="tk-ploh">'+svg(IC.any)+'<span>'+esc(x.oh)+'</span></p>';
+  return h; }
+function webHtml(t){ const w=t._web; if(!w)return '';
+  if(w.busy)return '<div class="tk-busy sm"><i></i>Claude is searching the web…</div>';
+  if(w.err)return '<p class="tk-err">'+esc(w.err)+'</p>';
+  const x=w.res; if(!x)return '';
+  if(x.private)return '<p class="tk-note">That looks like a private address or person, so Claude didn’t search it.</p>';
+  const any=x.ph||x.em||x.web||x.oh;
+  return '<div class="tk-plr web"><b>'+esc(x.name||'Found on the web')+'</b>'+(x.a?'<small>'+esc(x.a)+'</small>':'')
+   +(any?contactsHtml({ph:x.ph,em:x.em,web:x.web,oh:x.oh},false):'<p class="tk-plnone">Claude couldn’t find a phone number or email.</p>')
+   +(x.sources&&x.sources.length?'<p class="tk-plsrc">Sources: '+x.sources.slice(0,4).map(u=>'<a href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(hostOf(u))+'</a>').join(' · ')+' — check before you rely on it.</p>':'')
+   +(any?'<button type="button" class="tk-sec-btn pl-webuse">Use these details</button>':'')+'</div>'; }
+function plResHtml(t){ const P=t._pl; if(!P)return '';
+  if(P.busy)return '<div class="tk-busy sm"><i></i>Searching OpenStreetMap…</div>';
+  let h=P.err?'<p class="tk-note">'+esc(P.err)+'</p>':'';
+  h+=(P.res||[]).map((x,i)=>'<div class="tk-plr"><b>'+esc(x.n)+'</b><small>'+esc([x.kind,x.a].filter(Boolean).join(' · '))+'</small>'+contactsHtml(x,false)
+    +'<button type="button" class="tk-sec-btn pl-use" data-plu="'+i+'">Use this place</button></div>').join('');
+  if((P.res||[]).length)h+='<p class="tk-plsrc">Map data © OpenStreetMap contributors. Phone and email only where they’re listed there.</p>';
+  if(P.q)h+='<div class="tk-pla sec"><a href="'+esc(googleUrl(P.q))+'" target="_blank" rel="noopener">'+svg(IC.ext)+'Search Google</a>'
+    +(hasKey()?'<button type="button" class="pl-web">'+svg(IC.spark)+'Find phone & email with Claude</button>':'')+'</div>'+webHtml(t);
+  return h; }
+function placeHtml(t){ const p=t.place;
+  let h='<label class="tk-lab">Place <small>shop, business, station — optional</small></label>';
+  if(p&&p.n){
+    h+='<div class="tk-plc"><div class="tk-plh">'+svg(IC.pin)+'<div><b>'+esc(p.n)+'</b>'+(p.a?'<small>'+esc(p.a)+'</small>':'')+'</div></div>'+contactsHtml(p,true)
+      +(p.web2&&p.srcs&&p.srcs.length?'<p class="tk-plsrc">Some details found on the web by Claude — check them: '+p.srcs.slice(0,3).map(u=>'<a href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(hostOf(u))+'</a>').join(' · ')+'</p>':'')
+      +(p.src==='osm'?'<p class="tk-plsrc">From OpenStreetMap — © OpenStreetMap contributors.</p>':'')
+      +'<div class="tk-pla sec">'+(!p.ph||!p.em?'<button type="button" class="pl-re">'+svg(IC.search)+'Find phone & email</button>':'')
+      +(hasKey()&&(!p.ph||!p.em)?'<button type="button" class="pl-web">'+svg(IC.spark)+'Ask Claude</button>':'')
+      +'<button type="button" class="pl-rm">'+svg(IC.x)+'Remove</button></div>'+webHtml(t)+'</div>';
+  } else {
+    h+='<div class="tk-plq"><input class="tk-in f-place" maxlength="120" autocomplete="off" enterkeyhint="search" placeholder="'+esc(guessPlace(t.title)||'e.g. Centra, Dorset Street')+'" value="'+esc(t._pq||'')+'" aria-label="Place name">'
+      +'<button type="button" class="tk-sec-btn pl-find">'+svg(IC.search)+'Find</button></div>'
+      +'<div class="tk-plres">'+plResHtml(t)+'</div>';
+    if(!t._pl)h+='<p class="tk-hint sm">Find looks the place up on OpenStreetMap (needs signal) and shows its phone, email and hours where listed.</p>';
+  }
+  return h; }
+
+/* ---------- roster: plan it for a tour ---------- */
+function rosterHtml(t,now){
+  if(!W.GRRoster)return '';
+  if(!RO())return '<button type="button" class="tk-link ro-set">'+svg(IC.cal)+'Set up My roster to plan tasks for your tours</button>';
+  let L=tours(now,8); if(t.type==='night'){ const n=L.filter(x=>x.code==='N'); if(n.length)L=n; } L=L.slice(0,6); edTours=L;
+  let h='';
+  if(L.length)h+='<span class="tk-sublab">Or on one of your tours</span><div class="tk-tours">'+L.map((sp,i)=>{ const cur=sp.s<=now, on=planned(t)&&t.tour.ts===sp.s, d=new Date(sp.s);
+      return '<button type="button" class="tk-tc'+(on?' on':'')+'" data-tour="'+i+'"><b>'+(cur?'This tour':esc(DAYS[d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()]))+'</b><small>'+esc((sp.ico?sp.ico+' ':'')+sp.label+' '+hm(sp.s)+'–'+hm(sp.e))+'</small></button>'; }).join('')+'</div>';
+  return h+'<div class="tk-roi"></div>'; }
+function roInfo(){ const box=main&&main.querySelector('.tk-roi'); if(!box||!draft)return; const t=draft, now=Date.now(); let h=''; edLast=null; edChance=null;
+  if(planned(t)){ const x=t.tour; h='<p class="tk-ro ok">'+svg(IC.cal)+'<span>Planned for your <b>'+esc(x.label)+'</b> tour, '+esc(day(x.ts))+' '+hm(x.ts)+'–'+hm(x.te)+(x.s!==x.ts||x.e!==x.te?' · in its window '+hm(x.s)+'–'+hm(x.e):'')+'</span></p>'; }
+  else if(t.due){ const sp=tourAt(t.due);
+    if(sp)h='<p class="tk-ro ok">'+svg(IC.cal)+'<span>You’re on duty then — '+esc(sp.label)+' '+hm(sp.s)+'–'+hm(sp.e)+'</span></p>';
+    else { const di=dayInf(d0(t.due)); edLast=lastTourBefore(t.due,now);
+      h='<p class="tk-ro warn">'+svg(IC.cal)+'<span>'+(di&&di.off?'You’re off that day ('+esc(di.label)+')':'You’re not rostered on at that time')
+        +(edLast?' — last tour before it: <b>'+esc(edLast.label+' '+day(edLast.s)+' '+hm(edLast.s)+'–'+hm(edLast.e))+'</b>':'')+'</span>'+(edLast?'<button type="button" data-ro="last">Do it then</button>':'')+'</p>'; } }
+  if(!planned(t)&&winOf(t)){ edChance=nextChance(t,now);
+    h+=edChance?'<p class="tk-ro tip">'+svg(IC.any)+'<span>Next chance on duty in its window: <b>'+esc(day(edChance.s)+' '+hm(edChance.s)+'–'+hm(edChance.e))+'</b> ('+esc(edChance.tour.label)+')</span><button type="button" data-ro="chance">Plan it</button></p>'
+      :'<p class="tk-ro warn">'+svg(IC.any)+'<span>None of your tours in the next 6 weeks overlaps its time window.</span></p>'; }
+  box.innerHTML=h;
+  box.querySelectorAll('[data-ro]').forEach(b=>b.onclick=()=>{ readDraft(); if(b.dataset.ro==='last'&&edLast)planTour(edLast,edLast.s,edLast.e); else if(edChance)planTour(edChance.tour,edChance.s,edChance.e); });
+}
+function planTour(sp,s,e){ const t=draft, now=Date.now(); if(!t)return;
+  t.tour={s,e,ts:sp.s,te:sp.e,label:sp.label,code:sp.code}; t.due=e;
+  t.rem=(s>now+MIN?[Math.round((e-s)/MIN)]:[]).concat(e-s>2*H?[60]:[0]);
+  dtSet(main,'due',e); rerEdit(); toast('Planned: '+day(s)+' '+hm(s)+'–'+hm(e)); }
+let redrawing=false;
+function rerEdit(){ if(redrawing||view!=='edit'||!draft)return; redrawing=true;
+  try{ const a=D.activeElement; if(a&&main.contains(a)&&a.blur)a.blur(); const st=main.scrollTop; readDraft(); renderEdit(); main.scrollTop=st; } finally{ redrawing=false; } }
 function cctvHtml(t,now){
   const c=t.cctv||{}; const ow=cctvOverwrite(c);
   return '<div class="tk-help"><div class="tk-help-h">'+svg(IC.cctv)+'<b>CCTV — beat the overwrite</b></div>'
@@ -367,30 +883,40 @@ function readDraft(){
   r.querySelectorAll('[data-dt]').forEach(w=>{ t._raw[w.dataset.dt]={d:w.querySelector('.dt-d').value,t:w.querySelector('.dt-t').value}; });
   t.title=r.querySelector('.f-title').value.trim(); t.notes=r.querySelector('.f-notes').value.trim();
   const due=dtRead(r,'due'); t.due=isNaN(due)?null:due;
+  if(t.tour&&t.due!==t.tour.e){ t.tour=null; t.rem=(t.rem||[]).filter(m=>REMS.some(([x])=>x===m)); }
   const rw=r.querySelector('.f-rw'); if(rw)t.remWin=rw.checked;
   const wf=r.querySelector('.f-wf'), wt=r.querySelector('.f-wt'); if(wf){ const a=parseHM(wf.value), b=parseHM(wt.value); t.wFrom=a?p2(a[0])+':'+p2(a[1]):wf.value.trim(); t.wTo=b?p2(b[0])+':'+p2(b[1]):wt.value.trim(); }
   if(t.type==='cctv'){ const inc=dtRead(r,'inc'); t.cctv=t.cctv||{}; t.cctv.inc=isNaN(inc)?null:inc; }
   if(t.type==='limit'){ let off=dtRead(r,'off'); if(isNaN(off)){ const d=r.querySelector('[data-dt="off"] .dt-d'); if(d&&d.value){ const [y,mo,da]=d.value.split('-').map(Number); off=new Date(y,mo-1,da,12,0,0,0).getTime(); } }
     t.sol=t.sol||{months:6}; t.sol.off=isNaN(off)?null:off; }
+  commitEdit();
+  const pq=r.querySelector('.f-place'); if(pq)t._pq=pq.value;
 }
-let redrawing=false;
 function wireEdit(){
-  const r=main, t=draft;
-  const rer=()=>{ if(redrawing)return; redrawing=true; try{ const a=D.activeElement; if(a&&main.contains(a)&&a.blur)a.blur(); const st=main.scrollTop; readDraft(); renderEdit(); main.scrollTop=st; } finally{ redrawing=false; } };
-  r.querySelectorAll('[data-type]').forEach(b=>b.onclick=()=>{ readDraft(); const k=b.dataset.type; if(k===t.type)return; t.type=k;
+  const r=main, t=draft, rer=rerEdit;
+  r.querySelectorAll('[data-type]').forEach(b=>b.onclick=()=>{ readDraft(); const k=b.dataset.type; if(k===t.type)return; t.type=k; t.kind=null;
     if(TY[k].win&&t.win==='any')t.win=TY[k].win;
     if(k==='cctv'&&!t.cctv)t.cctv={inc:null,keep:0};
     if(k==='limit'&&!t.sol)t.sol={months:6,off:null};
     if(k==='cctv'||k==='limit')t.urgent=t.urgent||k==='cctv';
     rer(); });
+  r.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{ readDraft(); t.kind=t.kind===b.dataset.kind?null:b.dataset.kind; vib(10); rer(); });
   r.querySelector('.tk-urg').onclick=()=>{ readDraft(); t.urgent=!t.urgent; vib(15); rer(); };
+  const psv=r.querySelector('.f-psv'); if(psv)psv.onclick=()=>{ try{ if(typeof STEN!=='undefined'&&STEN&&typeof openStencil==='function'){ const i=STEN.findIndex(x=>x.id==='psv_cover'); if(i>=0){ closeTasks(); openStencil(i); return; } } }catch(e){} toast('The stencil is still loading — try again in a moment'); };
   r.querySelectorAll('[data-win]').forEach(b=>b.onclick=()=>{ readDraft(); t.win=b.dataset.win; t.wDays=null; if(t.win==='custom'&&!t.wFrom){t.wFrom='09:00';t.wTo='17:00';} rer(); });
   r.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{ readDraft(); t.wDays=b.dataset.days; rer(); });
   r.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ const m=+b.dataset.rm; t.rem=t.rem||[]; if(t.rem.includes(m))t.rem=t.rem.filter(x=>x!==m); else t.rem.push(m); b.classList.toggle('on'); });
   ['f-wf','f-wt'].forEach(c=>{const i=r.querySelector('.'+c); if(i)i.addEventListener('input',()=>{const dg=i.value.replace(/\D/g,'').slice(0,4);const v=dg.length>2?dg.slice(0,2)+':'+dg.slice(2):dg;if(v!==i.value)i.value=v;});});
-  dtWire(r,'due');
+  // deadline: typing a date or time drops a planned tour and refreshes the roster hints without redrawing the form
+  dtWire(r,'due',()=>{ const had=!!t.tour; readDraft(); if(had&&!t.tour){ r.querySelectorAll('.tk-tc.on').forEach(x=>x.classList.remove('on')); const tc=r.querySelector('.tk-rm.trm'); if(tc)tc.remove(); } roInfo(); });
+  r.querySelectorAll('[data-tour]').forEach(b=>b.onclick=()=>{ readDraft(); const sp=edTours[+b.dataset.tour]; if(!sp)return;
+    if(planned(t)&&t.tour.ts===sp.s){ t.tour=null; t.due=null; t.rem=[0,60]; dtSet(r,'due',null); rer(); toast('Not planned for a tour'); return; }
+    planTour(sp,sp.s,sp.e); });
+  const rs=r.querySelector('.ro-set'); if(rs)rs.onclick=()=>{ closeTasks(); if(W.GRRoster)W.GRRoster.open(); };
+  roInfo();
   // window status line
   const ws=r.querySelector('.wst'); if(ws){ readDraft(); const s=winState(t,Date.now()); ws.innerHTML=s.any?'':s.open?'<span class="grn">Open now</span> · '+esc(s.w.label.trim())+' · '+esc(DAYSET[s.w.days]):'Next opens <b>'+esc(s.next?rel(s.next,Date.now()):'—')+'</b> · '+esc(DAYSET[s.w.days]); }
+  wireSteps(r); wirePlace(r);
   // CCTV helper
   if(t.type==='cctv'){
     const cr=()=>{ readDraft(); r.querySelector('.tk-help-r').innerHTML=cctvRes(t.cctv,Date.now()); const b=r.querySelector('.f-cdl'); b.disabled=!t.cctv.inc;
@@ -398,7 +924,7 @@ function wireEdit(){
     dtWire(r,'inc',cr);
     r.querySelectorAll('[data-keep]').forEach(b=>b.onclick=()=>{ t.cctv.keep=+b.dataset.keep||0; r.querySelectorAll('[data-keep]').forEach(x=>x.classList.toggle('on',x===b)); cr(); });
     const cd=r.querySelector('.f-cdl'); if(cd)cd.onclick=()=>{ readDraft(); const c=t.cctv; if(!c.inc)return; const ow=cctvOverwrite(c);
-      let due=ow?ow-DAY:c.inc+DAY; if(due<Date.now()+30*MIN)due=Math.ceil((Date.now()+60*MIN)/MIN)*MIN; t.rem=[0,60]; t.urgent=true;
+      let due=ow?ow-DAY:c.inc+DAY; if(due<Date.now()+30*MIN)due=Math.ceil((Date.now()+60*MIN)/MIN)*MIN; t.rem=[0,60]; t.urgent=true; t.tour=null;
       dtSet(r,'due',due); const ti=r.querySelector('.f-title'); if(!ti.value.trim())ti.value='Collect CCTV';
       rer(); toast('Deadline set: '+full(due)); };
     r.querySelector('.f-tpl').onclick=()=>{ openTpl('cctv'); }; }
@@ -407,18 +933,21 @@ function wireEdit(){
     const lr=()=>{ readDraft(); r.querySelector('.tk-help-r').innerHTML=limitRes(t.sol,Date.now()); r.querySelector('.f-ldl').disabled=!t.sol.off; };
     dtWire(r,'off',lr);
     r.querySelectorAll('[data-mon]').forEach(b=>b.onclick=()=>{ t.sol.months=+b.dataset.mon; r.querySelectorAll('[data-mon]').forEach(x=>x.classList.toggle('on',x===b)); lr(); });
-    const ld=r.querySelector('.f-ldl'); if(ld)ld.onclick=()=>{ readDraft(); if(!t.sol.off)return; const due=limitEnd(t.sol.off,t.sol.months||6); t.rem=[0,DAY/MIN,7*DAY/MIN,30*DAY/MIN];
+    const ld=r.querySelector('.f-ldl'); if(ld)ld.onclick=()=>{ readDraft(); if(!t.sol.off)return; const due=limitEnd(t.sol.off,t.sol.months||6); t.rem=[0,DAY/MIN,7*DAY/MIN,30*DAY/MIN]; t.tour=null;
       dtSet(r,'due',due); const ti=r.querySelector('.f-title'); if(!ti.value.trim())ti.value='Apply for the summons';
       rer(); toast('Deadline set: '+dateOnly(due)); }; }
   const err=m=>{const e=r.querySelector('.tk-err');e.textContent=m;e.hidden=!m;if(m)e.scrollIntoView({block:'center'});};
   r.querySelector('.f-save').onclick=async()=>{
     readDraft();
+    const ns=r.querySelector('.st-new'); if(ns&&ns.value.trim())t.steps.push({id:sid(),t:ns.value.replace(/\s+/g,' ').trim().slice(0,200),done:null,u:Date.now()});
+    sEd=null; edbar(false); pruneEmpty(t.steps); norm(t.steps);
     if(!t.title&&!t.notes)return err('Say what needs doing.');
     const tv=r.querySelector('[data-dt="due"] .dt-t').value.trim(), dv=r.querySelector('[data-dt="due"] .dt-d').value;
     if((tv||dv)&&t.due==null)return err('Finish the deadline — date and a 24-hour time (e.g. 17:00) — or tap “None”.');
     if(t.win==='custom'&&(!parseHM(t.wFrom)||!parseHM(t.wTo)||t.wFrom===t.wTo))return err('Enter the custom window as two 24-hour times, e.g. 10:00 to 16:00.');
     if(!t.title)t.title=t.notes.split('\n')[0].slice(0,80);
-    t.updated=Date.now(); t.fired={}; t.nextWin=null; delete t._raw;
+    if(!t.place&&t._pq&&t._pq.trim())t.place={n:t._pq.trim().slice(0,120),src:'typed'};
+    t.updated=Date.now(); t.m=t.updated; t.fired={}; t.nextWin=null; delete t._raw; delete t._pl; delete t._pq; delete t._web;
     const isNew=!curId; if(isNew)DB.tasks.push(t); else { const i=DB.tasks.findIndex(x=>x.id===curId); if(i>=0)DB.tasks[i]=t; }
     save(); view='list'; draft=null; render(); toast(isNew?'Task added':'Saved');
     if((t.due&&(t.rem||[]).length)||t.remWin){ if(!permOK()&&('Notification' in W)&&Notification.permission==='default')await enableReminders(); }
@@ -426,29 +955,362 @@ function wireEdit(){
   };
   const c=r.querySelector('.f-cancel'); if(c)c.onclick=()=>back();
   const dn=r.querySelector('.f-done'); if(dn)dn.onclick=()=>{ const id=curId; view='list'; draft=null; toggleDone(id); };
+  r.querySelector('.f-mail').onclick=()=>{ readDraft(); mailTask(t); };
+  r.querySelector('.f-cal').onclick=()=>{ readDraft(); calTask(t); };
+  const me=r.querySelector('.f-me'); if(me)me.onclick=()=>askEmail(()=>rerEdit());
   const dl=r.querySelector('.f-del'); if(dl)dl.onclick=()=>{ if(dl.dataset.sure!=='1'){dl.dataset.sure='1';dl.lastChild.textContent='Tap again to delete';setTimeout(()=>{if(dl.isConnected){dl.dataset.sure='';dl.lastChild.textContent='Delete task';}},2500);return;}
-    DB.tasks=DB.tasks.filter(x=>x.id!==curId); save(); closeTag('gr-task-'+curId); view='list'; draft=null; render(); toast('Deleted'); };
+    DB.tasks=DB.tasks.filter(x=>x.id!==curId); (DB.del=DB.del||{})[curId]=Date.now(); save(); closeTag('gr-task-'+curId); view='list'; draft=null; render(); toast('Deleted'); };
 }
+/* steps: ticks, edits and new steps on a saved task are kept straight away, so nothing is lost if you go back */
+let sEd=null, zoomId=null, hideDone=false, stTours=[];
+function stepsSync(){ if(!curId||!draft)return; const st=byId(curId); if(!st)return; st.steps=pruneEmpty(JSON.parse(JSON.stringify(draft.steps||[])),sEd); st.m=Date.now(); save(); }
+function wireSteps(r){ const t=draft;
+  r.querySelectorAll('.tk-tree').forEach(wireTree);
+  const ni=r.querySelector('.st-new');
+  const add=()=>{ const v=ni.value.replace(/\s+/g,' ').trim(); if(!v){ ni.focus(); return; } readDraft(); if(addStep(v,null)===false)return; const n2=main.querySelector('.st-new'); if(n2)n2.focus(); };
+  if(ni){ r.querySelector('.st-add').onclick=add; ni.onkeydown=e=>{ if(e.key==='Enter'&&!e.isComposing){ e.preventDefault(); add(); } }; }
+  r.querySelectorAll('.st-full').forEach(b=>b.onclick=()=>openPlan(null));
+  const pa=r.querySelector('.st-paste'); if(pa)pa.onclick=()=>{ readDraft(); pasteSheet(null); };
+  const ai=r.querySelector('.st-ai'); if(ai)ai.onclick=()=>{ readDraft(); aiSteps(null); };
+  const tp=r.querySelector('.st-tpl'); if(tp)tp.onclick=()=>{ readDraft(); const have=new Set((t.steps||[]).map(x=>x.t)); t.steps=(t.steps||[]).concat(tplNodes((stepsFor(t)||[]).filter(x=>!have.has(tplText(x))))); norm(t.steps); stepsSync(); rerEdit(); toast('Steps added — change any of them to fit'); };
+  const ad=r.querySelector('.tk-alldone'); if(ad)ad.onclick=()=>{ const id=curId; view='list'; draft=null; toggleDone(id); };
+}
+function toastUndo(msg,fn){ if(!ov)return; const el=ov.querySelector('.tk-toast'); el.innerHTML=esc(msg)+'<button type="button" class="tk-undo">Undo</button>'; el.classList.add('on'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('on'),6500);
+  el.querySelector('.tk-undo').onclick=()=>{ el.classList.remove('on'); fn(); toast('Undone'); }; }
+function restoreSteps(t,json){ const L=JSON.parse(json); if(draft===t){ t.steps=L; stepsSync(); reSteps(false); } else { const st=byId(t.id); if(st){ st.steps=L; st.m=Date.now(); save(); render(); } } }
+/* the editing toolbar sits just above the phone's keyboard */
+function edbar(on){ if(!ov)return; const b=ov.querySelector('.tk-edbar'); if(!b)return; b.hidden=!on; if(main)main.classList.toggle('edpad',!!on); if(on)edbarPos(); }
+function edbarPos(){ const b=ov&&ov.querySelector('.tk-edbar'); if(!b||b.hidden)return; const vv=W.visualViewport; const off=vv?Math.max(0,Math.round(W.innerHeight-vv.height-vv.offsetTop)):0; b.style.transform=off?'translateY(-'+off+'px)':''; }
+if(W.visualViewport){ W.visualViewport.addEventListener('resize',edbarPos); W.visualViewport.addEventListener('scroll',edbarPos); }
+// redraw whichever screen is showing the steps, keeping the step being typed in focus
+function reSteps(focus){ if(!ov||ov.hidden)return; if(view==='plan')renderPlan(true); else if(view==='edit')rerEdit(); else return;
+  if(focus&&sEd){ const ta=edBox(sEd); if(ta){ try{ ta.focus({preventScroll:true}); const v=ta.value.length; ta.setSelectionRange(v,v); }catch(e){} fitTa(ta); const r=ta.closest('.sn'); if(r)r.scrollIntoView({block:'nearest'}); } } }
+function edBox(id){ return main&&id?main.querySelector('.sn[data-sid="'+id+'"] > .sn-b > .sn-in'):null; }
+function commitEdit(){ if(!sEd||!draft||!main)return false; const ta=edBox(sEd), x=locate(draft.steps,sEd); if(!ta||!x)return false;
+  const v=ta.value.replace(/\s+/g,' ').trim().slice(0,200); if(v&&v!==x.n.t){ x.n.t=v; x.n.u=Date.now(); return true; } return false; }
+function fitTa(ta){ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight+2,260)+'px'; }
+function wireEditBox(ta){ fitTa(ta);
+  ta.addEventListener('focus',()=>{ const r=ta.closest('.sn'); if(r)sEd=r.dataset.sid; edbar(true); });
+  ta.addEventListener('input',()=>{ if(ta.value.includes('\n')){ const p=ta.value.split('\n'); ta.value=p[0]; fitTa(ta); stepEnter(p.slice(1).join(' ')); return; } fitTa(ta); });
+  ta.addEventListener('keydown',e=>{ if(e.isComposing)return;
+    if(e.key==='Enter'){ e.preventDefault(); stepEnter(''); }
+    else if(e.key==='Tab'){ e.preventDefault(); stepOp(e.shiftKey?'out':'in'); }
+    else if(e.key==='Backspace'&&!ta.value){ e.preventDefault(); stepBack(); }
+    else if(e.key==='Escape'){ e.preventDefault(); ta.blur(); }
+    else if(e.altKey&&(e.key==='ArrowUp'||e.key==='ArrowDown')){ e.preventDefault(); stepOp(e.key==='ArrowUp'?'up':'down'); } });
+  ta.addEventListener('blur',()=>{ setTimeout(()=>{ if(!ta.isConnected||D.activeElement===ta)return; const r=ta.closest('.sn'), id=r&&r.dataset.sid; if(sEd!==id)return;
+    const ch=commitEdit(), x=draft&&locate(draft.steps,id); sEd=null; edbar(false);
+    if(x&&!x.n.t&&!kids(x.n).length){ x.list.splice(x.i,1); norm(draft.steps); stepsSync(); if(r)r.remove(); return; }
+    if(ch){ stepsSync(); const b=D.createElement('button'); b.type='button'; b.className='sn-t'; b.textContent=x?x.n.t:ta.value; ta.replaceWith(b); if(r)r.classList.remove('ed'); }
+    else if(r){ const b=D.createElement('button'); b.type='button'; b.className='sn-t'; b.textContent=x?x.n.t:ta.value; ta.replaceWith(b); r.classList.remove('ed'); } },0); }); }
+function stepEnter(rest){ const t=draft; if(!t||!sEd)return; const x=locate(t.steps,sEd); if(!x)return;
+  const ta=edBox(sEd), v=(ta?ta.value:x.n.t).replace(/\s+/g,' ').trim();
+  if(!v&&!kids(x.n).length){ if(x.par&&!(view==='plan'&&zoomId===x.par.id)){ stepOp('out'); return; } x.list.splice(x.i,1); sEd=null; norm(t.steps); stepsSync(); reSteps(false); edbar(false); return; }
+  commitEdit();
+  if(nodeCount(t.steps)>=MAXN){ toast('That’s the most steps one task can hold ('+MAXN+')'); return; }
+  const nn={id:sid(),t:String(rest||'').replace(/\s+/g,' ').trim().slice(0,200),done:null,u:Date.now()};
+  if(kids(x.n).length&&!x.n.c)x.n.steps.unshift(nn); else x.list.splice(x.i+1,0,nn);   // on an open step with sub-steps, the new one goes first inside it
+  sEd=nn.id; norm(t.steps); stepsSync(); reSteps(true); }
+function stepBack(){ const t=draft; const x=t&&locate(t.steps,sEd); if(!x||kids(x.n).length)return;
+  const vis=[...main.querySelectorAll('.tk-tree .sn')].map(r=>r.dataset.sid), k=vis.indexOf(sEd);
+  x.list.splice(x.i,1); sEd=k>0?vis[k-1]:null; norm(t.steps); stepsSync(); reSteps(!!sEd); if(!sEd)edbar(false); }
+function stepOp(op,id){ id=id||sEd; const t=draft; if(!t||!id)return; commitEdit(); const x=locate(t.steps,id); if(!x)return; let msg='';
+  if(op==='up'){ if(x.i===0)msg='It’s already at the top'; else { x.list.splice(x.i,1); x.list.splice(x.i-1,0,x.n); } }
+  else if(op==='down'){ if(x.i>=x.list.length-1)msg='It’s already at the bottom'; else { x.list.splice(x.i,1); x.list.splice(x.i+1,0,x.n); } }
+  else if(op==='in'){ if(x.i===0)msg='There’s no step above it to go under';
+    else { const p=x.list[x.i-1]; if(levelOf(t.steps,p.id)+height(x.n)>MAXD)msg='That’s as deep as steps go ('+MAXD+' levels)';
+      else { x.list.splice(x.i,1); (p.steps=p.steps||[]).push(x.n); p.c=false; } } }
+  else if(op==='out'){ if(!x.par)msg='It’s already at the top level';
+    else if(view==='plan'&&zoomId===x.par.id)msg='Go up a level (top of the screen) to move it out';
+    else { const g=locate(t.steps,x.par.id); x.list.splice(x.i,1); g.list.splice(g.i+1,0,x.n); } }
+  else if(op==='sub'){ if(levelOf(t.steps,id)>=MAXD)msg='That’s as deep as steps go ('+MAXD+' levels)';
+    else if(nodeCount(t.steps)>=MAXN)msg='That’s the most steps one task can hold ('+MAXN+')';
+    else { const nn={id:sid(),t:'',done:null,u:Date.now()}; (x.n.steps=x.n.steps||[]).push(nn); x.n.c=false; sEd=nn.id; } }
+  if(msg){ toast(msg); return; }
+  x.n.u=Date.now(); norm(t.steps); stepsSync(); reSteps(!!sEd); vib(8); }
+function tickStep(id){ const t=draft; const x=t&&locate(t.steps,id); if(!x)return; commitEdit();
+  const before=JSON.stringify(t.steps), now=Date.now();
+  if(!kids(x.n).length){ x.n.done=x.n.done?null:now; x.n.u=now; vib(12); norm(t.steps); stepsSync(); reSteps(!!sEd&&sEd!==id); return; }
+  const all=isDone(x.n); let k=0;
+  walk(x.n.steps,n=>{ if(kids(n).length)return; if(all){ if(n.done){ n.done=null; n.u=now; k++; } } else if(!n.done){ n.done=now; n.u=now; k++; } });
+  vib(all?12:[12,40,12]); norm(t.steps); stepsSync(); reSteps(!!sEd&&sEd!==id);
+  if(k>1)toastUndo((all?'Unticked ':'Ticked ')+k+' sub-steps',()=>restoreSteps(t,before)); }
+function wireTree(el){
+  el.addEventListener('click',e=>{ const row=e.target.closest('.sn'); if(!row||!el.contains(row)||e.target.closest('.sn-in'))return; const id=row.dataset.sid;
+    if(e.target.closest('.sn-car')){ commitEdit(); const x=locate(draft.steps,id); if(x){ x.n.c=!x.n.c; stepsSync(); reSteps(!!sEd); } return; }
+    if(e.target.closest('.sn-ck'))return tickStep(id);
+    if(e.target.closest('.sn-more'))return stepSheet(id);
+    if(e.target.closest('.sn-t')){ commitEdit(); sEd=id; reSteps(true); } });
+  el.querySelectorAll('.sn-in').forEach(wireEditBox); }
+function addStep(v,parentId){ const t=draft; if(!t)return false; commitEdit();
+  if(nodeCount(t.steps)>=MAXN){ toast('That’s the most steps one task can hold ('+MAXN+')'); return false; }
+  const nn={id:sid(),t:v.slice(0,200),done:null,u:Date.now()};
+  if(parentId){ const x=locate(t.steps,parentId); if(!x)return false; if(levelOf(t.steps,parentId)>=MAXD){ toast('That’s as deep as steps go ('+MAXD+' levels)'); return false; } (x.n.steps=x.n.steps||[]).push(nn); x.n.c=false; }
+  else (t.steps=t.steps||[]).push(nn);
+  norm(t.steps); stepsSync(); reSteps(false);
+  const row=main.querySelector('.sn[data-sid="'+nn.id+'"]'); if(row)row.scrollIntoView({block:'nearest'}); return true; }
+/* ⋯ — everything you can do with one step */
+function stepTourChips(){ stTours=[]; if(!RO())return ''; const L=tours(Date.now(),6).slice(0,5); if(!L.length)return ''; stTours=L;
+  return '<span class="tk-sublab">Or by the end of one of your tours</span><div class="tk-tours sm">'+L.map((sp,i)=>{ const cur=sp.s<=Date.now(), d=new Date(sp.s);
+    return '<button type="button" class="tk-tc" data-stour="'+i+'"><b>'+(cur?'This tour':esc(DAYS[d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()]))+'</b><small>'+esc((sp.ico?sp.ico+' ':'')+sp.label+' until '+hm(sp.e))+'</small></button>'; }).join('')+'</div>'; }
+function stepSheet(id){ const t=draft; if(!t)return; commitEdit(); const ae=D.activeElement; sEd=null; if(ae&&ae.blur&&main.contains(ae))ae.blur(); edbar(false);
+  if(main.querySelector('.sn-in'))reSteps(false);
+  const x=locate(t.steps,id); if(!x)return; const n=x.n, has=kids(n).length, c=has?cnt(n.steps):null, lvl=levelOf(t.steps,id);
+  let h='<div class="tk-grip"></div><h3 class="sn-sh">'+esc(n.t||'Step')+'</h3><p class="tk-note">'+(lvl>1?'Level '+lvl+' · ':'')+(has?c.n+' of '+c.m+' sub-steps done':'No sub-steps yet')+'</p>'
+   +'<div class="sn-acts"><button type="button" data-sa="sub">'+svg(IC.sub)+'Add a sub-step</button>'
+   +(has?'<button type="button" data-sa="zoom">'+svg(IC.expand)+'Open it on its own</button>':'<button type="button" data-sa="edit">'+svg(IC.pen)+'Change the wording</button>')
+   +'<button type="button" data-sa="up">'+svg(IC.up)+'Move up</button><button type="button" data-sa="down">'+svg(IC.down)+'Move down</button>'
+   +'<button type="button" data-sa="in">'+svg(IC.indent)+'Put it under the step above</button><button type="button" data-sa="out">'+svg(IC.outdent)+'Move it out a level</button></div>'
+   +'<label class="tk-lab sm">Do it by <small>optional</small></label>'+dtHtml('sdue',n.due||null,[['Today 17:00','t17'],['Tomorrow 09:00','m09'],['+2 days','+2d'],['+1 week','+7d'],['None','none']])
+   +stepTourChips()
+   +'<div class="tk-rems sn-rems"><span>Remind me</span>'+[[0,'At the time'],[60,'1 hour before'],[DAY/MIN,'1 day before']].map(([m,l])=>'<button type="button" class="tk-rm'+((n.rem&&n.rem.length?n.rem:[0]).includes(m)?' on':'')+'" data-srm="'+m+'">'+l+'</button>').join('')+'</div>'
+   +'<p class="tk-hint sm sn-dw"></p>'
+   +'<label class="tk-lab sm">Note <small>optional</small></label><textarea class="tk-in tk-ta sn-note" maxlength="1000" placeholder="Details for this step">'+esc(n.n||'')+'</textarea>'
+   +'<p class="tk-err" hidden></p>'
+   +'<div class="tk-row2"><button type="button" class="tk-sec-btn sn-del">'+svg(IC.trash)+'<span>'+(has?'Delete it and its '+nodeCount(n.steps)+' sub-steps':'Delete this step')+'</span></button><button type="button" class="tk-go sn-ok">Done</button></div>';
+  sh.innerHTML=h; sh.hidden=false; ov.querySelector('.tk-shade').hidden=false; sh.scrollTop=0;
+  let rem=(n.rem&&n.rem.length?n.rem:[0]).slice();
+  const dw=()=>{ const d=dtRead(sh,'sdue'), p=sh.querySelector('.sn-dw'); p.textContent=!isNaN(d)&&t.due&&d>t.due?'That’s after the task’s own deadline ('+full(t.due)+').':''; };
+  dtWire(sh,'sdue',()=>{ sh.querySelectorAll('[data-stour]').forEach(b=>b.classList.remove('on')); dw(); }); dw();
+  sh.querySelectorAll('[data-stour]').forEach(b=>b.onclick=()=>{ const sp=stTours[+b.dataset.stour]; if(!sp)return; dtSet(sh,'sdue',sp.e); sh.querySelectorAll('[data-stour]').forEach(x=>x.classList.toggle('on',x===b)); dw(); });
+  sh.querySelectorAll('[data-srm]').forEach(b=>b.onclick=()=>{ const m=+b.dataset.srm; rem=rem.includes(m)?rem.filter(v=>v!==m):rem.concat(m); b.classList.toggle('on',rem.includes(m)); });
+  const partial=()=>{ const w=sh.querySelector('[data-dt="sdue"]'); return !!((w.querySelector('.dt-d').value||w.querySelector('.dt-t').value.trim())&&isNaN(dtRead(sh,'sdue'))); };
+  const apply=()=>{ const y=locate(draft&&draft.steps,id); if(!y||partial())return false; const d=dtRead(sh,'sdue'), nd=isNaN(d)?null:d, nt=sh.querySelector('.sn-note').value.trim().slice(0,1000), nr=rem.length?rem.slice().sort((p,q)=>p-q):[];
+    if((y.n.due||null)===nd&&(y.n.n||'')===nt&&JSON.stringify(y.n.rem||[0])===JSON.stringify(nr))return false;
+    y.n.due=nd; if(nt)y.n.n=nt; else delete y.n.n; y.n.rem=nr; y.n.u=Date.now(); stepsSync(); return true; };
+  sh._onclose=()=>{ const bad=partial(); if(apply())reSteps(false); if(bad)toast('The date wasn’t finished, so it wasn’t saved'); };
+  const go=fn=>{ apply(); sh._onclose=null; closeSheet(); fn(); };
+  sh.querySelectorAll('[data-sa]').forEach(b=>b.onclick=()=>{ const k=b.dataset.sa;
+    if(k==='zoom')go(()=>openPlan(id)); else if(k==='edit')go(()=>{ sEd=id; reSteps(true); }); else go(()=>stepOp(k,id)); });
+  sh.querySelector('.sn-ok').onclick=()=>{ if(partial()){ const e=sh.querySelector('.tk-err'); e.textContent='Finish the date — a date and a 24-hour time — or tap “None”.'; e.hidden=false; return; } const ch=apply(); sh._onclose=null; closeSheet(); if(ch)reSteps(false); };
+  const del=sh.querySelector('.sn-del'); del.onclick=()=>{ if(has&&del.dataset.sure!=='1'){ del.dataset.sure='1'; del.querySelector('span').textContent='Tap again to delete '+(nodeCount(n.steps)+1)+' steps'; return; }
+    const before=JSON.stringify(t.steps), y=locate(t.steps,id); sh._onclose=null; closeSheet(); if(!y)return; y.list.splice(y.i,1); if(zoomId&&(zoomId===id||!locate(t.steps,zoomId)))zoomId=null;
+    norm(t.steps); stepsSync(); reSteps(false); toastUndo(has?'Deleted '+(nodeCount(n.steps)+1)+' steps':'Step deleted',()=>restoreSteps(t,before)); };
+}
+/* full screen: the whole plan, or one step and everything under it */
+function openPlan(z){ if(view==='edit')readDraft(); commitEdit(); sEd=null; edbar(false); zoomId=z||null; view='plan'; render(); main.scrollTop=0; }
+function renderPlan(keep){ const t=draft; if(!t){ view='list'; renderList(); return; }
+  const st=keep?main.scrollTop:0, now=Date.now();
+  ov.querySelector('.tk-title').textContent='Steps'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
+  pruneEmpty(t.steps||(t.steps=[]),sEd); norm(t.steps);
+  const z=zoomId?locate(t.steps,zoomId):null; if(zoomId&&!z)zoomId=null;
+  const all=cnt(t.steps), list=z?kids(z.n):t.steps, ty=tyOf(t), sd=nextStepDue(t), o={ed:sEd,now,hide:hideDone};
+  let h='<div class="tk-wrap tk-plan"><div class="pl-head"><span class="tk-ico ty-'+ty.k+'">'+svg(icOf(t))+'</span><div class="pl-ht"><b>'+esc(t.title||ty.t)+'</b><small>'
+    +(all.m?all.n+' of '+all.m+' steps done':'No steps yet')+(sd?' · next by '+esc(rel(sd,now)):'')+'</small>'+(all.m?'<div class="tk-prog"><i style="width:'+Math.round(100*all.n/all.m)+'%"></i></div>':'')+'</div></div>';
+  if(z){ const p=pathTo(t.steps,z.n.id);
+    h+='<nav class="pl-crumbs" aria-label="Back up to"><button type="button" data-z="">'+svg(IC.up)+'All steps</button>'+p.slice(0,-1).map(x=>'<span aria-hidden="true">›</span><button type="button" data-z="'+x.id+'">'+esc(x.t)+'</button>').join('')+'</nav>'
+      +'<div class="pl-zoom">'+treeHtml([Object.assign({},z.n,{c:true})],{ed:sEd,now})+'</div>'; }
+  h+='<div class="pl-ctl"><button type="button" data-pc="hide" class="'+(hideDone?'on':'')+'" aria-pressed="'+hideDone+'">'+svg(IC.eyeoff)+'Hide done</button>'
+   +(list.some(x=>kids(x).length)?'<button type="button" data-pc="col">'+svg(IC.colall)+'Collapse all</button><button type="button" data-pc="exp">'+svg(IC.expall)+'Expand all</button>':'')
+   +'<button type="button" data-pc="paste">'+svg(IC.cliplist)+'Paste a list</button>'+(hasKey()?'<button type="button" data-pc="ai">'+svg(IC.spark)+'Break it down</button>':'')
+   +(list.length?'<button type="button" data-pc="copy">'+svg(IC.copy)+'Copy</button>':'')+'</div>';
+  if(list.length){ h+=treeHtml(list,o); if(hideDone&&!list.some(k=>!isDone(k)))h+=empty('Everything here is done.','Tap “Hide done” to see the finished steps.'); }
+  else h+=empty(z?'No sub-steps yet.':'No steps yet.','Add one below, or paste a whole list.');
+  if(!z&&all.m&&all.n===all.m&&curId&&!t.done)h+='<button type="button" class="tk-alldone">'+svg(IC.check)+'All steps done — mark the task done</button>';
+  h+='<div class="pl-add"><input class="tk-in pl-new" maxlength="200" placeholder="'+esc(z?'Add a sub-step to “'+z.n.t.slice(0,36)+(z.n.t.length>36?'…':'')+'”':'Add a step')+'" enterkeyhint="done" aria-label="New step"><button type="button" class="tk-go pl-addb" aria-label="Add the step">'+svg(IC.plus)+'</button></div></div>';
+  main.innerHTML=h; main.scrollTop=st;
+  main.querySelectorAll('.tk-tree').forEach(wireTree);
+  main.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{ commitEdit(); sEd=null; edbar(false); zoomId=b.dataset.z||null; renderPlan(); });
+  main.querySelectorAll('[data-pc]').forEach(b=>b.onclick=()=>{ const k=b.dataset.pc, zz=zoomId?locate(t.steps,zoomId):null, L=zz?kids(zz.n):t.steps;
+    if(k==='hide'){ hideDone=!hideDone; setPref('hideDone',hideDone); renderPlan(true); }
+    else if(k==='col'||k==='exp'){ commitEdit(); sEd=null; edbar(false); walk(L,n=>{ if(kids(n).length)n.c=(k==='col'); }); stepsSync(); renderPlan(true); }
+    else if(k==='paste')pasteSheet(zoomId); else if(k==='ai')aiSteps(zoomId); else if(k==='copy')copySteps(zz?zz.n:null); });
+  const ni=main.querySelector('.pl-new'), add=()=>{ const v=ni.value.replace(/\s+/g,' ').trim(); if(!v){ ni.focus(); return; } if(addStep(v,zoomId)===false)return; const n2=main.querySelector('.pl-new'); if(n2)n2.focus(); };
+  main.querySelector('.pl-addb').onclick=add; ni.onkeydown=e=>{ if(e.key==='Enter'&&!e.isComposing){ e.preventDefault(); add(); } };
+  const ad=main.querySelector('.tk-alldone'); if(ad)ad.onclick=()=>{ const id=curId; view='list'; draft=null; zoomId=null; toggleDone(id); };
+  if(W.grHudTick)W.grHudTick(); }
+/* paste a whole list — from your notes app, an email, a checklist */
+function pasteSheet(parentId,prefill,src){ const t=draft; if(!t)return; commitEdit(); sEd=null; edbar(false);
+  const z=parentId?locate(t.steps,parentId):null, base=z?levelOf(t.steps,parentId):0;
+  sh.innerHTML='<div class="tk-grip"></div><h3>'+(src==='ai'?'Suggested steps':'Paste a list')+'</h3>'
+   +'<p class="tk-note">'+(src==='ai'?'From Claude — check them and change anything that doesn’t fit. Follow current Garda policy and your Sergeant’s direction.':'One step per line. To make a line a sub-step of the one above it, start it with “-” (or “--” to go two levels in), or indent it.')+'</p>'
+   +'<textarea class="tk-in tk-ta big pa-t" placeholder="Statements\n- Injured party\n- Witnesses\nCCTV\n- Centra, Dorset St\n- Spar, Parnell St">'+esc(prefill||'')+'</textarea>'
+   +'<p class="tk-hint pa-n"></p><div class="tk-row2"><button type="button" class="tk-sec-btn pa-x">Cancel</button><button type="button" class="tk-go pa-ok" disabled>Add</button></div>';
+  sh.hidden=false; ov.querySelector('.tk-shade').hidden=false; sh.scrollTop=0;
+  const ta=sh.querySelector('.pa-t'), ok=sh.querySelector('.pa-ok'), info=sh.querySelector('.pa-n');
+  const upd=()=>{ const L=parseOutline(ta.value,MAXD-base), n=nodeCount(L), lv=L.length?Math.max(...L.map(height)):0;
+    ok.disabled=!n; ok.textContent=n?'Add '+n+' step'+(n===1?'':'s'):'Add'; info.textContent=n?n+' step'+(n===1?'':'s')+(lv>1?' on '+lv+' levels':'')+(z?' — under “'+z.n.t.slice(0,40)+'”':''):''; return L; };
+  ta.oninput=upd; upd(); if(!prefill)setTimeout(()=>{ try{ ta.focus(); }catch(e){} },60);
+  sh.querySelector('.pa-x').onclick=()=>closeSheet();
+  ok.onclick=()=>{ const L=upd(); if(!L.length)return; if(nodeCount(L)>MAXN-nodeCount(t.steps)){ toast('Too many — one task holds up to '+MAXN+' steps'); return; }
+    const before=JSON.stringify(t.steps||[]), y=parentId?locate(t.steps,parentId):null;
+    if(y){ y.n.steps=(y.n.steps||[]).concat(L); y.n.c=false; } else t.steps=(t.steps||[]).concat(L);
+    norm(t.steps); stepsSync(); closeSheet(); reSteps(false); toastUndo(nodeCount(L)+' step'+(nodeCount(L)===1?'':'s')+' added',()=>restoreSteps(t,before)); }; }
+/* break it down — Claude suggests steps (with your own API key; only the title is sent) */
+function aiSteps(parentId){ const t=draft; if(!t)return; commitEdit(); sEd=null; edbar(false);
+  if(!hasKey()){ toast('Add your Anthropic API key in AI search settings first'); return; }
+  const z=parentId?locate(t.steps,parentId):null, what=(z?z.n.t:(t.title||'')).trim();
+  if(what.length<4){ toast('Give the '+(z?'step':'task')+' a title first'); return; }
+  sh.innerHTML='<div class="tk-grip"></div><h3>Break it down with Claude</h3><p class="tk-note">Claude suggests steps and sub-steps. Only this is sent (to Anthropic, with your API key):</p>'
+   +'<div class="tk-plr"><b>'+esc(what)+'</b><small>'+esc(tyLabel(t))+(z&&t.title?' · part of “'+esc(t.title.slice(0,60))+'”':'')+'</small></div>'
+   +'<p class="tk-hint">Nothing else from the task — no notes, places or other steps. Don’t send names or details of members of the public: change the title first if it has any.</p><p class="tk-err" hidden></p>'
+   +'<div class="tk-row2"><button type="button" class="tk-sec-btn ai-x">Cancel</button><button type="button" class="tk-go ai-go">'+svg(IC.spark)+' Suggest steps</button></div>';
+  sh.hidden=false; ov.querySelector('.tk-shade').hidden=false; sh.scrollTop=0;
+  sh.querySelector('.ai-x').onclick=()=>closeSheet();
+  const go=sh.querySelector('.ai-go'); go.onclick=async()=>{ go.disabled=true; go.textContent='Thinking…'; const e=sh.querySelector('.tk-err'); e.hidden=true;
+    try{ const out=await claudeOutline(what,tyLabel(t),z?(t.title||''):''); if(draft!==t||sh.hidden)return; pasteSheet(parentId,out,'ai'); }
+    catch(err){ if(sh.hidden||!go.isConnected)return; go.disabled=false; go.innerHTML=svg(IC.spark)+' Try again'; e.textContent=(err&&err.message)||'Couldn’t reach Claude right now.'; e.hidden=false; } }; }
+async function claudeOutline(what,type,parent){ const key=(localStorage.getItem(AIKEY)||'').trim();
+  if(navigator.onLine===false)throw new Error('No signal — try again when you have signal.');
+  let models=['claude-sonnet-5','claude-sonnet-4-6']; try{ const pref=localStorage.getItem('gr_ai_model'); if(pref&&models.includes(pref))models=[pref].concat(models.filter(m=>m!==pref)); }catch(e){}
+  const prompt='A probationary member of An Garda Síochána (Ireland) wants to break a piece of work into steps.\n'+(parent?'It is part of the task: "'+parent+'".\n':'')+'Work: "'+what+'" (type: '+type+').\n'
+   +'Write a practical plan as an indented outline: one step per line, two spaces of indent per level, at most 3 levels and 30 lines, each line under 90 characters, each starting with a verb. '
+   +'Keep to general good practice under Irish law and Garda procedure. Do not invent form numbers, policy names, deadlines or legal sections you are not sure of, and do not include any personal details. '
+   +'Reply with the outline only — no title, numbering, bullets, markdown or commentary.';
+  let last=null;
+  for(const model of models){
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:1500,messages:[{role:'user',content:prompt}]})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.error){ const m=(d.error&&d.error.message)||('HTTP '+r.status); if(r.status===404||/model/i.test(m)){ last=new Error(m); continue; } throw new Error(r.status===401?'The API key was refused — check it in AI search settings.':m); }
+    const txt=(d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').replace(/^```[a-z]*\n?/i,'').replace(/```\s*$/,'').trim();
+    if(!txt)throw new Error('Claude didn’t suggest anything — try rewording the title.');
+    return txt; }
+  throw last||new Error('Couldn’t reach Claude right now.'); }
+function copySteps(node){ const t=draft; if(!t)return; const txt=(node?node.t:(t.title||'Steps'))+'\n'+stepLines(node?node.steps:t.steps,'',false).join('\n');
+  (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Steps copied — paste them into a message or your notes')).catch(()=>{
+    sh.innerHTML='<div class="tk-grip"></div><h3>Steps</h3><textarea class="tk-in tk-ta big" readonly>'+esc(txt)+'</textarea><button type="button" class="tk-sec-btn wide tk-x">Close</button>';
+    sh.hidden=false; ov.querySelector('.tk-shade').hidden=false; sh.querySelector('.tk-x').onclick=()=>closeSheet(); }); }
+/* place lookup: OpenStreetMap (Nominatim, one search per tap — no search-as-you-type) and, if you choose, Claude web search */
+let lastNom=0;
+function osmPlace(r){ const x=r.extratags||{}, a=r.address||{};
+  const pick=(...ks)=>{ for(const k of ks){ if(x[k])return String(x[k]).split(';')[0].trim(); } return ''; };
+  const street=[a.house_number,a.road].filter(Boolean).join(' '), area=a.suburb||a.neighbourhood||a.quarter||a.city_district||'', city=a.city||a.town||a.village||a.county||'';
+  return {n:(r.name||String(r.display_name||'').split(',')[0]).trim(),a:[street,area!==city?area:'',city,a.postcode||''].filter(Boolean).join(', ')||String(r.display_name||'').split(',').slice(1,4).join(',').trim(),
+    lat:+r.lat,lon:+r.lon,ph:pick('phone','contact:phone','contact:mobile','mobile'),em:pick('email','contact:email'),web:pick('website','contact:website','url'),oh:String(x.opening_hours||'').slice(0,200),src:'osm',kind:String(r.type||'').replace(/_/g,' ')}; }
+async function findPlace(q){ const t=draft; if(!t)return;
+  if(navigator.onLine===false){ t._pl={q,res:[],err:'No signal — try again when you have signal.'}; rerEdit(); return; }
+  t._pl={q,busy:true,res:[]}; t._web=null; rerEdit();
+  await new Promise(ok=>setTimeout(ok,Math.max(0,1100-(Date.now()-lastNom)))); lastNom=Date.now();
+  try{ const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),12000);
+    const res=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&limit=6&countrycodes=ie&accept-language=en&viewbox=-6.55,53.50,-6.00,53.20&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'},signal:ctl.signal});
+    clearTimeout(to); if(!res.ok)throw new Error('HTTP '+res.status);
+    const j=await res.json(); if(draft!==t)return;
+    const L=(Array.isArray(j)?j:[]).map(osmPlace).filter(x=>x.n);
+    t._pl={q,res:L,err:L.length?'':'Nothing found on OpenStreetMap for “'+q+'” — try adding the street or the town.'}; }
+  catch(e){ if(draft!==t)return; t._pl={q,res:[],err:'Couldn’t search right now — check your signal and try again.'}; }
+  rerEdit(); }
+async function claudeContacts(q){ const key=(localStorage.getItem(AIKEY)||'').trim(); if(!key)throw new Error('Add your Anthropic API key in AI search settings first.');
+  let models=['claude-sonnet-5','claude-sonnet-4-6']; try{ const pref=localStorage.getItem('gr_ai_model'); if(pref&&models.includes(pref))models=[pref].concat(models.filter(m=>m!==pref)); }catch(e){}
+  const prompt='Find the public contact details of this business, organisation or public place in Ireland: "'+q+'".\n'
+   +'Search the web. Only give details you actually found on a web page in this search — never guess or make up a phone number, email or address. '
+   +'If this looks like a private home or a private individual rather than a business or public place, do not search: reply {"private":true}.\n'
+   +'Reply with JSON only, no other text: {"name":"","address":"","phone":"","email":"","website":"","hours":"","sources":["https://…"]} — use "" for anything you did not find.';
+  let last=null;
+  for(const model of models){
+    let messages=[{role:'user',content:prompt}], d=null, modelErr=false;
+    for(let turn=0;turn<3;turn++){
+      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model,max_tokens:1500,tools:[{type:'web_search_20250305',name:'web_search',max_uses:4,user_location:{type:'approximate',country:'IE',timezone:'Europe/Dublin'}}],messages})});
+      d=await r.json().catch(()=>({}));
+      if(!r.ok||d.error){ const m=(d.error&&d.error.message)||('HTTP '+r.status);
+        if(r.status===404||/model/i.test(m)){ modelErr=true; last=new Error(m); break; }
+        throw new Error(r.status===401?'The API key was refused — check it in AI search settings.':/web.?search/i.test(m)?'Web search isn’t switched on for your Anthropic account — it can be enabled in the Anthropic Console.':m); }
+      if(d.stop_reason==='pause_turn'){ messages=[messages[0],{role:'assistant',content:d.content}]; continue; }
+      break; }
+    if(modelErr||!d||!Array.isArray(d.content))continue;
+    const txt=d.content.filter(b=>b.type==='text').map(b=>b.text).join(''), a=txt.indexOf('{'), z=txt.lastIndexOf('}');
+    const cites=[]; d.content.forEach(b=>(b.citations||[]).forEach(c=>{ if(c.url&&!cites.includes(c.url))cites.push(c.url); }));
+    let j; try{ j=JSON.parse(txt.slice(a,z+1)); }catch(e){ throw new Error('Claude’s answer couldn’t be read — try again.'); }
+    if(j.private)return {private:true};
+    const em=String(j.email||'').trim(), ph=String(j.phone||'').trim(), web=String(j.website||'').trim();
+    return {name:String(j.name||'').trim().slice(0,120),a:String(j.address||'').trim().slice(0,160),ph:ph.replace(/\D/g,'').length>=6?ph.slice(0,40):'',
+      em:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)?em.slice(0,120):'',web:/^https?:\/\//i.test(web)?web.slice(0,200):'',oh:String(j.hours||'').trim().slice(0,200),
+      sources:[].concat(Array.isArray(j.sources)?j.sources:[],cites).map(String).filter(u=>/^https?:\/\//.test(u)).filter((u,i,A)=>A.indexOf(u)===i).slice(0,6)}; }
+  throw last||new Error('Couldn’t search the web right now.'); }
+async function webFind(){ const t=draft; if(!t)return;
+  const q=(t.place&&t.place.n?[t.place.n,t.place.a].filter(Boolean).join(', '):(t._pl&&t._pl.q)||t._pq||guessPlace(t.title)||'').trim();
+  if(q.length<3){ toast('Type the name of the place first'); return; }
+  if(navigator.onLine===false){ t._web={err:'No signal — try again when you have signal.'}; rerEdit(); return; }
+  t._web={busy:true}; rerEdit();
+  try{ const res=await claudeContacts(q); if(draft!==t)return; t._web={res}; }
+  catch(e){ if(draft!==t)return; t._web={err:(e&&e.message)||'Couldn’t search the web right now.'}; }
+  rerEdit(); }
+function wirePlace(r){ const t=draft;
+  const fi=r.querySelector('.pl-find'), inp=r.querySelector('.f-place');
+  if(fi){ const go=()=>{ readDraft(); const q=((inp&&inp.value.trim())||guessPlace(t.title)||'').trim(); if(q.length<3){ toast('Type the name of the place first'); if(inp)inp.focus(); return; } findPlace(q); };
+    fi.onclick=go; if(inp)inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); go(); } }; }
+  r.querySelectorAll('[data-plu]').forEach(b=>b.onclick=()=>{ readDraft(); const x=(t._pl&&t._pl.res||[])[+b.dataset.plu]; if(!x)return; t.place=Object.assign({},x); t._pl=null; t._pq=''; t._web=null; rerEdit(); toast('Place added'); });
+  const ro=r.querySelector('.pl-route'); if(ro)ro.onclick=()=>{ readDraft(); const p=t.place; if(!p||p.lat==null)return; closeTasks(); W.openRoute({lat:p.lat,lon:p.lon,name:p.n}); };
+  const rm=r.querySelector('.pl-rm'); if(rm)rm.onclick=()=>{ readDraft(); t._pq=(t.place&&t.place.n)||''; t.place=null; t._pl=null; t._web=null; rerEdit(); };
+  const re=r.querySelector('.pl-re'); if(re)re.onclick=()=>{ readDraft(); const q=[t.place.n,t.place.src==='osm'?'':t.place.a].filter(Boolean).join(', '); t._pq=t.place.n; t.place=null; findPlace(q); };
+  r.querySelectorAll('.pl-web').forEach(b=>b.onclick=()=>{ readDraft(); webFind(); });
+  const wu=r.querySelector('.pl-webuse'); if(wu)wu.onclick=()=>{ readDraft(); const w=t._web&&t._web.res; if(!w)return;
+    const p=t.place?Object.assign({},t.place):{n:w.name||t._pq||(t._pl&&t._pl.q)||'',a:'',src:'web'};
+    if(!p.n&&w.name)p.n=w.name; ['ph','em','web','oh','a'].forEach(k=>{ if(w[k]&&!p[k])p[k]=w[k]; }); p.srcs=w.sources||[]; p.web2=1;
+    t.place=p; t._web=null; t._pl=null; rerEdit(); toast('Details added — check them before relying on them'); };
+}
+/* email it to yourself · add to calendar */
+const EMRE=/^[^\s@<>()"',;:]+@[^\s@<>()"',;:]+\.[a-z]{2,}$/i;
+function askEmail(then){ const cur=prefs().me||'';
+  sh.innerHTML='<div class="tk-grip"></div><h3>Your email address</h3><p class="tk-note">Tasks you email to yourself go here. Saved only on this phone.</p>'
+   +'<input class="tk-in f-em" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com" value="'+esc(cur)+'"><p class="tk-err" hidden></p>'
+   +'<div class="tk-row2"><button type="button" class="tk-sec-btn em-x">Cancel</button><button type="button" class="tk-go em-ok">Save</button></div>';
+  sh.hidden=false; ov.querySelector('.tk-shade').hidden=false;
+  const i=sh.querySelector('.f-em'); setTimeout(()=>{ try{ i.focus(); }catch(e){} },60);
+  sh.querySelector('.em-x').onclick=()=>closeSheet();
+  const ok=()=>{ const v=i.value.trim(); if(!EMRE.test(v)){ const e=sh.querySelector('.tk-err'); e.textContent='Enter a valid email address.'; e.hidden=false; return; } setPref('me',v); closeSheet(); toast('Saved'); if(then)then(); };
+  sh.querySelector('.em-ok').onclick=ok; i.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); ok(); } }; }
+function mailTo(subject,body){ const to=prefs().me||''; if(!EMRE.test(to))return;
+  location.href='mailto:'+to+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body.length>7000?body.slice(0,7000)+'\n…':body); }
+function mailTask(t){ if(!prefs().me){ askEmail(()=>mailTask(t)); return; }
+  mailTo((t.urgent?'URGENT · ':'')+'Task: '+(t.title||tyOf(t).t)+(t.due?' — '+(planned(t)?'by end of tour ':'due ')+hm(t.due)+' '+day(t.due):''), taskText(t)+'\n\n— sent from Assisting'); }
+function taskText(t,now){ now=now||Date.now(); const c=classify(t,now), w=winOf(t), k=kindOf(t), L=[];
+  L.push((t.urgent?'[URGENT] ':'')+tyOf(t).t+(k?' · '+k.t:'')+': '+(t.title||''));
+  if(t.due)L.push('   '+(c.od&&!t.done?'OVERDUE since ':'Due ')+full(t.due)+(planned(t)?' — end of your '+t.tour.label+' tour':''));
+  if(w)L.push('   When: '+w.label.trim()+(w.days!=='all'?' '+DAYSET[w.days]:''));
+  if(t.type==='cctv'&&cctvOverwrite(t.cctv))L.push('   Footage overwritten from '+full(cctvOverwrite(t.cctv)));
+  if(t.place&&t.place.n)L.push('   Place: '+t.place.n+(t.place.a?', '+t.place.a:'')+(t.place.ph?' · tel '+t.place.ph:'')+(t.place.em?' · '+t.place.em:''));
+  if(t.notes)L.push('   '+t.notes.replace(/\n/g,'\n   '));
+  const sc=cnt(t.steps); if(sc.m){ L.push('   Steps — '+sc.n+' of '+sc.m+' done:'); stepLines(t.steps,'   ',true).forEach(x=>L.push(x)); }
+  return L.join('\n'); }
+const fileSafe=s=>String(s||'task').replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'-').slice(0,40)||'task';
+function icsText(list){ const now=Date.now(), te=new TextEncoder();
+  const ie=s=>String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
+  const ut=ms=>{ const d=new Date(ms); return d.getUTCFullYear()+p2(d.getUTCMonth()+1)+p2(d.getUTCDate())+'T'+p2(d.getUTCHours())+p2(d.getUTCMinutes())+'00Z'; };
+  const dur=ms=>{ const neg=ms<0; let m=Math.abs(Math.round(ms/MIN)); const dd=Math.floor(m/1440), hh=Math.floor(m%1440/60); m=m%60;
+    return (neg?'-':'')+'P'+(dd?dd+'D':'')+(hh||m||!dd?'T'+(hh?hh+'H':'')+(m||!hh?m+'M':''):''); };
+  const fold=l=>{ const out=[]; let cur='', n=0; for(const ch of l){ const b=te.encode(ch).length; if(n+b>74){ out.push(cur); cur=' '; n=1; } cur+=ch; n+=b; } out.push(cur); return out.join('\r\n'); };
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Assisting//Tasks//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  list.forEach(t=>{ walk(t.steps,n=>{ if(!n.due||isDone(n))return;
+      L.push('BEGIN:VEVENT','UID:'+t.id+'-'+n.id+'@assisting','DTSTAMP:'+ut(now),'DTSTART:'+ut(n.due-30*MIN),'DTEND:'+ut(n.due),'SUMMARY:'+ie('Step: '+n.t+' — '+(t.title||tyOf(t).t)),'DESCRIPTION:'+ie((n.n?n.n+'\n\n':'')+'Part of: '+(t.title||tyOf(t).t)+'\n\nFrom Assisting'));
+      [...new Set(n.rem&&n.rem.length?n.rem:[0])].sort((a,b)=>a-b).slice(0,3).forEach(m=>L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+ie(n.t),'TRIGGER:'+dur(30*MIN-m*MIN),'END:VALARM'));
+      L.push('END:VEVENT'); }); });
+  list.filter(t=>t.due).forEach(t=>{ const s=planned(t)?t.tour.s:t.due-30*MIN, e=t.due;
+    L.push('BEGIN:VEVENT','UID:'+t.id+'@assisting','DTSTAMP:'+ut(now),'DTSTART:'+ut(s),'DTEND:'+ut(e),'SUMMARY:'+ie((t.urgent?'URGENT · ':'')+tyOf(t).t+': '+(t.title||'')),
+      'DESCRIPTION:'+ie(taskText(t).split('\n').slice(1).map(x=>x.replace(/^ {3}/,'')).join('\n')+'\n\nFrom Assisting'));
+    if(t.place&&t.place.n)L.push('LOCATION:'+ie([t.place.n,t.place.a].filter(Boolean).join(', ')));
+    [...new Set(t.rem&&t.rem.length?t.rem:[0])].sort((a,b)=>a-b).slice(0,3).forEach(m=>L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+ie(t.title||'Task'),'TRIGGER:'+dur(e-m*MIN-s),'END:VALARM'));
+    L.push('END:VEVENT'); });
+  L.push('END:VCALENDAR'); return L.map(fold).join('\r\n')+'\r\n'; }
+function saveIcs(list,name){ const blob=new Blob([icsText(list)],{type:'text/calendar;charset=utf-8'});
+  try{ if(W.GRDocs&&W.GRDocs.save)W.GRDocs.save(blob,name); else { const u=URL.createObjectURL(blob), a=D.createElement('a'); a.href=u; a.download=name; D.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(u); a.remove(); },4000); }
+    toast('Calendar file saved — open it to add '+(list.length>1?'them':'it')+' to your calendar'); }
+  catch(e){ toast('Couldn’t save the calendar file'); } }
+function calTask(t){ if(!t.due&&!nextStepDue(t)){ toast('Set a deadline (for the task or a step) first — then add it to your calendar'); return; } saveIcs([t],'task-'+fileSafe(t.title||tyOf(t).t)+'.ics'); }
 function openTpl(id){
   try{ if(typeof TPL!=='undefined'&&TPL&&typeof openTemplate==='function'){ const i=TPL.findIndex(x=>x.id===id); if(i>=0){ closeTasks(); openTemplate(i); return; } } }catch(e){}
   toast('Templates are still loading — try again in a moment');
 }
-function closeSheet(){ if(!sh)return; sh.hidden=true; sh.innerHTML=''; ov.querySelector('.tk-shade').hidden=true; }
+function closeSheet(){ if(!sh)return; const f=sh._onclose; sh._onclose=null; if(f&&!sh.hidden){ try{ f(); }catch(e){} } sh.hidden=true; sh.innerHTML=''; ov.querySelector('.tk-shade').hidden=true; }
 
 /* ================= follow-ups when a task is done ================= */
 // [type, title, what it involves, when]  when: none · t23 (today) · +Nd (N days, 09:00)
 const FOLLOW={
- cctv:[['exhibit','Exhibit the footage','label it and keep the continuity','none'],['file','View the footage','viewing notes · stills of anyone of interest','+1d'],['statement','Statement from whoever produced it','how and when the footage was downloaded','+2d'],['file','Disclosure — schedule the footage','relied on, or unused material','+7d']],
- statement:[['file','Add the statement to the file','and update PULSE','+1d'],['other','Follow up what the statement raised','witnesses, CCTV, other enquiries','+2d'],['call','Update the injured party','what happens next','+2d'],['file','Disclosure — schedule the statement','','+7d']],
- arrest:[['file','Update PULSE — arrest and outcome','','t23'],['statement','Arrest statement / memo of interview','','+1d'],['court','Charge, or apply for a summons','','+1d'],['exhibit','Record property and exhibits','seized items · continuity','t23'],['file','Prepare the file','','+7d'],['file','Disclosure — schedule the material','','+7d']],
- visit:[['file','Record the result','PULSE / notes','t23'],['visit','Call back — nobody home','','+1d'],['statement','Statement arising from the visit','','+2d']],
- call:[['file','Record the result','','t23'],['call','Ring again','no answer','+1d']],
- night:[['file','Record the result','','t23']],
- court:[['file','Update PULSE with the outcome','','t23'],['court','Next court date','remand or adjourned date','none'],['call','Tell the injured party the outcome','','+2d'],['exhibit','Exhibits — return or dispose','once the case is finished','+7d']],
- file:[['file','Submit for review','sergeant / supervisor','+1d'],['file','Disclosure schedule','','+7d']],
- exhibit:[['file','Update the exhibits register','continuity','t23'],['exhibit','Chase the lab result','','+14d'],['exhibit','Return property to the owner','','+7d']],
+ cctv:[['exhibit','Exhibit the footage','label it and keep the continuity','none','lodge'],['cctv','View the footage','viewing notes · stills of anyone of interest','+1d','view'],['statement','Statement from whoever produced it','how and when the footage was downloaded','+2d','wit'],['file','Disclosure — schedule the footage','relied on, or unused material','+7d','disclosure']],
+ statement:[['file','Add the statement to the file','and update PULSE','+1d','pulse'],['other','Follow up what the statement raised','witnesses, CCTV, other enquiries','+2d'],['victim','Update the injured party','what happens next','+2d','update'],['file','Disclosure — schedule the statement','','+7d','disclosure']],
+ arrest:[['file','Update PULSE — arrest and outcome','','t23','pulse'],['statement','Arrest statement / memo of interview','','+1d','own'],['court','Charge, or apply for a summons','','+1d'],['exhibit','Record property and exhibits','seized items · continuity','t23','lodge'],['file','Prepare the file','','+7d'],['file','Disclosure — schedule the material','','+7d','disclosure']],
+ enquiry:[['file','Record the result','PULSE / notes','t23','pulse'],['statement','Statement arising from the enquiries','','+2d','wit'],['enquiry','Further enquiries','','+2d']],
+ visit:[['file','Record the result','PULSE / notes','t23','pulse'],['visit','Call back — nobody home','','+1d','callback'],['statement','Statement arising from the visit','','+2d']],
+ call:[['file','Record the result','','t23','pulse'],['call','Ring again','no answer','+1d','again']],
+ night:[['file','Record the result','','t23','pulse']],
+ court:[['file','Update PULSE with the outcome','','t23','pulse'],['court','Next court date','remand or adjourned date','none','date'],['victim','Tell the injured party the outcome','','+2d','update'],['exhibit','Exhibits — return or dispose','once the case is finished','+7d','return']],
+ file:[['file','Submit for review','sergeant / supervisor','+1d'],['file','Disclosure schedule','','+7d','disclosure']],
+ exhibit:[['file','Update the exhibits register','continuity','t23'],['exhibit','Chase the lab result','','+14d','lab'],['exhibit','Return property to the owner','','+7d','return']],
+ traffic:[['file','Update PULSE','','t23','pulse'],['file','Traffic file','statements · documents · exhibits','+7d','traffic'],['limit','Watch the summons time limit','summary offence','none']],
+ victim:[['victim','Next update to the victim','','+14d','update'],['file','Note the contact on PULSE','','t23','pulse']],
  email:[['email','Chase a reply','','+7d']],
- limit:[['court','Track the summons','issue, service and court date','+14d']],
+ limit:[['court','Track the summons','issue, service and court date','+14d','summons']],
+ admin:[['admin','Follow up','','+7d']],
  other:[['other','Follow-up','','+1d']]
 };
 const whenTxt=q=>q==='none'?'no deadline':q==='t23'?'today':q==='+1d'?'tomorrow':q.replace(/^\+(\d+)d$/,'in $1 days');
@@ -456,7 +1318,7 @@ function followSheet(t){
   if(!ov||ov.hidden)return; const L=FOLLOW[t.type]||FOLLOW.other, pick=new Set();
   let h='<div class="tk-grip"></div><h3>✓ Done — any follow-up?</h3><p class="tk-note">'+esc(t.title)+'</p>';
   if(t.type==='arrest')h+='<div class="tk-row2"><button type="button" class="tk-sec-btn fu-det">⏱ Start detention clock</button><button type="button" class="tk-sec-btn fu-gaol">🔐 Cell checks</button></div>';
-  h+='<div class="tk-fu">'+L.map((f,i)=>'<button type="button" class="tk-fuo" data-fu="'+i+'"><span class="tk-ico ty-'+f[0]+'">'+svg(IC[f[0]]||IC.other)+'</span><span class="tk-fut"><b>'+esc(f[1])+'</b><small>'+esc((f[2]?f[2]+' · ':'')+whenTxt(f[3]))+'</small></span><i></i></button>').join('')+'</div>'
+  h+='<div class="tk-fu">'+L.map((f,i)=>'<button type="button" class="tk-fuo" data-fu="'+i+'"><span class="tk-ico ty-'+f[0]+'">'+svg(icOf({type:f[0],kind:f[4]}))+'</span><span class="tk-fut"><b>'+esc(f[1])+'</b><small>'+esc((f[2]?f[2]+' · ':'')+whenTxt(f[3]))+'</small></span><i></i></button>').join('')+'</div>'
    +'<div class="tk-row2"><button type="button" class="tk-sec-btn fu-none">No follow-up</button><button type="button" class="tk-go fu-add" disabled>Add follow-up</button></div>'
    +'<div class="tk-fu-foot"><button type="button" class="tk-link fu-own">'+svg(IC.plus)+'Write my own</button><button type="button" class="tk-link fu-undo">Undo — not done</button></div>';
   sh.innerHTML=h; sh.hidden=false; ov.querySelector('.tk-shade').hidden=false; ov.querySelector('.tk-toast').classList.remove('on');
@@ -465,7 +1327,7 @@ function followSheet(t){
     add.disabled=!pick.size; add.textContent=pick.size?'Add '+pick.size+' follow-up'+(pick.size>1?'s':''):'Add follow-up'; });
   add.onclick=()=>{ const now=Date.now(); let n=0;
     for(const i of [...pick].sort()){ const f=L[i], ty=TY[f[0]]||TY.other;
-      DB.tasks.push({id:uid(),type:f[0],title:(f[1]+' · '+t.title).slice(0,120),notes:'Follow-up from “'+t.title+'” (done '+full(t.done||now)+')'+(f[2]?'\n'+f[2]:''),urgent:false,win:ty.win||'any',wDays:null,
+      DB.tasks.push({id:uid(),type:f[0],kind:f[4]||null,steps:[],title:(f[1]+' · '+t.title).slice(0,120),notes:'Follow-up from “'+t.title+'” (done '+full(t.done||now)+')'+(f[2]?'\n'+f[2]:''),urgent:false,win:ty.win||'any',wDays:null,
         due:f[3]==='none'?null:quick(f[3]),rem:f[3]==='none'?[]:[0,60],remWin:false,created:now+n,done:null,fired:{},from:t.id}); n++; }
     save(); closeSheet(); render(); check(); toast(n+' follow-up'+(n>1?'s':'')+' added'); };
   sh.querySelector('.fu-none').onclick=()=>{ closeSheet(); toast('✓ Done'); };
@@ -476,12 +1338,15 @@ function followSheet(t){
 }
 
 /* ================= photograph a to-do list → read it → sort it into tasks ================= */
-const AIKEY='gr_apikey';
 let scan=null;   // {imgs:[jpeg data URLs], items:[{on,text,type,urgent,due}], busy, err, mode: pick|choose|key|type|triage}
 const SCAN_MAX=8;   // images per read (a long scrolling screenshot is cut into readable parts, each counts)
 function guessType(s){ s=' '+String(s).toLowerCase()+' ';
   if(/cctv|footage|camera/.test(s))return 'cctv';
   if(/arrest|warrant|\bbench\b|wanted|detain/.test(s))return 'arrest';
+  if(/victim|needs assessment|support services|update (?:the )?(?:ip|injured)/.test(s))return 'victim';
+  if(/\bfcn\b|fixed charge|\bnct\b|insurance|checkpoint|\bmat\b|collision|\brtc\b|seized (?:car|vehicle)|produc(?:e|ed) (?:docs|documents|licen)/.test(s))return 'traffic';
+  if(/enquir|inquir|house[- ]to[- ]house|\bh2h\b|canvass|trace|locate|\bspsv\b|taxi licen/.test(s))return 'enquiry';
+  if(/overtime|\bclaims?\b|expenses|training|course|uniform|\bkit\b|annual leave|\bpdr\b|briefing/.test(s))return 'admin';
   if(/statement|\bstmt\b|\bs\/t\b|memo of int|interview/.test(s))return 'statement';
   if(/\bcourt\b|summons|\bccj\b|remand|\bdc\b/.test(s))return 'court';
   if(/exhibit|\blab\b|\bfsi\b|property|\bseal/.test(s))return 'exhibit';
@@ -492,6 +1357,19 @@ function guessType(s){ s=' '+String(s).toLowerCase()+' ';
   if(/\bnights?\b/.test(s))return 'night';
   if(/time limit|6 months|six months/.test(s))return 'limit';
   return 'other'; }
+const KIND_RE={
+ file:[['sudden',/sudden death|coroner|deceased|\bsd\b/],['fatal',/fatal|\bfci\b|serious collision/],['missing',/missing/],['youth',/\bjlo\b|juvenile|youth|diversion/],['domestic',/domestic|barring|safety order|protection order/],['caution',/adult caution/],['dpp',/direction|\bdpp\b/],['charged',/charged|charge sheet|court file/],['traffic',/traffic|\brta\b|drink.?driv|no insurance|collision/],['disclosure',/disclosure/],['pulse',/pulse/]],
+ statement:[['vis',/impact/],['sus',/suspect|memo|interview/],['med',/medical|doctor/],['own',/my statement|own statement/],['ip',/\bip\b|injured party|victim/],['wit',/witness/]],
+ arrest:[['bench',/bench/],['committal',/committal/],['wanted',/wanted/],['bail',/bail/],['warrant',/warrant/]],
+ enquiry:[['h2h',/house[- ]to[- ]house|\bh2h\b|door[- ]to[- ]door/],['spsv',/\bspsv\b|taxi|hackney|limousine/],['vehicle',/vehicle|\breg\b|registration|owner/],['trace',/trace|locate/],['online',/online|facebook|instagram|snapchat|social media/],['hosp',/hospital|\bmater\b|beaumont|st\.? james/],['licence',/licen[cs]e|permit|firearm/],['shop',/shop|store|business/]],
+ cctv:[['canvass',/canvass/],['preserve',/preserv/],['view',/\bview|watch/],['stills',/stills?\b/],['collect',/collect|download/]],
+ exhibit:[['lab',/\bfsi\b|\blab\b/],['drugs',/drugs?|cannabis|cocaine|heroin/],['digital',/phone|laptop|digital/],['return',/return/],['dispose',/dispos/]],
+ traffic:[['docs',/produc|documents/],['collision',/collision|\brtc\b/],['seized',/seized|pound/],['fcn',/\bfcn\b|fixed charge/],['checkpoint',/checkpoint|\bmat\b/],['tax',/\bnct\b|\btax\b|insurance/]],
+ visit:[['callback',/call ?back/],['welfare',/welfare|concern for/],['serve',/serve|summons/],['curfew',/curfew/]],
+ court:[['summons',/apply.*summons|summons app/],['serve',/serve/],['warrant',/warrant/],['bail',/bail|remand/],['outcome',/outcome|result/],['date',/court/]],
+ night:[['curfew',/curfew/],['pubs',/pub|licensed premises/],['premises',/premises|check (?:the )?(?:back|doors)/]],
+ admin:[['claim',/claim|overtime|expenses/],['course',/course|training/],['kit',/uniform|\bkit\b|boots/],['leave',/leave|roster/],['forms',/\bforms?\b|sign/],['meeting',/meeting|briefing/]]};
+function guessKind(type,s){ const L=KIND_RE[type]; if(!L)return null; s=String(s||'').toLowerCase(); for(const [k,re] of L)if(re.test(s))return k; return null; }
 function guessDue(s){ s=String(s).toLowerCase(); return /\btoday\b|\btonight\b|\basap\b/.test(s)?'today':/tomorrow|\btmrw\b|\btmw\b|\btmr\b/.test(s)?'tomorrow':/this week|by fri|end of week/.test(s)?'week':'none'; }
 function lineItems(txt){ return String(txt||'').split(/\r?\n/).map(l=>l.replace(/^\s*(?:[-*•·▪◦›>]|\d{1,2}[.)]|\[[ xX✓]?\]|[☐□✓✔])\s*/,'').trim()).filter(l=>l.length>1)
   .map(l=>({on:true,text:l.slice(0,120),type:guessType(l),urgent:/urgent|asap|!!/i.test(l),due:guessDue(l)})); }
@@ -527,7 +1405,7 @@ async function readWithClaude(){ const key=(localStorage.getItem(AIKEY)||'').tri
    +(n>1?'Several images may be consecutive parts of one long screenshot or list, and they can overlap: list each task once. ':'')
    +'Transcribe each separate task or action as one item, keeping the wording close to what is written (fix obvious spelling only). In a plain list, each line is an item. '
    +'Ignore phone interface text (clock, battery, app names, buttons, menus), headings and dates that stand alone. Do not invent tasks; if part of a line is unreadable, put (?) there. '
-   +'For each item give: "text" (max 120 characters), "type" — one of cctv, statement, arrest, night, call, visit, court, file, exhibit, email, limit, other — "urgent" (true only if it is marked urgent, starred or says ASAP), and "due" — one of "today", "tomorrow", "week", "none" (only if the list says when). '
+   +'For each item give: "text" (max 120 characters), "type" — one of '+TYPES.map(x=>x.k).join(', ')+' — "urgent" (true only if it is marked urgent, starred or says ASAP), and "due" — one of "today", "tomorrow", "week", "none" (only if the list says when). '
    +'Reply with JSON only, no other text: {"items":[{"text":"...","type":"other","urgent":false,"due":"none"}]}';
   try{ const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({model:'claude-sonnet-5',max_tokens:3000,messages:[{role:'user',content:[...scan.imgs.map(d=>({type:'image',source:{type:'base64',media_type:'image/jpeg',data:d.split(',')[1]}})),{type:'text',text:prompt}]}]})});
@@ -594,36 +1472,46 @@ function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; 
       r.querySelector('.tk-tru').onclick=e=>{ x.urgent=!x.urgent; e.currentTarget.classList.toggle('on',x.urgent); }; });
     q('.sc-more').onclick=()=>{ s.items.push({on:true,text:'',type:'other',urgent:false,due:'none'}); render(); const all=main.querySelectorAll('.tr-t'); if(all.length){ all[all.length-1].focus(); } };
     q('.sc-add').onclick=()=>{ const now=Date.now(); const L=s.items.filter(x=>x.on&&x.text.trim());
-      L.forEach((x,i)=>{ const ty=TY[x.type]||TY.other; DB.tasks.push({id:uid(),type:x.type,title:x.text.trim().slice(0,120),notes:'',urgent:!!x.urgent,win:ty.win||'any',wDays:null,
+      L.forEach((x,i)=>{ const ty=TY[x.type]||TY.other; DB.tasks.push({id:uid(),type:x.type,kind:guessKind(x.type,x.text),steps:[],title:x.text.trim().slice(0,120),notes:'',urgent:!!x.urgent,win:ty.win||'any',wDays:null,
         due:x.due==='today'?quick('t23'):x.due==='tomorrow'?quick('+1d'):x.due==='week'?quick('+7d'):null,rem:x.due==='none'?[]:[0,60],remWin:false,created:now+i,done:null,fired:{}}); });
       scan=null; save(); view='list'; tab='all'; render(); check(); toast(L.length+' task'+(L.length===1?'':'s')+' added'); };
   }
 }
 
-/* ================= copy the list (handover) ================= */
+/* ================= share the list (handover): copy · email to me · share · calendar file ================= */
+function listText(l,now){ const lines=['TASKS — '+full(now),''];
+  l.forEach((t,i)=>{ const s=taskText(t,now).split('\n'); lines.push((i+1)+'. '+s[0]); s.slice(1).forEach(x=>lines.push(x)); });
+  return lines.join('\n'); }
 function copyList(){
   const now=Date.now(), l=open_().sort((a,b)=>cmp(sortKey(a,now),sortKey(b,now)));
-  if(!l.length){toast('No open tasks to copy');return;}
-  const lines=['TASKS — '+full(now),''];
-  l.forEach((t,i)=>{ const c=classify(t,now); const w=winOf(t);
-    lines.push((i+1)+'. '+(t.urgent?'[URGENT] ':'')+TY[t.type].t+': '+t.title
-      +(t.due?' — '+(c.od?'OVERDUE since ':'due ')+full(t.due):'')+(w?' — '+w.label.trim()+(w.days!=='all'?' '+DAYSET[w.days]:''):'')
-      +(t.type==='cctv'&&cctvOverwrite(t.cctv)?' — footage overwritten from '+full(cctvOverwrite(t.cctv)):''));
-    if(t.notes)lines.push('   '+t.notes.replace(/\n/g,'\n   ')); });
-  const txt=lines.join('\n');
-  (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('List copied — paste it into a message or your notes')).catch(()=>{
-    sh.innerHTML='<div class="tk-grip"></div><h3>Your tasks</h3><textarea class="tk-in tk-ta big" readonly>'+esc(txt)+'</textarea><button type="button" class="tk-sec-btn wide tk-x">Close</button>';
-    sh.hidden=false; ov.querySelector('.tk-shade').hidden=false; sh.querySelector('.tk-x').onclick=()=>closeSheet(); });
+  if(!l.length){toast('No open tasks to share');return;}
+  const txt=listText(l,now), nd=l.filter(t=>t.due||nextStepDue(t)).length;
+  sh.innerHTML='<div class="tk-grip"></div><h3>Share the list</h3><p class="tk-note">'+l.length+' open task'+(l.length===1?'':'s')+'. Keep details of members of the public out of personal email and apps.</p>'
+   +'<button type="button" class="tk-pick ls-copy">'+svg(IC.copy)+'<span><b>Copy the list</b><small>Paste it into a message or your notes</small></span></button>'
+   +'<button type="button" class="tk-pick ls-mail">'+svg(IC.email)+'<span><b>Email it to me</b><small>'+(prefs().me?esc(prefs().me):'Set your email address the first time')+'</small></span></button>'
+   +(navigator.share?'<button type="button" class="tk-pick ls-share">'+svg(IC.share)+'<span><b>Share…</b><small>Another app on this phone</small></span></button>':'')
+   +'<button type="button" class="tk-pick ls-cal"'+(nd?'':' disabled')+'>'+svg(IC.cal)+'<span><b>Calendar file</b><small>'+(nd?nd+' deadline'+(nd===1?'':'s')+' with reminders — open the file to add them to your calendar':'No tasks with a deadline yet')+'</small></span></button>'
+   +'<button type="button" class="tk-sec-btn wide tk-x">Close</button>';
+  sh.hidden=false; ov.querySelector('.tk-shade').hidden=false;
+  sh.querySelector('.tk-x').onclick=()=>closeSheet();
+  sh.querySelector('.ls-copy').onclick=()=>{ (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>{ closeSheet(); toast('List copied — paste it into a message or your notes'); }).catch(()=>{
+    sh.innerHTML='<div class="tk-grip"></div><h3>Your tasks</h3><textarea class="tk-in tk-ta big" readonly>'+esc(txt)+'</textarea><button type="button" class="tk-sec-btn wide tk-x">Close</button>'; sh.querySelector('.tk-x').onclick=()=>closeSheet(); }); };
+  sh.querySelector('.ls-mail').onclick=()=>{ const go=()=>{ closeSheet(); mailTo('Tasks — '+full(now),txt+'\n\n— sent from Assisting'); }; if(!prefs().me)askEmail(go); else go(); };
+  const s2=sh.querySelector('.ls-share'); if(s2)s2.onclick=async()=>{ try{ await navigator.share({title:'Tasks',text:txt}); closeSheet(); }catch(e){} };
+  sh.querySelector('.ls-cal').onclick=()=>{ if(!nd)return; closeSheet(); saveIcs(l,'tasks-'+dtVal(now).d+'.ics'); };
 }
 
 /* ================= home-screen strip ================= */
 let strips=[];
 function mountStrip(el){ if(!el)return; strips=strips.filter(x=>x.isConnected); if(!strips.includes(el))strips.push(el); paintStrip(el); }
 function paintStrips(){ strips=strips.filter(x=>x.isConnected); strips.forEach(paintStrip); }
-const STRIP_MAX=8;   // rows on Home — a list you can take in at a glance
+const STRIP_MAX=8;
+const shortTour=(t,now)=>planned(t)&&t.due>now?(now>=t.tour.ts?'this tour':String(t.tour.label).split(' ')[0].slice(0,5)+' '+DAYS[new Date(t.tour.ts).getDay()]):'';   // rows on Home — a list you can take in at a glance
 function shortDue(t,c,now){
-  if(t.due){ if(c.od)return 'overdue '+durStr(now-t.due).split(' ').slice(0,2).join(' ');
-    const dd=Math.round((sod(t.due)-sod(now))/DAY); return dd===0?hm(t.due):dd===1?'tmrw '+hm(t.due):dd<7?day(t.due).split(' ')[0]+' '+hm(t.due):day(t.due); }
+  const st=shortTour(t,now); if(st)return st;
+  const due=c.sd&&(!t.due||c.sd<t.due)?c.sd:t.due, od=due&&due<now;
+  if(due){ if(od)return 'overdue '+durStr(now-due).split(' ').slice(0,2).join(' ');
+    const dd=Math.round((sod(due)-sod(now))/DAY); return dd===0?hm(due):dd===1?'tmrw '+hm(due):dd<7?day(due).split(' ')[0]+' '+hm(due):day(due); }
   if(c.ws.any)return ''; return c.ws.open?'now':'opens '+(c.ws.next?hm(c.ws.next):''); }
 function paintStrip(el){
   const now=Date.now(), l=open_(); if(!l.length){ if(el.innerHTML)el.innerHTML=''; el._h=''; return; }
@@ -631,9 +1519,9 @@ function paintStrip(el){
   const top=l.slice().sort((a,b)=>cmp(sortKey(a,now),sortKey(b,now))).slice(0,STRIP_MAX);
   const h='<div class="tk-strip tk-compact"><button type="button" class="tks-h" data-open="1">'+svg(IC.other)+'<b>Tasks</b><span>'+l.length+' open'+(od?' · <i>'+od+' overdue</i>':'')+(urg?' · '+urg+' urgent':'')+'</span><em>Open ›</em></button><div class="tks-list">'
    +top.map(t=>{ const c=classify(t,now), d=shortDue(t,c,now);
-      return '<div class="tks-r'+(t.urgent?' urg':'')+(c.od?' od':'')+'"><button type="button" class="tks-ck" data-ck="'+t.id+'" aria-label="Mark done">'+svg(IC.check)+'</button>'
-       +'<button type="button" class="tks-b" data-id="'+t.id+'"><span class="tks-y ty-'+t.type+'">'+svg(IC[t.type]||IC.other)+'</span><span class="tks-t">'+esc(t.title||(TY[t.type]||TY.other).t)+'</span>'
-       +(t.urgent?'<span class="tks-u" aria-label="Urgent">'+svg(IC.flag)+'</span>':'')+(d?'<span class="tks-d'+(c.od?' od':c.today?' td':'')+'">'+esc(d)+'</span>':'')+'</button></div>'; }).join('')
+      return '<div class="tks-r'+(t.urgent?' urg':'')+((c.od||c.sdo)?' od':'')+'"><button type="button" class="tks-ck" data-ck="'+t.id+'" aria-label="Mark done">'+svg(IC.check)+'</button>'
+       +'<button type="button" class="tks-b" data-id="'+t.id+'"><span class="tks-y ty-'+tyOf(t).k+'">'+svg(icOf(t))+'</span><span class="tks-t">'+esc(t.title||(TY[t.type]||TY.other).t)+'</span>'
+       +(t.urgent?'<span class="tks-u" aria-label="Urgent">'+svg(IC.flag)+'</span>':'')+(t.steps&&t.steps.length?(s=>'<span class="tks-n">'+s.n+'/'+s.m+'</span>')(cnt(t.steps)):'')+(d?'<span class="tks-d'+((c.od||c.sdo)?' od':(c.today||c.sdt)?' td':'')+'">'+esc(d)+'</span>':'')+'</button></div>'; }).join('')
    +'</div>'+(l.length>STRIP_MAX?'<button type="button" class="tks-more" data-open="1">View all '+l.length+' tasks ›</button>':'')+'</div>';
   if(el._h===h)return; el._h=h; el.innerHTML=h;
   el.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openTasks());
@@ -651,6 +1539,29 @@ if('serviceWorker' in navigator){ navigator.serviceWorker.addEventListener('mess
   const go=()=>openTasks(id); if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',()=>setTimeout(go,60)); else setTimeout(go,60); } }catch(e){} })();
 setTimeout(check,1500);
 
+/* ================= for My roster: tasks on a day, and a new task planned for a day ================= */
+function forDay(d){ const a=d0(d.getTime?d.getTime():d), s=a.getTime(), e=new Date(a.getFullYear(),a.getMonth(),a.getDate()+1).getTime();
+  const L=open_().filter(t=>planned(t)?(t.tour.ts>=s&&t.tour.ts<e):(t.due&&t.due>=s&&t.due<e))
+    .map(t=>({id:t.id,title:t.title||tyOf(t).t,label:tyLabel(t),urgent:!!t.urgent,due:t.due,tour:planned(t),ic:icOf(t),ty:tyOf(t).k}));
+  open_().forEach(t=>walk(t.steps,n=>{ if(n.due&&!isDone(n)&&n.due>=s&&n.due<e)L.push({id:t.id,title:n.t,label:'Step · '+(t.title||tyLabel(t)),urgent:!!t.urgent,due:n.due,tour:false,ic:IC.sub,ty:tyOf(t).k,step:true}); }));
+  return L.sort((x,y)=>((x.urgent?0:1)-(y.urgent?0:1))||((x.due||9e15)-(y.due||9e15))); }
+function newOn(d){ openTasks(); editTask(null); const now=Date.now(), sp=tourOf(dayInf(d0(d.getTime?d.getTime():d)));
+  if(sp&&sp.e>now){ draft.tour={s:sp.s,e:sp.e,ts:sp.s,te:sp.e,label:sp.label,code:sp.code}; draft.due=sp.e; draft.rem=(sp.s>now+MIN?[Math.round((sp.e-sp.s)/MIN)]:[]).concat([60]); }
+  else { const x=d0(d.getTime?d.getTime():d); x.setHours(17,0,0,0); if(x.getTime()>now)draft.due=x.getTime(); }
+  render(); return true; }
+
+/* sync (sync.js): take in the merged list from your other devices. Reminders that already went off there aren't replayed here. */
+function adopt(T){ const byOld=new Map(DB.tasks.map(t=>[t.id,t])), now=Date.now();
+  const tasks=(T&&T.tasks||[]).map(t=>{ const o=byOld.get(t.id), x=Object.assign({},t,{fired:o?(o.fired||{}):{},nextWin:o?(o.nextWin||null):null});
+    if(!o||(x.m||0)>(o.m||0)){ dueTimes(x).concat(stepDues(x)).forEach(([k,at])=>{ if(at<=now&&!x.fired[k])x.fired[k]=now; }); }
+    return x; });
+  DB={v:1,tasks,del:(T&&T.del)||{}}; purge(); persist(); paintStrips();
+  if(ov&&!ov.hidden&&view==='list')render(); }
+
+/* for Home's "today" card: counts at a glance */
+function summary(now){ now=now||Date.now(); const l=open_(), tr=tours(now,1)[0]||null;
+  return {open:l.length,overdue:l.filter(t=>{ const c=classify(t,now); return c.od||c.sdo; }).length,urgent:l.filter(t=>t.urgent).length,tourN:tr?tourTasks(tr).length:0,tourOn:!!(tr&&tr.s<=now)}; }
+
 W.openTasks=openTasks; W.closeTasks=closeTasks; W.tskBack=back;
-W.GRTasks=Object.freeze({open:openTasks,mountStrip,check,_db:()=>DB,_lib:{inWin,nextOpen,winOf,limitEnd,addMonths,cctvOverwrite}});
+W.GRTasks=Object.freeze({open:openTasks,newOn,forDay,mountStrip,check,summary,adopt,_db:()=>DB,_lib:{inWin,nextOpen,winOf,limitEnd,addMonths,cctvOverwrite,tours,nextChance,icsText,guessKind,stepsFor,parseOutline,norm,cnt,isDone,nextStepDue,stepLines,taskText,firstOpen}});
 })();

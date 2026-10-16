@@ -127,8 +127,8 @@ async function build(extra){
   /* case law */
   (got.cases||[]).forEach(c=>{
     const cite=(c.c||[]).filter(Boolean).slice(0,2).join(' · ');
-    const x=[c.why,c.d,c.f&&c.f.facts?'Facts: '+c.f.facts:'',c.f&&c.f.held?'Held: '+c.f.held:'',(c.s||[]).map(s=>s.t).join('\n')].filter(Boolean).join('\n\n').slice(0,3200);
-    addDoc('case','c:'+c.n,c.n,(c.cat||'Case law')+(cite?' · '+cite:''),x,{k:'case',n:c.n},3);
+    const x=[c.topic,c.why,c.f&&c.f.held?'Held: '+c.f.held:'',c.f&&c.f.facts?'Facts: '+c.f.facts:'',c.d,c.st?'Status: '+c.st:'',(c.s||[]).map(s=>s.t).join('\n')].filter(Boolean).join('\n\n').slice(0,3200);
+    addDoc('case','c:'+c.n,c.n,(c.cat||'Case law')+(c.court?' · '+c.court+(c.y?' '+c.y:''):'')+(cite?' · '+cite:''),x,{k:'case',n:c.n},c.chk?3.4:3);
   }); prog(++done,total);
   /* investigation / deep guides */
   (got.guides3||[]).forEach(g=>{ passages(g.b,950).forEach(P=>addDoc('guide','g:'+g.id,g.t,P.h?P.h:'Guide',P.x,{k:'guide',id:g.id},2)); });
