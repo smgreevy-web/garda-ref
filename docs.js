@@ -157,6 +157,7 @@ function sheetXml(s){
   return HEAD+'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="'+NS_R+'">'
     +(s.head?'<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>':'')
     +'<sheetFormatPr defaultRowHeight="15"/>'+cols+'<sheetData>'+rows.join('')+'</sheetData>'
+    +(s.filter&&s.head&&s.rows.length?'<autoFilter ref="A1:'+colName(s.head.length-1)+r+'"/>':'')
     +'<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToHeight="0"/></worksheet>'; }
 function xlsx(sheets,title){
   const used=new Set(), names=sheets.map((s,i)=>{ let n=String(s.name||('Sheet'+(i+1))).replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,31).trim()||('Sheet'+(i+1)); while(used.has(n.toLowerCase()))n=(n.slice(0,28)+' '+(i+1)); used.add(n.toLowerCase()); return n; });

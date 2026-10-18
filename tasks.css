@@ -445,3 +445,125 @@
 @media (max-width:360px){ #tsk .sn-acts{grid-template-columns:1fr} #tsk .tk-edbar button{font-size:9.5px} }
 #tsk .pl-crumbs button{display:inline-flex;align-items:center;gap:4px}
 #tsk .pl-crumbs button svg{width:15px;height:15px}
+/* v70 — a step's type and time of day */
+#tsk .sn-tys{display:flex;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;padding:2px 2px 6px;margin:0 -2px;scroll-snap-type:x proximity}
+#tsk .sn-tys::-webkit-scrollbar{display:none}
+#tsk .sn-tys .sn-ty{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start}
+@media (min-width:700px){ #tsk .sn-tys{flex-wrap:wrap;overflow:visible} }
+#tsk .sn-tpl:empty{display:none}
+#tsk .sn-tpl .tk-link{margin-top:4px}
+#tsk .sn-wst{margin-top:9px}
+#tsk .sn-winfo .tk-ro{margin-top:8px}
+#tsk .sn-m.ty{gap:5px}
+#tsk .sn-tyi{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:5px}
+#tsk .sn-tyi svg{width:12px;height:12px}
+#tsk .sn-m.wn.op{color:var(--kok)}
+#tsk .tk-txt small.tk-next.now{color:var(--kok);font-weight:700}
+#tsk .tk-toast{white-space:normal;width:max-content;line-height:1.3}
+#tsk .tk-toast .tk-undo{white-space:nowrap}
+@media (min-width:800px){ #tsk .tk-sheet{margin:0 auto;max-width:760px;border-left:1px solid var(--kn3);border-right:1px solid var(--kn3)} }
+/* v71 — where the case is at, and how urgent each step is */
+#tsk .tk-case{margin-top:4px}
+#tsk .tk-stg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#tsk .tk-stg .cs-st{min-height:52px;width:100%;text-align:left}
+#tsk .cs-tx{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+#tsk .cs-tx b{font-size:13.5px}
+#tsk .cs-tx small{font-size:11.5px;font-weight:600;color:var(--kid)}
+#tsk .cs-iv{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px}
+#tsk .cs-iv>span{font-size:14px;font-weight:700;margin-right:4px}
+#tsk .cs-iv .tk-d{margin:0}
+#tsk .cs-urg{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;align-items:center;margin:12px 0 0;padding:10px 12px;border-radius:12px;border:1px solid var(--kn3);background:color-mix(in srgb,var(--surface2) 60%,transparent)}
+#tsk .cs-urg svg{width:18px;height:18px;grid-row:1}
+#tsk .cs-urg b{font-size:15px}
+#tsk .cs-urg span{grid-column:1/-1;font-size:13px;line-height:1.45;color:var(--kid)}
+#tsk .cs-urg.l1 svg,#tsk .cs-urg.l1 b{color:var(--kid)}
+#tsk .cs-urg.l2 svg,#tsk .cs-urg.l2 b{color:var(--ki)}
+#tsk .cs-urg.l3{border-color:color-mix(in srgb,var(--kam) 55%,transparent);background:color-mix(in srgb,var(--kam) 9%,transparent)}
+#tsk .cs-urg.l3 svg,#tsk .cs-urg.l3 b{color:var(--kam)}
+#tsk .cs-urg.l4{border-color:color-mix(in srgb,var(--kred) 60%,transparent);background:color-mix(in srgb,var(--kred) 10%,transparent)}
+#tsk .cs-urg.l4 svg,#tsk .cs-urg.l4 b{color:var(--kred)}
+#tsk .sn-urg .tk-days{margin-top:4px}
+#tsk .sn-urg .tk-sublab{margin-top:12px}
+#tsk .sn-urg .tk-sublab small{font-weight:600}
+#tsk .sn-awl{display:flex;align-items:center;gap:10px;margin-top:8px}
+#tsk .sn-awl span{font-weight:700;font-size:14px;flex:0 0 auto}
+#tsk .sn-awl input{flex:1;min-width:0}
+#tsk .sn-pri .tk-d.pl3.on{border-color:var(--kam);color:var(--kam);background:color-mix(in srgb,var(--kam) 14%,transparent)}
+#tsk .sn-pri .tk-d.pl4.on{border-color:var(--kred);color:var(--kred);background:color-mix(in srgb,var(--kred) 12%,transparent)}
+#tsk .sn-pri .tk-d.pl1.on{border-color:var(--kid);color:var(--ki);background:color-mix(in srgb,var(--kid) 14%,transparent)}
+#tsk .sn-m.ug{font-weight:800}
+#tsk .sn-m.ug.l3{color:var(--kam)}
+#tsk .sn-m.ug.l4{color:var(--kred)}
+#tsk .tk-chip.ug{font-family:inherit;font-weight:800}
+#tsk .tk-chip.ug.l3{color:var(--kam);border-color:color-mix(in srgb,var(--kam) 50%,transparent);background:color-mix(in srgb,var(--kam) 10%,transparent)}
+#tsk .tk-chip.ug.l4{color:var(--kred);border-color:color-mix(in srgb,var(--kred) 55%,transparent);background:color-mix(in srgb,var(--kred) 10%,transparent)}
+#tsk .tk-txt small.tk-next svg{width:13px;height:13px;margin-right:3px;vertical-align:-2px}
+#tsk .tk-txt small.tk-next.u3{color:var(--kam);font-weight:750}
+#tsk .tk-txt small.tk-next.u4{color:var(--kred);font-weight:750}
+@media (max-width:360px){ #tsk .tk-stg{grid-template-columns:1fr} }
+/* v75: sub jobs under their category · paste a list with duplicates · Excel */
+#tsk .tk-f em{font-style:normal;font-size:.82em;font-weight:800;margin-left:4px;opacity:.8}
+#tsk .tk-row.sub{border-left:3px solid color-mix(in srgb,var(--acc) 45%,transparent)}
+#tsk .tk-row.sub .tk-ico{width:30px;height:30px}
+#tsk .tk-txt small.tk-in-job{display:flex;align-items:center;gap:4px;color:var(--dim);font-size:12.5px}
+#tsk .tk-txt small.tk-in-job svg{width:13px;height:13px;flex:0 0 auto}
+#tsk .sn.flash>.sn-b,#tsk .sn.flash{animation:tkFlash 1.6s ease-out 1}
+@keyframes tkFlash{0%,35%{background:color-mix(in srgb,var(--acc) 22%,transparent)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){ #tsk .sn.flash{animation:none;outline:2px solid var(--acc)} }
+#tsk .tk-dupnote{display:flex;gap:8px;align-items:flex-start;margin:4px 0 10px;padding:9px 11px;border-radius:10px;border:1px solid color-mix(in srgb,var(--kam) 55%,transparent);background:color-mix(in srgb,var(--kam) 10%,transparent);color:var(--tx);font-size:13.5px;line-height:1.4}
+#tsk .tk-dupnote svg{width:18px;height:18px;flex:0 0 auto;color:var(--kam);margin-top:1px}
+#tsk .tk-tr .tr-info{display:block;margin-top:5px;font-size:12.5px;color:var(--dim)}
+#tsk .tk-tr .tr-dup{display:flex;gap:6px;align-items:flex-start;margin-top:6px;font-size:12.5px;line-height:1.35;color:var(--tx)}
+#tsk .tk-tr .tr-dup svg{width:15px;height:15px;flex:0 0 auto;color:var(--kam);margin-top:1px}
+#tsk .tk-tr .tr-mg{display:inline-flex;align-items:center;gap:6px;margin-top:7px;min-height:38px;padding:0 12px;border-radius:99px;border:1px solid var(--line2);background:var(--surface2);color:var(--acc);font-weight:700;font-size:13px}
+#tsk .tk-tr .tr-mg svg{width:15px;height:15px}
+#tsk .tk-tr .tr-mg.on{border-color:var(--acc);background:var(--accbg);color:var(--tx)}
+#tsk .tk-tr:not(.off) .tr-mg{display:none}
+#tsk .tk-tr.dup.off .tk-trb{opacity:.85}
+#tsk .sc-paste{margin:2px 0 8px}
+
+/* ---------- v75: My days — your detail for each tour, and the jobs that suit it ---------- */
+#tsk .tk-4d{margin-top:-2px}
+#tsk .d4-ro{width:100%;margin-top:6px}
+#tsk .d4-top{margin:2px 2px 0}
+#tsk .d4-top b{display:block;font-size:17px;line-height:1.3}
+#tsk .d4-top small{display:block;margin-top:3px;font-size:14px;color:var(--kid)}
+#tsk .d4-day{margin:14px 0;padding:10px 10px 6px;border-radius:15px;border:1px solid var(--kn3);background:color-mix(in srgb,var(--surface) 70%,transparent)}
+#tsk .d4-day.cur{border-color:color-mix(in srgb,var(--green) 60%,transparent);box-shadow:inset 4px 0 0 var(--kok)}
+#tsk .d4-day.past{opacity:.82}
+#tsk .d4-hd{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;margin:0 2px 8px}
+#tsk .d4-dn b{font-size:17px}
+#tsk .d4-dn small{margin-left:6px;font:700 11.5px var(--kmono);letter-spacing:.6px;text-transform:uppercase;color:var(--kid)}
+#tsk .d4-tour{font-size:14px;color:var(--tx2,var(--ki))}
+#tsk .d4-st{margin-left:auto;font:700 12px var(--kmono);color:var(--kok)}
+#tsk .d4-day.past .d4-st{color:var(--kid)}
+#tsk .d4-det{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;padding:8px 12px;border-radius:12px;border:1px solid var(--kg);background:color-mix(in srgb,var(--acc) 10%,transparent);text-align:left}
+#tsk .d4-det.none{border-style:dashed;background:transparent}
+#tsk .d4-di{flex:0 0 auto;font-size:22px;line-height:1}
+#tsk .d4-di i{font-style:normal;margin-left:2px}
+#tsk .d4-dt{flex:1;min-width:0}
+#tsk .d4-dt b{display:block;font-size:15.5px;line-height:1.3}
+#tsk .d4-dt small{display:block;font-size:13px;color:var(--kid)}
+#tsk .d4-det em{flex:0 0 auto;font-style:normal;font-weight:800;font-size:14px;color:var(--kg)}
+#tsk .d4-done{margin:2px 2px 8px;font-size:14px;color:var(--kid)}
+#tsk .d4-seg{margin:10px 0 4px}
+#tsk .d4-sh b{display:block;font-size:14.5px}
+#tsk .d4-sh small{display:block;margin-top:1px;font-size:13px;color:var(--kid)}
+#tsk .d4-none{margin:6px 2px 4px;font-size:13.5px;color:var(--kid)}
+#tsk .tk-row.d4r .tk-txt small.d4-why{display:block;margin-top:2px;font-size:12.5px;color:var(--kid)}
+#tsk .tk-row .tk-txt small.d4-whynot{display:block;margin-bottom:3px;font-size:13px;font-weight:700;color:var(--kred)}
+#tsk .d4-opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+#tsk .d4-o{display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:center;min-height:52px;padding:6px 10px;border-radius:12px;border:1px solid var(--kn3);background:color-mix(in srgb,var(--surface2) 70%,transparent);text-align:left}
+#tsk .d4-o span{grid-row:span 2;font-size:20px;line-height:1}
+#tsk .d4-o b{font-size:14.5px;line-height:1.2}
+#tsk .d4-o small{font-size:11.5px;line-height:1.25;color:var(--kid)}
+#tsk .d4-o.on{border-color:var(--kg);background:color-mix(in srgb,var(--acc) 16%,transparent);box-shadow:inset 0 0 0 1px var(--kg)}
+#tsk .d4-split{display:flex;align-items:center;gap:10px;width:100%;min-height:50px;margin:12px 0 2px;padding:6px 12px;border-radius:12px;border:1px dashed var(--kn3);background:transparent;text-align:left;font-weight:700;font-size:14.5px}
+#tsk .d4-split b{font-size:19px}
+#tsk .d4-split.on{border-style:solid;border-color:var(--kg);color:var(--kg);background:color-mix(in srgb,var(--acc) 10%,transparent)}
+#tsk .d4-ats{display:flex;flex-wrap:wrap;gap:6px}
+/* a job left out of a paste: strike the title through rather than fading the row, so the duplicate note and "add its steps" stay readable */
+#tsk .tk-tr.off{opacity:1;background:transparent}
+#tsk .tk-tr.off .tr-t{text-decoration:line-through;color:var(--kid)}
+#tsk .tk-tr.off .tk-trm{opacity:.6}
+#tsk .tk-row .tk-txt small.d4-why,#tsk .tk-row .tk-txt small.d4-whynot{white-space:normal;overflow:visible;text-overflow:clip}

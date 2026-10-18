@@ -37,10 +37,20 @@ const PRESETS=[
  {k:'custom',t:'Build my own pattern',sub:'Any sequence of Early, Day, Late, Night and Rest days',cycle:'',times:{}}
 ];
 const DEF_TIMES={E:['07:00','19:00'],D:['08:00','18:00'],L:['14:00','00:00'],N:['19:00','07:00']};
+// your detail for a working day — what you're on (car, station, files…), whole tour or half and half. Tasks plans your jobs around it.
+const DET=[{k:'car',t:'Car',i:'🚓',s:'Patrol car'},{k:'beat',t:'Beat',i:'🚶',s:'Foot patrol'},{k:'station',t:'Station',i:'🏢',s:'Public office · station duty'},
+ {k:'files',t:'Files',i:'📁',s:'Files and paperwork'},{k:'court',t:'Court',i:'⚖️',s:'At court'},{k:'event',t:'Event / op',i:'🏟️',s:'Croke Park, checkpoint, operation'},
+ {k:'escort',t:'Escort / guard',i:'🚑',s:'Prisoner escort, hospital guard'},{k:'training',t:'Training',i:'🎓',s:'Course or training'},{k:'other',t:'Other',i:'📌',s:'Anything else'}];
+const DETK=Object.fromEntries(DET.map(x=>[x.k,x]));
 
 /* ================= storage ================= */
 let R=load();
 function load(){try{const d=JSON.parse(localStorage.getItem(LS)||'null');if(d&&d.cycle)return d;}catch(e){}return null;}
+function detail(d){ const x=R&&R.det&&R.det[dkey(d)]; return x&&DETK[x.a]?x:null; }
+function setDetail(d,rec){ if(!R)return; R.det=R.det||{}; const k=dkey(d);
+  if(rec&&DETK[rec.a])R.det[k]={a:rec.a,b:rec.b&&DETK[rec.b]?rec.b:null,at:rec.b&&parseHM(rec.at||'')?parseHM(rec.at):null,note:String(rec.note||'').slice(0,60)}; else delete R.det[k];
+  const cut=dkey(addDays(today0(),-45)); Object.keys(R.det).forEach(x=>{ if(x<cut)delete R.det[x]; }); save(); }
+const detIco=x=>x?DETK[x.a].i+(x.b?'½':''):'';
 function save(mine){try{localStorage.setItem(LS,JSON.stringify(R));}catch(e){} paintStrips(); if(mine!==false&&W.grTouch)W.grTouch('roster');}
 
 /* ================= roster maths ================= */
@@ -166,7 +176,8 @@ function renderWizard(){
     if(w.step===2){ if(!readStep2())return err('Enter every tour as two different 24-hour times, e.g. 07:00 to 19:00.'); w.step=3; renderWizard(); return; }
     if(w.todayIdx==null)return err('Tap which day of your cycle today is.');
     const keepOvr=R&&R.ovr||{}, fired=R&&R.fired||{};
-    R={v:1,preset:w.preset,cycle:w.cycle,times:w.times,unit:w.unit,al:w.al,remind:w.remind,anchorDay:dayNo(today0()),anchorIdx:w.todayIdx,ovr:keepOvr,fired};
+    const keepDet=R&&R.det||{};
+    R={v:1,preset:w.preset,cycle:w.cycle,times:w.times,unit:w.unit,al:w.al,remind:w.remind,anchorDay:dayNo(today0()),anchorIdx:w.todayIdx,ovr:keepOvr,fired,det:keepDet};
     save(); view='main'; wiz=null; month=null; render(); toast('Roster saved'); check();
   };
 }
@@ -188,7 +199,7 @@ function renderMain(){
     h+='<div class="rs-sub">'+(td?esc(cyclePos(td)):'')+(td&&td.note?' · '+esc(td.note):'')+'</div></div>'; }
   // next days
   h+='<h3 class="rs-hd">Next 14 days</h3><div class="rs-days">';
-  for(let k=0;k<14;k++){ const i=dayInfo(addDays(t0,k)); h+='<button type="button" class="rs-day'+(k===0?' today':'')+(i.tag?' ov':'')+'" data-day="'+dkey(i.d)+'" style="--c:'+i.color+'"><small>'+(k===0?'Today':k===1?'Tomorrow':esc(DAYS[i.d.getDay()]))+'</small><b>'+i.d.getDate()+'</b><span>'+i.ico+'</span><em>'+esc(i.off?(i.tag?OVR[i.tag].t.split(' ')[0]:'Rest'):i.from+'–'+i.to)+'</em>'+(n=>n?'<i class="rs-tn" aria-label="'+n+' task'+(n>1?'s':'')+'">'+n+'</i>':'')(tasksOn(i.d).length)+'</button>'; }
+  for(let k=0;k<14;k++){ const i=dayInfo(addDays(t0,k)); h+='<button type="button" class="rs-day'+(k===0?' today':'')+(i.tag?' ov':'')+'" data-day="'+dkey(i.d)+'" style="--c:'+i.color+'"><small>'+(k===0?'Today':k===1?'Tomorrow':esc(DAYS[i.d.getDay()]))+'</small><b>'+i.d.getDate()+'</b><span>'+i.ico+'</span><em>'+esc(i.off?(i.tag?OVR[i.tag].t.split(' ')[0]:'Rest'):i.from+'–'+i.to)+'</em>'+(!i.off&&detail(i.d)?'<i class="rs-dt" title="'+esc(DETK[detail(i.d).a].t)+'">'+detIco(detail(i.d))+'</i>':'')+(n=>n?'<i class="rs-tn" aria-label="'+n+' task'+(n>1?'s':'')+'">'+n+'</i>':'')(tasksOn(i.d).length)+'</button>'; }
   h+='</div>';
   // month calendar
   if(!month){ month=new Date(t0.getFullYear(),t0.getMonth(),1); }
@@ -221,6 +232,8 @@ function daySheet(d){
    +'<div class="rs-ovs">'+opts+'</div>'
    +'<div class="rs-ovx" hidden><label class="rs-lab">Swap to</label><div class="rs-chips">'+Object.keys(TYPES).map(c=>'<button type="button" class="rs-chip'+(o.to===c?' on':'')+'" data-sw="'+c+'">'+TYPES[c].ico+' '+TYPES[c].t+'</button>').join('')+'</div></div>'
    +'<div class="rs-ovt" hidden><label class="rs-lab">Times <small>24-hour, optional</small></label><div class="rs-time"><input class="rs-in" inputmode="numeric" maxlength="5" data-of value="'+esc(o.from||'')+'" placeholder="From"><span>to</span><input class="rs-in" inputmode="numeric" maxlength="5" data-ot value="'+esc(o.to&&!TYPES[o.to]?o.to:'')+'" placeholder="To"></div></div>'
+   +(i.off?'':(x=>'<label class="rs-lab">Your detail <small>'+(x&&x.b?'half and half — change it in Tasks':'optional')+'</small></label><div class="rs-chips rs-dets">'+DET.map(D_=>'<button type="button" class="rs-chip'+(x&&x.a===D_.k&&!x.b?' on':'')+'" data-det="'+D_.k+'">'+D_.i+' '+esc(D_.t)+'</button>').join('')+'</div>'
+      +(W.GRTasks&&W.GRTasks.days?'<button type="button" class="rs-sec wide o-plan">🗓 Plan my days — half days and job suggestions</button>':''))(detail(d)))
    +((L=>'<label class="rs-lab">Tasks '+(L.length?'<small>'+L.length+' for this day</small>':'<small>none yet</small>')+'</label>'
       +(L.length?'<div class="rs-tasks">'+L.map(x=>'<button type="button" class="rs-tk" data-tk="'+esc(x.id)+'"><span class="rs-tki ty-'+esc(x.ty)+'"><svg viewBox="0 0 24 24" aria-hidden="true">'+x.ic+'</svg></span><span class="rs-tkt"><b>'+esc(x.title)+'</b><small>'+esc(x.label+(x.tour?' · this tour':x.due?' · '+hm(x.due):''))+'</small></span>'+(x.urgent?'<em>URGENT</em>':'')+'</button>').join('')+'</div>':'')
       +'<button type="button" class="rs-sec wide o-task">＋ Task for this day</button>')(tasksOn(d)))
@@ -228,6 +241,9 @@ function daySheet(d){
    +'<p class="rs-err" hidden></p><div class="rs-row2"><button type="button" class="rs-sec o-clear"'+(o.k||o.note?'':' disabled')+'>Back to rostered</button><button type="button" class="rs-go o-save">Save</button></div>',root=>{
     let sel=o.k||null, sw=o.to&&TYPES[o.to]?o.to:null;
     root.querySelectorAll('[data-tk]').forEach(b=>b.onclick=()=>{ closeSheet(); closeRoster(); if(W.GRTasks)W.GRTasks.open(b.dataset.tk); });
+    root.querySelectorAll('[data-det]').forEach(b=>b.onclick=()=>{ const x=detail(d), on=x&&x.a===b.dataset.det&&!x.b; setDetail(d,on?null:{a:b.dataset.det,note:x&&x.note});
+      root.querySelectorAll('[data-det]').forEach(y=>y.classList.toggle('on',!on&&y===b)); renderMain(); toast(on?'Detail cleared':'Detail: '+DETK[b.dataset.det].t); });
+    const op=root.querySelector('.o-plan'); if(op)op.onclick=()=>{ closeSheet(); closeRoster(); W.GRTasks.days(dkey(d)); };
     const ot=root.querySelector('.o-task'); if(ot)ot.onclick=()=>{ closeSheet(); closeRoster(); if(W.GRTasks&&W.GRTasks.newOn)W.GRTasks.newOn(d); };
     const sync=()=>{ root.querySelector('.rs-ovx').hidden=sel!=='SW'; root.querySelector('.rs-ovt').hidden=!(sel&&!OVR[sel].off&&sel!=='SW'); };
     root.querySelectorAll('[data-ov]').forEach(b=>b.onclick=()=>{ sel=sel===b.dataset.ov?null:b.dataset.ov; root.querySelectorAll('[data-ov]').forEach(x=>x.classList.toggle('on',x.dataset.ov===sel)); sync(); });
@@ -277,5 +293,5 @@ if('serviceWorker' in navigator){ navigator.serviceWorker.addEventListener('mess
 setTimeout(check,2000);
 
 W.openRoster=openRoster; W.closeRoster=closeRoster; W.rstBack=back;
-W.GRRoster=Object.freeze({open:openRoster,mountStrip,status:n=>R?status(n):null,dayInfo:d=>R?dayInfo(d):null,_state:()=>R,_set:x=>{R=x;save();},_reload:()=>{ R=load(); paintStrips(); if(ov&&!ov.hidden&&typeof render==='function')render(); }});
+W.GRRoster=Object.freeze({open:openRoster,mountStrip,status:n=>R?status(n):null,dayInfo:d=>R?dayInfo(d):null,DET,detail:d=>R?detail(d):null,setDetail,_state:()=>R,_set:x=>{R=x;save();},_reload:()=>{ R=load(); paintStrips(); if(ov&&!ov.hidden&&typeof render==='function')render(); }});
 })();

@@ -348,6 +348,7 @@ const MAXD=6, MAXN=800;
 const kids=n=>(n&&Array.isArray(n.steps))?n.steps:[];
 function walk(list,fn,d,par){ (list||[]).forEach((n,i)=>{ fn(n,d||1,par||null,i); if(kids(n).length)walk(n.steps,fn,(d||1)+1,n); }); }
 const isDone=n=>kids(n).length?kids(n).every(isDone):!!n.done;
+const anyStep=(t,fn)=>{ let r=false; walk(t&&t.steps,n=>{ if(!r&&fn(n))r=true; }); return r; };
 function cnt(list){ let n=0,m=0; walk(list,x=>{ if(!kids(x).length){ m++; if(x.done)n++; } }); return {n,m}; }
 function nodeCount(list){ let k=0; walk(list,()=>{ k++; }); return k; }
 function locate(list,id,par){ list=list||[]; for(let i=0;i<list.length;i++){ const x=list[i]; if(x.id===id)return {n:x,list,i,par:par||null}; const r=locate(x.steps,id,x); if(r)return r; } return null; }
@@ -378,7 +379,10 @@ function parseOutline(txt,maxd){ maxd=Math.max(1,maxd||MAXD);
     const node={id:sid(),t:s,done:done?Date.now():null}; st[st.length-1].list.push(node); st.push({ind,list:(node.steps=[])}); });
   return norm(root); }
 function stepDues(t){ const out=[]; walk(t.steps,n=>{ if(n.due&&!isDone(n))[...new Set(n.rem&&n.rem.length?n.rem:[0])].forEach(m=>out.push(['s'+m+':'+n.id+':'+n.due,n.due-m*MIN,n])); }); return out; }
-function stepLines(list,ind,notes){ const L=[]; (list||[]).forEach(n=>{ const d=isDone(n); L.push(ind+'['+(d?'x':' ')+'] '+n.t+(n.due&&!d?' — by '+full(n.due):'')); if(notes&&n.n)L.push(ind+'      ('+n.n.replace(/\s*\n\s*/g,' · ')+')'); L.push(...stepLines(n.steps,ind+'  ',notes)); }); return L; }
+// a step's own type and time window, in words — "CCTV · Business hours 09:00–17:30 Mon–Fri"
+function stepTags(n){ const w=n.win?winOf(n):null; return [n.pri>=1&&n.pri<=4?LV[n.pri]:'', n.type&&TY[n.type]?TY[n.type].t:'', n.win?(w?w.label.trim()+(w.days!=='all'?' '+DAYSET[w.days]:''):'any time'):'',
+    n.avail==='away'?'going away'+(n.awayBy?' '+day(n.awayBy):''):n.avail==='hard'?'hard to reach':n.avail==='lim'?'only free at certain times':''].filter(Boolean).join(' · '); }
+function stepLines(list,ind,notes){ const L=[]; (list||[]).forEach(n=>{ const d=isDone(n), tg=stepTags(n); L.push(ind+'['+(d?'x':' ')+'] '+n.t+(tg?' ('+tg+')':'')+(n.due&&!d?' — by '+full(n.due):'')); if(notes&&n.n)L.push(ind+'      ('+n.n.replace(/\s*\n\s*/g,' · ')+')'); L.push(...stepLines(n.steps,ind+'  ',notes)); }); return L; }
 
 const WINS=[
  {k:'any',t:'Any time'},
@@ -409,7 +413,7 @@ const open_=()=>DB.tasks.filter(t=>!t.done);
 const hmMin=s=>{const m=/^(\d{1,2}):(\d{2})$/.exec(s||'');return m?(+m[1])*60+(+m[2]):null;};
 function winOf(t){ const w=WN[t.win||'any']||WN.any; if(w.k==='any')return null;
   const from=w.k==='custom'?t.wFrom:w.from, to=w.k==='custom'?t.wTo:w.to; const a=hmMin(from),b=hmMin(to);
-  if(a==null||b==null||a===b)return null; return {a,b,days:t.wDays||w.days||'all',label:(w.k==='custom'?'':w.t+' ')+from+'–'+to}; }
+  if(a==null||b==null||a===b)return null; return {k:w.k,a,b,days:t.wDays||w.days||'all',label:(w.k==='custom'?'':w.t+' ')+from+'–'+to}; }
 const dayOK=(days,dow)=>days==='weekdays'?(dow>=1&&dow<=5):days==='weekend'?(dow===0||dow===6):true;
 // is time `now` inside the window?  Overnight windows (22:00–07:00) belong to the day they start.
 function inWin(w,now){ const d=new Date(now), m=d.getHours()*60+d.getMinutes(), dow=d.getDay();
@@ -424,6 +428,68 @@ function nextOpen(w,now){ // start of the next window after now
   return null; }
 function winState(t,now){ const w=winOf(t); if(!w)return {any:true,open:true};
   const o=inWin(w,now); return {w,open:o,next:o?null:nextOpen(w,now)}; }
+/* a step can have its own time window, or follow the step it's under — and in the end the task's */
+const curOpen=(w,now)=>{ const d=new Date(now), m=d.getHours()*60+d.getMinutes(); return new Date(d.getFullYear(),d.getMonth(),d.getDate()-(w.a>w.b&&m<w.b?1:0),0,w.a).getTime(); };   // when the window you're in opened
+function upWin(t,id){ const p=pathTo(t.steps,id).slice(0,-1); for(let i=p.length-1;i>=0;i--)if(p[i].win)return {w:winOf(p[i]),src:p[i]}; return {w:winOf(t),src:null}; }
+function openLeaves(t){ const out=[];   // the smallest steps still to do, each with the window it can be done in
+  (function f(L,w){ (L||[]).forEach(n=>{ if(isDone(n))return; const ww=n.win?winOf(n):w; if(kids(n).length)f(n.steps,ww); else out.push([n,ww]); }); })(t.steps,winOf(t));
+  return out; }
+// can the task be worked on now? With steps: is any step still to do inside its window?
+function taskWin(t,now){ const L=t.done?[]:openLeaves(t); if(!L.length)return winState(t,now);
+  const nw=[]; let wins=0, next=null, k=null, k0=null;
+  L.forEach(([n,w])=>{ if(!w){ nw.push(n); return; } wins++;
+    if(inWin(w,now)){ nw.push(n); if(!k0)k0=w.k; } else { const x=nextOpen(w,now); if(x!=null&&(next==null||x<next)){ next=x; k=w.k; } } });
+  if(!wins)return {any:true,open:true,now:nw};
+  const o=nw.length>0; return {open:o,next:o?null:next,k:o?(k0||'any'):k,now:nw,part:o&&nw.length<L.length}; }
+
+/* ================= urgency: how pressing each step is =================
+   Worked out from the deadlines that bind it — its own date, the step it is under, the task, the next court date, the
+   6-month summons limit, CCTV overwrite, the day the person goes away — and from the case: with the DPP (on hold),
+   suspect not interviewed (the interview comes first). "Hard to reach" and an urgent task push it up a level.
+   Set it yourself and that wins. Levels: 1 Low · 2 Normal · 3 High · 4 Critical. */
+const LV=[null,'Low','Normal','High','Critical'];
+const STAGES=[{k:'inv',t:'Investigating',s:'nobody charged yet',i:'enquiry'},{k:'file',t:'File for the DPP',s:'still to send',i:'file'},{k:'dpp',t:'With the DPP',s:'waiting for directions',i:'send'},
+  {k:'charged',t:'Charged',s:'before the court',i:'court'},{k:'summons',t:'Summons',s:'6-month limit',i:'limit'},{k:'traffic',t:'Traffic file',s:'6-month limit',i:'traffic'}];
+const STG=Object.fromEntries(STAGES.map(x=>[x.k,x]));
+const AVAIL=[['','Not set'],['easy','Easy to get'],['lim','Only certain times'],['hard','Hard to reach'],['away','Going away']];
+function caseOf(t){ const c=Object.assign({},(t&&t.cs)||{});
+  if(!c.st&&t){ const g=t.type==='file'?({charged:'charged',dpp:'file',traffic:'traffic'})[t.kind]:t.type==='limit'?'summons':null; if(g){ c.st=g; c.guess=true; } }
+  if(!c.off&&t&&t.type==='limit'&&t.sol&&t.sol.off)c.off=t.sol.off;
+  return c; }
+const isIntv=n=>n.type==='arrest'||/\binterview|\bcautioned\b|\bsuspect\b/i.test(n.t||'');
+function urgOf(t,n,now,inh){ const c=caseOf(t), why=[]; let D=null, dw='', dk='';
+  const dl=(ms,txt,k)=>{ if(ms!=null&&!isNaN(ms)&&(D==null||ms<D)){ D=ms; dw=txt; dk=k||''; } };
+  const av=n?(n.avail?n:(inh&&inh.av)||{}):{};
+  if(n){ if(n.due)dl(n.due,'Do it by'); if(inh&&inh.due!=null)dl(inh.due,inh.why); if(av.avail==='away'&&av.awayBy)dl(av.awayBy,'They’re going away','away'); }
+  if(t.due)dl(t.due,planned(t)?'Planned for your tour, ending':'The task is due');
+  if(c.st==='charged'&&c.court)dl(c.court,'Court date');
+  if((c.st==='summons'||c.st==='traffic')&&c.off)dl(limitEnd(c.off,6),'Last day to apply for the summons','limit');
+  if(t.type==='cctv'){ const ow=cctvOverwrite(t.cctv); if(ow)dl(ow,'Footage may be overwritten'); }
+  let lv=2;
+  if(D!=null){ const left=D-now, cd=Math.round((sod(D)-sod(now))/DAY);   // a summons application has to reach the court office in time — so that limit is pressing a month out
+    // other dates count in calendar days, so a court date a week away is High all day — not only after the hour it's listed for
+    lv=dk==='limit'?(left<=7*DAY?4:left<=30*DAY?3:left<=60*DAY?2:1):(left<0?4:cd<=2?4:cd<=7?3:cd<=28?2:1);
+    why.push(dw+' '+(left<0?'— overdue by '+durStr(-left):(dk==='away'||dk==='limit'?day(D):rel(D,now))+' ('+durStr(left)+' left)')); }
+  if(c.st==='dpp'&&!(n&&n.due)){ lv=Math.max(1,lv-1); why.push('With the DPP — waiting for directions'); }
+  if(c.st==='charged'&&!c.court)why.push('Charged — add the next court date');
+  if(c.intv==='no'&&c.st!=='dpp'&&(!n||isIntv(n))){ lv=Math.min(4,lv+1); why.push(n?'Suspect not interviewed yet':'Suspect not interviewed yet — the file can’t go without it'); }
+  if(n&&av.avail==='hard'){ lv=Math.min(4,lv+1); why.push('Hard to reach — start early'); }
+  if(n&&av.avail==='lim')why.push('Only free at certain times'+(n.win?'':' — set them under “When can it be done?”'));
+  if(n&&av.avail==='away'&&!av.awayBy)why.push('Going away — add the date');
+  if(t.urgent){ lv=Math.min(4,lv+1); why.push('The task is marked urgent'); }
+  if(!why.length)why.push('No deadline yet');
+  const auto=lv; if(n&&n.pri>=1&&n.pri<=4){ lv=n.pri; why.unshift('Set by you'+(n.pri!==auto?' (worked out as '+LV[auto]+')':'')); }
+  return {lv,auto,why,dl:D}; }
+// every open step's urgency in one pass — dates and availability carry down to the steps underneath
+function stepUrgs(t,now){ const M=new Map();
+  (function f(L,inh){ let mx=0; (L||[]).forEach(n=>{ if(isDone(n))return; const u=urgOf(t,n,now,inh); M.set(n.id,u); u.leaf=!kids(n).length;
+      if(!u.leaf){ const nd=n.due&&(inh.due==null||n.due<inh.due)?{due:n.due,why:'“'+String(n.t).slice(0,40)+'” is due'}:{due:inh.due,why:inh.why};
+        u.mx=Math.max(u.lv,f(n.steps,{due:nd.due,why:nd.why,av:n.avail?{avail:n.avail,awayBy:n.awayBy}:inh.av})); } else u.mx=u.lv;
+      mx=Math.max(mx,u.mx); }); return mx; })(t.steps,{due:null,why:'',av:null});
+  return M; }
+function taskUrg(t,now){ const own=urgOf(t,null,now), M=t.done?new Map():stepUrgs(t,now); let lv=own.lv, n4=0, n3=0, dl=own.dl;
+  M.forEach(u=>{ if(!u.leaf)return; if(u.lv>lv)lv=u.lv; if(u.lv===4)n4++; else if(u.lv===3)n3++; if(u.dl!=null&&(dl==null||u.dl<dl))dl=u.dl; });
+  return {lv,own,M,n4,n3,dl}; }   // dl: the earliest date anything in it is bound by (court, limit, step dates, someone going away)
 
 /* ================= roster: your tours ================= */
 // Uses My roster (roster.js) when it is set up. A tour is {s,e,code,label,ico}: start and end of a working day's tour.
@@ -454,6 +520,178 @@ function tourTasks(sp){ return open_().filter(t=>planned(t)?(t.tour.ts<sp.e&&t.t
 // a reminder at the start of the planned tour (or of the window inside it)
 function tourRem(t){ if(!planned(t)||!(t.tour.s<t.tour.e))return null;
   return [Math.round((t.tour.e-t.tour.s)/MIN), t.tour.s===t.tour.ts?'Start of tour':'When it opens ('+hm(t.tour.s)+')']; }
+
+/* ================= my days: your detail for each tour, and the jobs that suit it =================
+   Your detail (car, station, files…) for each working day is kept with My roster. Each open job — and each sub job
+   inside one — is matched to a day by where it gets done (out and about, meeting someone, on the phone, at a desk,
+   in the station, at court), the hours it can be done in, roughly how long it takes and its deadline. Most urgent
+   first, into the earliest part of a tour that suits it; the rest into the best fit while there's time left. */
+const DETS=()=>{ const R=RO(); return (R&&R.DET)||[]; };
+const detOf=k=>DETS().find(x=>x.k===k)||null;
+// how well each detail suits each kind of work (0 = it can't be done), and the share of a tour left for your own jobs
+const DFIT={car:{out:1,meet:1,phone:1,stn:.5,desk:.3},beat:{out:.8,meet:1,phone:1,stn:.3,desk:.2},station:{stn:1,desk:1,phone:1,meet:.8},
+  files:{desk:1,phone:1,stn:1,meet:.7,out:.4},court:{court:1,phone:.6,desk:.4},event:{phone:.3},escort:{phone:.4,desk:.3},training:{phone:.2},
+  other:{out:.6,meet:.6,phone:.6,stn:.6,desk:.6,court:.6},'':{out:.7,meet:.7,phone:.7,stn:.7,desk:.7,court:.7}};
+const DOWN={car:.3,beat:.3,station:.4,files:.8,court:.3,event:.1,escort:.1,training:.05,other:.3,'':.35};
+const MODE={cctv:'out','cctv.preserve':'phone','cctv.view':'desk','cctv.stills':'desk',statement:'meet','statement.own':'desk','statement.sus':'stn','statement.med':'desk',
+  arrest:'out',enquiry:'out','enquiry.agency':'phone','enquiry.vehicle':'desk','enquiry.trace':'desk','enquiry.online':'desk','enquiry.spsv':'desk','enquiry.licence':'desk','enquiry.station':'phone',
+  visit:'out',call:'phone',file:'desk',court:'desk','court.date':'court','court.bail':'court','court.serve':'out',limit:'desk',exhibit:'stn','exhibit.lab':'out',
+  traffic:'desk','traffic.checkpoint':'out','traffic.docs':'stn',victim:'phone','victim.letter':'desk','victim.assess':'meet',email:'desk',night:'out',admin:'desk','admin.meeting':'stn',other:'any'};
+const MODET={out:'out and about',meet:'meeting someone',phone:'on the phone',desk:'at a desk',stn:'in the station',court:'at court',any:''};
+const EST={cctv:45,'cctv.canvass':60,'cctv.view':60,'cctv.stills':30,'cctv.preserve':10,statement:90,'statement.own':45,'statement.sus':120,'statement.med':15,arrest:120,
+  enquiry:45,'enquiry.h2h':120,'enquiry.spsv':120,'enquiry.online':30,visit:30,call:10,file:120,'file.pulse':20,court:30,'court.date':240,'court.outcome':15,limit:30,
+  exhibit:30,'exhibit.lab':90,traffic:30,'traffic.checkpoint':60,'traffic.docs':15,victim:20,email:15,night:20,admin:20,other:30};
+const kv=(o,ty,kd)=>o[ty+'.'+(kd||'')]!=null?o[ty+'.'+(kd||'')]:o[ty];
+const fitOf=(k,m)=>{ const F=DFIT[k]||DFIT['']; return m==='any'?Math.max(0,...Object.values(F)):(F[m]||0); };
+// a step's own words can say where it's done — "Ring the manager", "Collect the footage", "Update PULSE"
+function modeOfText(s){ s=String(s||'').toLowerCase().trim();
+  if(/^(ring|phone|text|call (him|her|them|back))\b|^arrange\b|\b(ring|phone) (the|him|her|them)\b/.test(s))return 'phone';
+  if(/^(collect|call to|call round|go to|visit|attend|canvass|serve|deliver|walk the|find (him|her|them)|arrest|house-to-house|check on)\b/.test(s))return 'out';
+  if(/^(take (the|a|her|his|their) statement|statement from|meet|read it over)\b/.test(s))return 'meet';
+  if(/^(update pulse|pulse|cover report|type|write|email|send the|submit|add it to the file|disclosure|request the|fill in)\b/.test(s))return 'desk';
+  return null; }
+// the hours a job can be done in when you haven't set any: people at reasonable hours, offices in business hours, shops in shop hours
+const WPEOPLE={k:'people',a:480,b:1260,days:'all',label:'reasonable hours (08:00–21:00)'}, WBIZ={k:'business',a:540,b:1050,days:'weekdays',label:'business hours (09:00–17:30 Mon–Fri)'},
+  WSHOP={k:'shops',a:480,b:1200,days:'all',label:'shop hours (about 08:00–20:00)'};
+function impWin(ty,kd,mode){ const k=ty+'.'+(kd||'');
+  if(ty==='night'||/^(visit\.(curfew|welfare)|call\.(station|hosp)|enquiry\.(station|hosp))$/.test(k))return null;
+  if(mode==='phone')return /^(call\.(biz|agency)|enquiry\.agency)$/.test(k)?WBIZ:WPEOPLE;
+  if(ty==='cctv'||k==='enquiry.shop')return mode==='out'?WSHOP:null;
+  if(/^(court\.(summons|warrant)|exhibit\.lab)$/.test(k))return WBIZ;
+  if(mode==='meet'||ty==='visit'||k==='enquiry.h2h')return WPEOPLE;
+  return null; }
+// minutes of window w inside [s,e), and when it first opens in there
+function winIn(w,s,e){ if(!(e>s))return {m:0,at:null}; if(!w)return {m:(e-s)/MIN,at:s}; let m=0, at=null;
+  for(let k=-1;k<20;k++){ const d=d0(s,k); if(d.getTime()>=e)break; if(!dayOK(w.days,d.getDay()))continue;
+    const ws=new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,w.a).getTime(), we=new Date(d.getFullYear(),d.getMonth(),d.getDate()+(w.b<=w.a?1:0),0,w.b).getTime();
+    const a=Math.max(s,ws), b=Math.min(e,we); if(b>a){ m+=(b-a)/MIN; if(at==null||a<at)at=a; } }
+  return {m,at}; }
+const dkeyOf=d=>d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+const keyDate=k=>{ const [y,m,d]=String(k).split('-').map(Number); return new Date(y,m-1,d); };
+// the changeover for a half-and-half day — on the tour, after it starts (a night's "01:00" is the next morning)
+function changeAt(sp,at){ const t=hmMin(at); if(t==null)return null; const d=new Date(sp.s); let c=new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,t).getTime(); if(c<=sp.s)c+=DAY; return c>sp.s&&c<sp.e?c:null; }
+const midTour=sp=>{ const c=new Date(sp.s+(sp.e-sp.s)/2); c.setMinutes(0,0,0); return hm(c.getTime()); };
+// your run of working days — the one you're in, or the next one
+function block(now){ const R=RO(); if(!R)return null; const first=tours(now,1)[0]; if(!first)return null;
+  let d=d0(first.s,0); for(let i=0;i<10&&tourOf(dayInf(d0(d.getTime(),-1)));i++)d=d0(d.getTime(),-1);
+  const days=[]; for(let k=0;k<8;k++){ const dd=d0(d.getTime(),k), inf=dayInf(dd), sp=tourOf(inf); if(!sp)break;
+    const x=R.detail?R.detail(dd):null, c=x&&x.b?changeAt(sp,x.at):null;
+    days.push({d:dd,key:dkeyOf(dd),sp,inf,det:x,past:sp.e<=now,cur:sp.s<=now&&now<sp.e,
+      segs:c?[{k:x.a,s:sp.s,e:c,half:1},{k:x.b,s:c,e:sp.e,half:2}]:[{k:x?x.a:'',s:sp.s,e:sp.e}]}); }
+  return days.length?{days,n:days.length}:null; }
+// the pieces of work to place: each job (its own steps), and each sub job given its own category inside one
+function planUnits(now,B){ const out=[], b0=B?B.days[0].sp.s:null, b1=B?B.days[B.days.length-1].sp.e:null;
+  open_().forEach(t=>{ const M=stepUrgs(t,now), own=urgOf(t,null,now), subs=[], mine=[];
+    (function f(L,w,inSub){ (L||[]).forEach(n=>{ if(isDone(n))return; const ww=n.win?winOf(n):w, hit=!inSub&&!!(n.type&&n.type!==t.type&&TY[n.type]);
+      if(hit)subs.push({n,w:ww}); else if(!inSub&&!kids(n).length)mine.push([n,ww]); f(n.steps,ww,inSub||hit); }); })(t.steps,winOf(t),false);
+    const anyStep=(t.steps||[]).some(n=>!isDone(n));
+    if(mine.length||!anyStep){ let lv=own.lv, dl=own.dl; mine.forEach(([n])=>{ const u=M.get(n.id); if(u){ lv=Math.max(lv,u.lv); if(u.dl!=null&&(dl==null||u.dl<dl))dl=u.dl; } });
+      const nx=mine.length?mine[0][0]:null; let mode=(nx&&modeOfText(nx.t))||kv(MODE,t.type||'other',t.kind)||'any', fix=planned(t)?t.tour.ts:null;
+      // a court date in these days is the day you're at court; one after them leaves the preparation to do now
+      if(mode==='court'){ if(t.due&&b0!=null&&t.due>=b0-12*H&&t.due<b1)fix=t.due; else mode='desk'; }
+      out.push({key:t.id,t,n:null,ty:t.type||'other',kd:t.kind,nx,mode,w:(nx&&mine[0][1])||winOf(t)||impWin(t.type||'other',t.kind,mode),lv,dl,fix}); }
+    subs.forEach(({n,w})=>{ const u=M.get(n.id)||{lv:2,mx:2,dl:null}; let dl=u.dl; walk(n.steps,x=>{ const v=M.get(x.id); if(v&&v.dl!=null&&(dl==null||v.dl<dl))dl=v.dl; });
+      const nx=firstOpen(n.steps)||n, mode=(nx!==n&&modeOfText(nx.t))||modeOfText(n.t)||MODE[n.type]||'any';
+      out.push({key:t.id+'|'+n.id,t,n,ty:n.type,kd:null,nx,mode,w:w||impWin(n.type,null,mode),lv:Math.max(u.lv,u.mx||0),dl,fix:null}); }); });
+  return out; }
+function plan4(now){ const B=block(now); if(!B)return null; const segs=[];
+  B.days.forEach((D_,di)=>D_.segs.forEach(g=>{ g.di=di; g.items=[]; g.s0=Math.max(g.s,now); g.room=g.e>g.s0?Math.round((g.e-g.s0)/MIN*(DOWN[g.k]!=null?DOWN[g.k]:.35)):0; g.cap=g.room; if(g.e>g.s0)segs.push(g); }));
+  const endB=B.days[B.days.length-1].sp.e, nxt=tours(endB+MIN,1)[0]||null, offTo=nxt?nxt.s:null, left=[], spare=[];
+  const U=planUnits(now,B).sort((a,b)=>(b.lv-a.lv)||((a.dl||9e15)-(b.dl||9e15))||((a.t.created||0)-(b.t.created||0)));
+  U.forEach(u=>{ const need=kv(EST,u.ty,u.kd)||30; u.need=need; u.off=u.dl!=null&&u.dl>endB&&offTo!=null&&u.dl<offTo;
+    let pool=segs;
+    if(u.fix!=null){ const fd=B.days.findIndex(D_=>u.fix>=D_.sp.s&&u.fix<D_.sp.e||sod(u.fix)===sod(D_.sp.s)); if(fd>=0)pool=segs.filter(g=>g.di===fd); }
+    const C=pool.filter(g=>{ if(u.fix==null&&fitOf(g.k,u.mode)<.5)return false; const end=u.dl!=null&&u.dl>g.s0?Math.min(g.e,u.dl):g.e; return winIn(u.w,g.s0,end).m>=Math.min(need,30); });
+    if(!C.length){ left.push({u,why:whyNot(u,segs,need)}); return; }
+    if(u.fix!=null)C.sort((a,b)=>((b.s0<=u.fix&&u.fix<b.e)-(a.s0<=u.fix&&u.fix<a.e))||a.s-b.s);   // a fixed time goes in the part of the tour it falls in
+    const urgent=u.fix!=null||u.lv>=3||(u.dl!=null&&u.dl<=endB)||u.off, roomy=C.filter(g=>g.cap>=need*.5);
+    let g=null;
+    if(urgent)g=roomy[0]||C[0];
+    else g=roomy.slice().sort((a,b)=>(fitOf(b.k,u.mode)-.12*b.di)-(fitOf(a.k,u.mode)-.12*a.di)||a.s-b.s)[0]||null;
+    if(!g){ spare.push(u); return; }
+    g.cap-=need; const end=u.dl!=null&&u.dl>g.s0?Math.min(g.e,u.dl):g.e; u.at=u.fix!=null&&u.mode==='court'?u.fix:winIn(u.w,g.s0,end).at; g.items.push(u); });
+  segs.forEach(g=>g.items.sort((a,b)=>(b.lv-a.lv)||(a.at||0)-(b.at||0)));
+  return {B,segs,left,spare,endB,offTo,now}; }
+function whyNot(u,segs,need){ const D_=DETS().filter(x=>fitOf(x.k,u.mode)>=.5).map(x=>x.t);
+  if(!segs.length)return 'No more of your tours in this run';
+  if(!segs.some(g=>fitOf(g.k,u.mode)>=.5))return 'Needs you '+MODET[u.mode]+' — set a day to '+(D_.slice(0,3).join(' or ')||'a detail that suits it');
+  if(u.dl!=null&&u.dl<segs[0].s0)return 'Was due '+rel(u.dl,Date.now())+' — do it as soon as you can';
+  if(u.w)return 'Needs '+(u.w.label||'its time window').trim()+' — your '+[...new Set(segs.filter(g=>fitOf(g.k,u.mode)>=.5).map(g=>(detOf(g.k)||{t:'tour'}).t.toLowerCase()))].join(' / ')+' time doesn’t cover that'+(u.dl!=null?' before it’s due':'');
+  return 'Doesn’t fit before it’s due '+rel(u.dl,Date.now()); }
+// what a stretch of a tour is good for, from its hours and the detail
+function goodFor(g){ const L=[], len=(g.e-g.s0)/MIN, biz=winIn(WBIZ,g.s0,g.e).m, eve=winIn({a:1020,b:1260,days:'all'},g.s0,g.e).m, late=winIn({a:1320,b:420,days:'all'},g.s0,g.e).m;
+  if(biz>=90)L.push('shops and offices open'); if(eve>=60)L.push('people home in the evening'); if(late>=len*.5)L.push('late — checks and files, no house calls');
+  const k={car:'calls come first',beat:'calls come first',station:'people can come in to you',files:'desk time',court:'court first — calls and emails while you wait'}[g.k]; if(k)L.push(k);
+  return L.join(' · '); }
+const spanTxt=(s,e)=>hm(s)+'–'+hm(e);
+function unitRow(u,now){ const t=u.t, n=u.n, ty=TY[u.ty]||TY.other, D_=u.dl;
+  let chips='';
+  if(u.lv>=3)chips+='<span class="tk-chip ug l'+u.lv+'">'+svg(IC.flag)+LV[u.lv]+'</span>';
+  if(D_!=null)chips+='<span class="tk-chip '+(D_<now?'od':sod(D_)===sod(now)?'td':'')+'">'+(D_<now?'overdue '+esc(durStr(now-D_)):'by '+esc(rel(D_,now)))+'</span>';
+  if(u.off)chips+='<span class="tk-chip od">due while you’re off</span>';
+  const why=[MODET[u.mode]?MODET[u.mode].replace(/^./,c=>c.toUpperCase()):'', u.w&&u.at&&u.at>now+5*MIN?'from '+hm(u.at):'', u.w?(u.w.label||'').replace(/ \(.*\)$/,''):''].filter(Boolean).join(' · ');
+  const id=n?t.id+'|'+n.id:t.id;
+  return '<div class="tk-row d4r'+(u.lv>=4?' od':'')+'" data-key="'+esc(id)+'">'
+   +'<button type="button" class="tk-ck" '+(n?'data-sck':'data-ck')+'="'+esc(id)+'" aria-label="Mark done">'+svg(IC.check)+'</button>'
+   +'<button type="button" class="tk-body" '+(n?'data-sop':'data-ed')+'="'+esc(id)+'"><span class="tk-ico ty-'+ty.k+'">'+svg(n?(IC[ty.k]||IC.other):icOf(t))+'</span>'
+   +'<span class="tk-txt"><b>'+esc(n?n.t:(t.title||ty.t))+'</b>'+(n?'<small class="tk-in-job">'+svg(IC.sub)+'in '+esc(tyOf(t).t)+': '+esc((t.title||'').slice(0,60))+'</small>':u.nx?'<small class="tk-next">Next: '+esc(String(u.nx.t).slice(0,80))+'</small>':'')
+   +(why?'<small class="d4-why">'+esc(why)+'</small>':'')+(chips?'<span class="tk-chips">'+chips+'</span>':'')+'</span></button></div>'; }
+let dFocus=null, retView=null;
+function openDays(key){ if(!ov||ov.hidden)openTasks(); commitEdit(); view='days'; dFocus=key||null; render(); }
+function renderDays(){ const now=Date.now(); ov.querySelector('.tk-title').textContent='My days'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
+  let h='<div class="tk-wrap">';
+  if(!RO()){ main.innerHTML=h+empty('Set up My roster first','Your tours come from My roster — then set your detail for each day here.')+'<button type="button" class="tk-go wide d4-ro">Set up My roster</button></div>';
+    main.querySelector('.d4-ro').onclick=()=>{ closeTasks(); if(W.openRoster)W.openRoster(); }; return; }
+  const P=plan4(now);
+  if(!P){ main.innerHTML=h+empty('No tours coming up','My roster has no working days in the next six weeks.')+'</div>'; return; }
+  const B=P.B, ci=B.days.findIndex(x=>x.cur), last=B.days[B.days.length-1];
+  h+='<div class="d4-top"><b>Your '+B.n+' day'+(B.n===1?'':'s')+' · '+esc(day(B.days[0].sp.s))+' – '+esc(day(last.sp.s))+'</b><small>'
+    +(ci>=0?'You’re on day '+(ci+1)+' of '+B.n+' — '+esc(B.days[ci].sp.label)+' until '+hm(B.days[ci].sp.e)+' ('+esc(durStr(B.days[ci].sp.e-now))+' left)'
+      :B.days[0].sp.s>now?'Starts '+esc(day(B.days[0].sp.s))+' '+hm(B.days[0].sp.s)+' — in '+esc(durStr(B.days[0].sp.s-now)):'Between tours — next '+esc(rel((B.days.find(x=>!x.past)||last).sp.s,now)))+'</small></div>'
+    +'<p class="tk-note">Set your detail for each day — car, station, files, half days. Your jobs are matched to it, the time of day and each job’s deadline. Tap a job to open it.</p>';
+  B.days.forEach((D_,di)=>{ const sp=D_.sp, x=D_.det, dt=x?detOf(x.a):null, dt2=x&&x.b?detOf(x.b):null;
+    h+='<section class="d4-day'+(D_.past?' past':'')+(D_.cur?' cur':'')+'" data-day="'+D_.key+'"><div class="d4-hd"><span class="d4-dn"><b>'+esc(day(sp.s).replace(/ \w+$/,''))+'</b><small>Day '+(di+1)+' of '+B.n+'</small></span>'
+      +'<span class="d4-tour">'+esc(sp.ico||'')+' '+esc(sp.label)+' '+spanTxt(sp.s,sp.e)+'</span><span class="d4-st">'+(D_.cur?'Now · '+esc(durStr(sp.e-now))+' left':D_.past?'Done':sod(sp.s)===sod(now)?'Today':sod(sp.s)===sod(now+DAY)?'Tomorrow':'')+'</span></div>';
+    if(!D_.past)h+='<button type="button" class="d4-det'+(x?'':' none')+'" data-dd="'+D_.key+'">'+(x?'<span class="d4-di">'+esc(dt.i)+(dt2?'<i>'+esc(dt2.i)+'</i>':'')+'</span><span class="d4-dt"><b>'+esc(dt.t)+(dt2?' → '+esc(dt2.t)+'</b><small>changes at '+esc(hm(D_.segs[1].s))+'</small>':'</b>')+(x.note?'<small>'+esc(x.note)+'</small>':'')+'</span><em>Change</em>'
+        :'<span class="d4-di">＋</span><span class="d4-dt"><b>Set your detail</b><small>Car, station, files, half and half…</small></span><em>Set</em>')+'</button>';
+    else h+='<p class="d4-done">'+(x?esc(dt.i+' '+dt.t+(dt2?' → '+dt2.t:''))+' · ':'')+(n=>n?'✓ '+n+' job'+(n===1?'':'s')+' ticked off that day':'Nothing ticked off that day')(DB.tasks.filter(t=>t.done&&t.done>=sp.s&&t.done<sp.e+2*H).length)+'</p>';
+    P.segs.filter(g=>g.di===di).forEach(g=>{ const gd=detOf(g.k);
+      h+='<div class="d4-seg"><div class="d4-sh"><b>'+(gd?esc(gd.i+' '+gd.t):'Your tour')+' · '+spanTxt(g.s0,g.e)+'</b><small>'+(g.room?'about '+esc(durStr(g.room*MIN))+' for your own jobs':'little time for your own jobs')+(goodFor(g)?' · '+esc(goodFor(g)):'')+'</small></div>'
+        +(g.items.length?g.items.map(u=>unitRow(u,now)).join(''):'<p class="d4-none">'+(gd&&DOWN[g.k]<=.1?'Not much time for your own jobs on this one.':'Nothing on your list suits this — calls and patrol.')+'</p>')+'</div>'; });
+    h+='</section>'; });
+  if(P.spare.length)h+='<h3 class="tk-sec">If you get time <span>'+P.spare.length+'</span></h3><p class="tk-note">These suit your days but there isn’t room for them as well.</p>'+P.spare.map(u=>unitRow(u,now)).join('');
+  if(P.left.length)h+='<h3 class="tk-sec red">Not on these days <span>'+P.left.length+'</span></h3>'+P.left.map(x=>unitRow(x.u,now).replace('<span class="tk-txt">','<span class="tk-txt"><small class="d4-whynot">'+esc(x.why)+'</small>')).join('');
+  if(!open_().length)h+=empty('No jobs on your list','Add your jobs and they’ll be suggested for the right day here.');
+  h+='<p class="tk-foot">Suggestions only — calls, your Sergeant and the unit come first. Details are saved with My roster on this device.</p></div>';
+  main.innerHTML=h; main.scrollTop=0;
+  main.querySelectorAll('[data-dd]').forEach(b=>b.onclick=()=>detSheet(b.dataset.dd));
+  main.querySelectorAll('[data-ck]').forEach(b=>b.onclick=()=>toggleDone(b.dataset.ck));
+  main.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{ retView='days'; editTask(b.dataset.ed); });
+  main.querySelectorAll('[data-sck]').forEach(b=>b.onclick=()=>{ const [ti,si]=b.dataset.sck.split('|'); tickSub(ti,si); });
+  main.querySelectorAll('[data-sop]').forEach(b=>b.onclick=()=>{ const [ti,si]=b.dataset.sop.split('|'); retView='days'; openSub(ti,si); });
+  if(dFocus){ const el=main.querySelector('.d4-day[data-day="'+dFocus+'"]'); dFocus=null; if(el)setTimeout(()=>el.scrollIntoView({block:'start'}),30); } }
+function detSheet(key){ const R=RO(); if(!R)return; const dd=keyDate(key), sp=tourOf(dayInf(dd)); if(!sp)return;
+  const x=R.detail(dd)||{}; let a=x.a||'', b=x.b||'', split=!!x.b, at=x.at||midTour(sp);
+  const opts=(g,cur)=>DETS().map(o=>'<button type="button" class="d4-o'+(cur===o.k?' on':'')+'" data-'+g+'="'+o.k+'"><span>'+esc(o.i)+'</span><b>'+esc(o.t)+'</b><small>'+esc(o.s)+'</small></button>').join('');
+  const m=hmMin(midTour(sp)), ats=[-120,-60,0,60,120].map(k=>{ const v=((m+k)%1440+1440)%1440; return p2(Math.floor(v/60))+':'+p2(v%60); }).filter(v=>changeAt(sp,v));
+  if(!ats.includes(at))ats.push(at);
+  sh.innerHTML='<div class="tk-grip"></div><h3>'+esc(day(sp.s))+' · '+esc(sp.label)+' '+spanTxt(sp.s,sp.e)+'</h3>'
+    +'<p class="tk-note d4-l1">'+(split?'First half':'Your detail')+'</p><div class="d4-opts" data-g="a">'+opts('da',a)+'</div>'
+    +'<button type="button" class="d4-split'+(split?' on':'')+'" aria-pressed="'+split+'"><b>½</b> Half and half — two details on this tour</button>'
+    +'<div class="d4-half"'+(split?'':' hidden')+'><p class="tk-note">Changes at</p><div class="d4-ats">'+ats.map(v=>'<button type="button" class="tk-f'+(v===at?' on':'')+'" data-at="'+v+'">'+v+'</button>').join('')+'</div>'
+    +'<p class="tk-note">Second half</p><div class="d4-opts" data-g="b">'+opts('db',b)+'</div></div>'
+    +'<label class="tk-lab">Note <small>optional</small></label><input class="tk-in d4-note" maxlength="60" placeholder="e.g. Car 2 with Garda Byrne" value="'+esc(x.note||'')+'">'
+    +'<p class="tk-err d4-err" hidden></p><div class="tk-row2"><button type="button" class="tk-sec-btn d4-clr"'+(x.a?'':' disabled')+'>Clear</button><button type="button" class="tk-go d4-ok">Save</button></div>';
+  sh.hidden=false; ov.querySelector('.tk-shade').hidden=false;
+  const pick=(g,k)=>{ sh.querySelectorAll('[data-'+g+']').forEach(o=>o.classList.toggle('on',o.dataset[g==='da'?'da':'db']===k)); };
+  sh.querySelectorAll('[data-da]').forEach(o=>o.onclick=()=>{ a=o.dataset.da; pick('da',a); });
+  sh.querySelectorAll('[data-db]').forEach(o=>o.onclick=()=>{ b=o.dataset.db; pick('db',b); });
+  sh.querySelectorAll('[data-at]').forEach(o=>o.onclick=()=>{ at=o.dataset.at; sh.querySelectorAll('[data-at]').forEach(y=>y.classList.toggle('on',y===o)); });
+  const sp_=sh.querySelector('.d4-split'); sp_.onclick=()=>{ split=!split; sp_.classList.toggle('on',split); sp_.setAttribute('aria-pressed',split); sh.querySelector('.d4-half').hidden=!split; sh.querySelector('.d4-l1').textContent=split?'First half':'Your detail'; };
+  sh.querySelector('.d4-clr').onclick=()=>{ R.setDetail(dd,null); closeSheet(); render(); toast('Detail cleared'); };
+  sh.querySelector('.d4-ok').onclick=()=>{ const e=sh.querySelector('.d4-err'), err=t=>{ e.textContent=t; e.hidden=!t; };
+    if(!a)return err('Pick your detail.'); if(split&&!b)return err('Pick the second half.'); if(split&&b===a)return err('Pick a different detail for the second half — or turn half and half off.');
+    R.setDetail(dd,{a,b:split?b:null,at:split?at:null,note:sh.querySelector('.d4-note').value.trim()}); closeSheet(); render(); toast('Saved — '+esc((detOf(a)||{}).t)+(split?' → '+esc((detOf(b)||{}).t):'')); }; }
 
 /* ================= helpers: CCTV + time limits ================= */
 function addMonths(ms,n){ const d=new Date(ms), dd=d.getDate(); const r=new Date(d); r.setDate(1); r.setMonth(r.getMonth()+n);
@@ -503,6 +741,13 @@ function check(){
       Object.values(by).forEach(([k,at,n])=>{ if(now-at>12*H||at<Math.max(n.u||0,t.updated||t.created||0)-MIN)return;
         notify((t.urgent?'🚩 ':'')+'Step: '+String(n.t).slice(0,80),{body:(n.due<=now+MIN?(n.due<now-MIN?'Overdue since '+rel(n.due,now):'Due now'):'Due '+rel(n.due,now))+(now-at>5*MIN?' (reminder was delayed — phone asleep)':'')+' · '+(t.title||tyOf(t).t),
           tag:'gr-step-'+n.id,renotify:true,vibrate:[200,100,200],data:{open:'task',id:t.id},timestamp:n.due}); }); }
+    // a step's own time window has opened — "Remind me when it opens"
+    for(const k in t.fired){ if(k[0]==='w'&&k[1]===':'&&now-(+k.slice(k.lastIndexOf(':')+1)||0)>3*DAY){ delete t.fired[k]; dirty=true; } }
+    walk(t.steps,n=>{ if(!n.remWin||!n.win||isDone(n))return; const w=winOf(n); if(!w||!inWin(w,now))return;
+      const at=curOpen(w,now), k='w:'+n.id+':'+at; if(t.fired[k])return; t.fired[k]=now; dirty=true;
+      if(at<Math.max(n.u||0,t.updated||t.created||0)-MIN)return;   // it was already open when you set it — it reminds you from the next time
+      notify((t.urgent?'🚩 ':'')+'Step: '+String(n.t).slice(0,80),{body:'You can do it now — '+w.label.trim()+(now-at>5*MIN?' (reminder was delayed — phone asleep)':'')+' · '+(t.title||tyOf(t).t),
+        tag:'gr-stepw-'+n.id,renotify:true,vibrate:[120,80,120],data:{open:'task',id:t.id}}); });
     const due=dueTimes(t).filter(([k,at])=>!t.fired[k]&&at<=now);
     if(due.length){ due.forEach(([k])=>{t.fired[k]=now;}); dirty=true;
       const [k,at]=due.reduce((a,b)=>b[1]>a[1]?b:a);
@@ -516,9 +761,9 @@ function check(){
   if(dirty)persist();
 }
 async function enableReminders(){
-  if(!('Notification' in W)){toast('This browser can’t show notifications');return false;}
+  if(!('Notification' in W)){toast(W.grNotifHelp?W.grNotifHelp('none'):'This browser can’t show notifications');return false;}
   let p=Notification.permission; if(p==='default'){try{p=await Notification.requestPermission();}catch(e){}}
-  if(p!=='granted'){toast('Notifications are blocked — allow them in Android Settings → Apps → Chrome → Notifications');return false;}
+  if(p!=='granted'){toast(W.grNotifHelp?W.grNotifHelp('denied'):'Notifications are blocked — allow them in your phone’s settings');return false;}
   toast('Reminders on'); return true;
 }
 
@@ -552,50 +797,83 @@ function openTasks(id){
   { const sc=ov.querySelector('.tk-sync'); let on=false; try{ on=!!(JSON.parse(localStorage.getItem('gr_sync')||'{}')||{}).on; }catch(e){} sc.hidden=!(on&&W.GRSync); if(on&&W.GRSync)W.GRSync.mountChip(sc); }
   if(W.grHudTick)W.grHudTick(); check(); return true;
 }
-function closeTasks(){ if(!ov)return; closeSheet(); commitEdit(); if(curId&&draft&&(view==='plan'||view==='edit'))stepsSync(); edbar(false); sEd=null; zoomId=null; ov.hidden=true; D.body.classList.remove('tsk-open'); main.innerHTML=''; draft=null; paintStrips(); }
+function closeTasks(){ if(!ov)return; retView=null; closeSheet(); commitEdit(); if(curId&&draft&&(view==='plan'||view==='edit'))stepsSync(); edbar(false); sEd=null; zoomId=null; ov.hidden=true; D.body.classList.remove('tsk-open'); main.innerHTML=''; draft=null; paintStrips(); }
 function back(){
   if(!ov||ov.hidden)return false;
   if(!sh.hidden){closeSheet();return true;}
   if(view==='plan'){ commitEdit(); if(curId)stepsSync(); sEd=null; edbar(false);
     if(zoomId){ const p=pathTo(draft.steps,zoomId); zoomId=p.length>1?p[p.length-2].id:null; renderPlan(); return true; }
     view='edit'; renderEdit(); const s=main.querySelector('.tk-tree')||main.querySelector('.tk-stadd'); if(s)s.scrollIntoView({block:'center'}); return true; }
-  if(view==='edit'){ commitEdit(); if(curId)stepsSync(); sEd=null; edbar(false); view='list'; draft=null; render(); return true; }
+  if(view==='edit'){ commitEdit(); if(curId)stepsSync(); sEd=null; edbar(false); view=retView||'list'; retView=null; draft=null; render(); return true; }
+  if(view==='days'){ view='list'; render(); return true; }
   if(view==='scan'){ const big=ov&&ov.querySelector('.tk-big'); if(big){ big.remove(); return true; }
     if(scan&&(scan.mode==='type'||scan.mode==='key')){ scan.mode=scan.imgs&&scan.imgs.length?'choose':'pick'; scan.err=''; render(); return true; } scan=null; view='list'; render(); return true; }
   closeTasks(); return true;
 }
-function render(){ if(!ov||ov.hidden)return; if(view==='edit')renderEdit(); else if(view==='plan')renderPlan(); else if(view==='scan')renderScan(); else renderList(); if(W.grHudTick)W.grHudTick(); }
+function render(){ if(!ov||ov.hidden)return; if(view==='edit')renderEdit(); else if(view==='plan')renderPlan(); else if(view==='scan')renderScan(); else if(view==='days')renderDays(); else renderList(); if(W.grHudTick)W.grHudTick(); }
 
 /* ================= list ================= */
-function classify(t,now){
-  const ws=winState(t,now), od=t.due&&t.due<now, today=t.due&&sod(t.due)===sod(now), sd=t.done?null:nextStepDue(t);
-  return {ws,od,today,sd,sdo:!!(sd&&sd<now),sdt:!!(sd&&sd>=now&&sod(sd)===sod(now))};
+const _cls=new WeakMap();   // sorting asks about each task many times — work it out once per redraw
+function classify(t,now){ const m=t.m||t.updated||0, ck=_cls.get(t); if(ck&&ck.now===now&&ck.m===m&&ck.d===t.done)return ck.r;
+  const ws=taskWin(t,now), od=t.due&&t.due<now, today=t.due&&sod(t.due)===sod(now), sd=t.done?null:nextStepDue(t);
+  const r={ws,od,today,sd,sdo:!!(sd&&sd<now),sdt:!!(sd&&sd>=now&&sod(sd)===sod(now)),ug:t.done?null:taskUrg(t,now)}; _cls.set(t,{now,m,d:t.done,r}); return r;
 }
-function sortKey(t,now){ const c=classify(t,now); return [t.urgent?0:1, (c.od||c.sdo)?0:1, Math.min(t.due||9e15,c.sd||9e15), t.created]; }
+function sortKey(t,now){ const c=classify(t,now); return [t.urgent?0:1, 4-(c.ug?c.ug.lv:2), (c.od||c.sdo)?0:1, Math.min(t.due||9e15,c.sd||9e15,(c.ug&&c.ug.dl)||9e15), t.created]; }
+// the step to show on the task's row: the most urgent one that can be done now — or, if none can, the most urgent one
+function nextPick(t,c){ const first=firstOpen(t.steps); if(!first)return null; const M=c.ug&&c.ug.M, pool=c.ws.now&&c.ws.now.length?c.ws.now:openLeaves(t).map(x=>x[0]);
+  let best=null, bl=0; pool.forEach(n=>{ const l=M&&M.get(n.id)?M.get(n.id).lv:2; if(l>bl){ bl=l; best=n; } });
+  best=best||first; return {n:best,lv:bl,lab:best===first?'Next':c.ws.now&&c.ws.now.includes(best)?'Now':'Most urgent'}; }
 function cmp(a,b){ for(let i=0;i<a.length;i++){ if(a[i]!==b[i])return a[i]<b[i]?-1:1; } return 0; }
 function row(t,now){
   const c=classify(t,now), ty=tyOf(t), kd=kindOf(t), done=!!t.done, pl=planned(t);
   let chips='';
   if(kd)chips+='<span class="tk-chip kd">'+esc(kd.t)+'</span>';
   if(t.urgent&&!done)chips+='<span class="tk-chip urg">'+svg(IC.flag)+'URGENT</span>';
+  if(!done&&c.ug&&c.ug.lv>=3&&!(t.urgent&&c.ug.lv<4)){ const k=c.ug.lv===4?c.ug.n4:c.ug.n3; chips+='<span class="tk-chip ug l'+c.ug.lv+'">'+svg(IC.flag)+LV[c.ug.lv]+(k?' · '+k+' step'+(k===1?'':'s'):'')+'</span>'; }
   if(done)chips+='<span class="tk-chip">✓ done '+esc(rel(t.done,now))+'</span>';
   else{
     if(pl&&!c.od)chips+='<span class="tk-chip tour'+(c.today?' td':'')+'">'+svg(IC.cal)+esc(tourShort(t.tour,now))+(now>=t.tour.ts?' · by '+esc(hm(t.due)):'')+'</span>';
     else if(t.due)chips+='<span class="tk-chip '+(c.od?'od':c.today?'td':'')+'">'+(c.od?'overdue '+esc(durStr(now-t.due)):'due '+esc(rel(t.due,now)))+'</span>';
-    if(!c.ws.any)chips+='<span class="tk-chip '+(c.ws.open?'op':'cl')+'">'+svg(IC[t.win]||IC.custom)+(c.ws.open?'open now':'opens '+esc(c.ws.next?rel(c.ws.next,now):'—'))+'</span>';
+    if(!c.ws.any)chips+='<span class="tk-chip '+(c.ws.open?'op':'cl')+'">'+svg(IC[c.ws.k||t.win]||IC.custom)+(c.ws.part?c.ws.now.length+' step'+(c.ws.now.length===1?'':'s')+' now':c.ws.open?'open now':'opens '+esc(c.ws.next?rel(c.ws.next,now):'—'))+'</span>';
     if(t.type==='cctv'&&cctvOverwrite(t.cctv)){ const ow=cctvOverwrite(t.cctv); chips+='<span class="tk-chip '+(ow<now?'od':ow-now<2*DAY?'td':'')+'">'+(ow<now?'footage may be gone':'overwritten '+esc(rel(ow,now)))+'</span>'; }
     if(c.sd&&(!t.due||c.sd<t.due))chips+='<span class="tk-chip sd'+(c.sdo?' od':c.sdt?' td':'')+'">'+svg(IC.sub)+(c.sdo?'a step is overdue':'next step by '+esc(rel(c.sd,now)))+'</span>';
   }
+  if(!done){ const cs=caseOf(t); if(cs.st&&STG[cs.st])chips+='<span class="tk-chip cs">'+svg(IC[STG[cs.st].i])+esc(STG[cs.st].t)+(cs.st==='charged'&&cs.court?' · court '+esc(day(cs.court)):(cs.st==='summons'||cs.st==='traffic')&&cs.off?' · apply by '+esc(day(limitEnd(cs.off,6))):'')+(cs.intv==='no'?' · not interviewed':'')+'</span>'; }
   if(t.steps&&t.steps.length){ const s=cnt(t.steps); chips+='<span class="tk-chip st'+(s.n===s.m?' all':'')+'">'+svg(IC.steps)+s.n+'/'+s.m+'</span>'; }
   if(t.place&&t.place.n)chips+='<span class="tk-chip pl">'+svg(IC.pin)+esc(t.place.n.slice(0,30))+'</span>';
   return '<div class="tk-row'+(done?' done':'')+(t.urgent&&!done?' urg':'')+(c.od&&!done?' od':'')+'" data-id="'+t.id+'">'
    +'<button type="button" class="tk-ck" data-ck="'+t.id+'" aria-label="'+(done?'Mark not done':'Mark done')+'">'+svg(IC.check)+'</button>'
    +'<button type="button" class="tk-body" data-ed="'+t.id+'"><span class="tk-ico ty-'+ty.k+'">'+svg(icOf(t))+'</span>'
-   +'<span class="tk-txt"><b>'+esc(t.title||ty.t)+'</b>'+((nx=>nx?'<small class="tk-next">Next: '+esc(nx.t.slice(0,90))+'</small>':t.notes?'<small>'+esc(t.notes.split('\n')[0].slice(0,90))+'</small>':'')(done?null:firstOpen(t.steps)))+'<span class="tk-chips">'+chips+'</span></span></button></div>';
+   +'<span class="tk-txt"><b>'+esc(t.title||ty.t)+'</b>'+((p=>p?'<small class="tk-next'+(p.lab==='Now'?' now':'')+(p.lv>=3?' u'+p.lv:'')+'">'+(p.lv>=3?svg(IC.flag):'')+p.lab+': '+esc(p.n.t.slice(0,90))+'</small>'
+      :t.notes?'<small>'+esc(t.notes.split('\n')[0].slice(0,90))+'</small>':'')(done?null:nextPick(t,c)))+'<span class="tk-chips">'+chips+'</span></span></button></div>';
 }
+/* sub jobs by category — a step given a type (Statement, CCTV…) inside a job of another type */
+function subJobs(list,type,now){ const out=[];
+  (list||[]).forEach(t=>{ if(t.done||t.type===type||!t.steps)return; const M=stepUrgs(t,now);
+    (function f(L,w,under){ (L||[]).forEach(n=>{ if(isDone(n))return; const ww=n.win?winOf(n):w, hit=n.type===type&&!under;
+      if(hit){ const u=M.get(n.id)||{lv:2,mx:2,dl:null}; out.push({t,n,w:ww,open:!ww||inWin(ww,now),next:ww&&!inWin(ww,now)?nextOpen(ww,now):null,u,lv:Math.max(u.lv,u.mx||0),dl:u.dl}); }
+      f(n.steps,ww,under||hit); }); })(t.steps,winOf(t),false); });
+  return out.sort((a,b)=>(b.lv-a.lv)||((a.dl||9e15)-(b.dl||9e15))||(a.t.created-b.t.created)); }
+function subRow(x,now){ const n=x.n, t=x.t, ty=TY[n.type]||TY.other, od=x.dl!=null&&x.dl<now, td=x.dl!=null&&!od&&sod(x.dl)===sod(now), c=kids(n).length?cnt(n.steps):null;
+  let chips='';
+  if(x.lv>=3)chips+='<span class="tk-chip ug l'+x.lv+'">'+svg(IC.flag)+LV[x.lv]+(n.pri?' · set by you':'')+'</span>';
+  if(n.due)chips+='<span class="tk-chip '+(n.due<now?'od':td?'td':'')+'">'+(n.due<now?'overdue '+esc(durStr(now-n.due)):'by '+esc(rel(n.due,now)))+'</span>';
+  else if(x.dl!=null)chips+='<span class="tk-chip '+(od?'od':td?'td':'')+'">'+esc((x.u.why&&x.u.why[0]||'').split(' — ')[0].replace(/ \(.*$/,'').slice(0,60))+'</span>';
+  if(x.w)chips+='<span class="tk-chip '+(x.open?'op':'cl')+'">'+svg(IC[x.w.k]||IC.custom)+(x.open?'open now':'opens '+esc(x.next?rel(x.next,now):'—'))+'</span>';
+  if(c)chips+='<span class="tk-chip st'+(c.n===c.m?' all':'')+'">'+svg(IC.steps)+c.n+'/'+c.m+'</span>';
+  return '<div class="tk-row sub'+(x.lv>=4?' od':'')+'" data-sid="'+n.id+'">'
+   +'<button type="button" class="tk-ck" data-sck="'+t.id+'|'+n.id+'" aria-label="Mark this sub job done">'+svg(IC.check)+'</button>'
+   +'<button type="button" class="tk-body" data-sop="'+t.id+'|'+n.id+'"><span class="tk-ico ty-'+ty.k+'">'+svg(IC[ty.k]||IC.other)+'</span>'
+   +'<span class="tk-txt"><b>'+esc(n.t)+'</b><small class="tk-in-job">'+svg(IC.sub)+'in '+esc(tyOf(t).t)+': '+esc((t.title||tyOf(t).t).slice(0,70))+'</small>'
+   +'<span class="tk-chips">'+chips+'</span></span></button></div>'; }
+function tickSub(tid,stepId){ const t=byId(tid); if(!t)return; const x=locate(t.steps,stepId); if(!x)return; const n=x.n, was=isDone(n), at=Date.now();
+  (function set(m){ m.done=was?null:at; kids(m).forEach(set); })(n); norm(t.steps); t.m=at; save(); vib(20); render();
+  toast(was?'Back on the list':'Done: '+esc(String(n.t).slice(0,50))+(isDone({steps:t.steps})?' — every step of that job is done':'')); }
+function openSub(tid,stepId){ if(!byId(tid))return; editTask(tid); const p=pathTo(draft.steps,stepId); if(!p.length)return; openPlan(p.length>1?p[p.length-2].id:null);
+  setTimeout(()=>{ const el=main.querySelector('.sn[data-sid="'+stepId+'"]'); if(el){ el.scrollIntoView({block:'center'}); el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),1800); } },60); }
 let qry='';
 function matchQ(t,q){ if(!q)return true; const k=kindOf(t);
-  const st=[]; walk(t.steps,n=>{ st.push(n.t); if(n.n)st.push(n.n); });
+  const st=[]; walk(t.steps,n=>{ st.push(n.t); if(n.n)st.push(n.n); if(n.type&&TY[n.type])st.push(TY[n.type].t); });
   const s=[t.title,t.notes,tyOf(t).t,k&&k.t,t.place&&t.place.n,t.place&&t.place.a,st.join(' ')].join(' ').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every(w=>s.includes(w)); }
 function renderList(){
@@ -610,34 +888,51 @@ function renderList(){
   if(tr)h+='<button type="button" class="tk-tourb'+(on?' on':'')+'" data-tab="tour"><span class="tbi">'+esc(tr.ico||'🗓')+'</span><span class="tbt"><b>'
     +(on?'On duty · '+esc(tr.label)+' until '+hm(tr.e):'Next tour · '+esc(tr.label)+' '+esc(day(tr.s))+' '+hm(tr.s))+'</b><small>'
     +(on?esc(durStr(tr.e-now))+' left':'in '+esc(durStr(tr.s-now)))+' · '+(trList.length?trList.length+' task'+(trList.length===1?'':'s')+' for '+(on?'this':'that')+' tour':'nothing planned for it yet')+'</small></span><em>›</em></button>';
+  if(RO()){ const B=block(now), ci=B?B.days.findIndex(x=>x.cur):-1, D_=B?(ci>=0?B.days[ci]:B.days.find(x=>!x.past)):null, x=D_&&D_.det, dt=x?detOf(x.a):null, dt2=x&&x.b?detOf(x.b):null;
+    h+='<button type="button" class="tk-tourb tk-4d"><span class="tbi">🗓</span><span class="tbt"><b>My days — your detail and what to do</b><small>'
+      +(D_?(ci>=0?'Day '+(ci+1)+' of '+B.n:esc(day(D_.sp.s)))+' · '+(dt?esc(dt.i+' '+dt.t+(dt2?' → '+dt2.t:'')):'set your detail — car, station, files…'):'Plan your next tours')+'</small></span><em>›</em></button>'; }
   h+='<div class="tk-tabs'+(tabs.length>4?' n5':'')+'">'+tabs.map(([k,l,n])=>'<button type="button" class="tk-tab'+(tab===k?' on':'')+'" data-tab="'+k+'">'+l+' <span>'+n+'</span></button>').join('')+'</div>';
   if(DB.tasks.length>5||qry)h+='<div class="tk-srch">'+svg(IC.search)+'<input class="tk-in tk-q" type="search" enterkeyhint="search" autocomplete="off" placeholder="Search tasks" aria-label="Search tasks" value="'+esc(qry)+'"></div>';
   const type=prefs().type||'';
-  h+='<div class="tk-filters"><button type="button" class="tk-f'+(type?'':' on')+'" data-ty="">All types</button>'+TYPES.filter(x=>DB.tasks.some(t=>t.type===x.k)).map(x=>'<button type="button" class="tk-f'+(type===x.k?' on':'')+'" data-ty="'+x.k+'"><span class="tk-fi ty-'+x.k+'">'+svg(IC[x.k])+'</span>'+esc(x.t)+'</button>').join('')+'</div>';
+  // categories: a job of that type, or a sub job given that type inside any other job, counts
+  const subCnt={}; all.forEach(t=>{ (function f(L,under){ (L||[]).forEach(n=>{ if(isDone(n))return; const hit=!!(n.type&&n.type!==t.type&&!(under&&under[n.type])); if(hit)subCnt[n.type]=(subCnt[n.type]||0)+1;
+      f(n.steps,hit?Object.assign({},under,{[n.type]:1}):under); }); })(t.steps,null); });
+  const tyN=k=>all.filter(t=>t.type===k).length+(subCnt[k]||0);
+  h+='<div class="tk-filters"><button type="button" class="tk-f'+(type?'':' on')+'" data-ty="">All types</button>'+TYPES.filter(x=>x.k===type||tyN(x.k)||DB.tasks.some(t=>t.type===x.k)).map(x=>{ const n=tyN(x.k); return '<button type="button" class="tk-f'+(type===x.k?' on':'')+'" data-ty="'+x.k+'"><span class="tk-fi ty-'+x.k+'">'+svg(IC[x.k])+'</span>'+esc(x.t)+(n?' <em>'+n+'</em>':'')+'</button>'; }).join('')+'</div>';
   const f=l=>l.filter(t=>(!type||t.type===type)&&matchQ(t,qry));
+  // sub jobs of the chosen category, from every other job — shown under the jobs, following the tab you're on
+  const subs=type?subJobs(all,type,now).filter(x=>matchQ(x.t,qry)||!qry):[];
+  const subSec=(L,head)=>L.length?'<h3 class="tk-sec">'+head+' <span>'+L.length+'</span></h3>'+L.map(x=>subRow(x,now)).join(''):'';
   let body='';
-  if(tab==='now'){ const l=f(nowList); body=l.length?l.map(t=>row(t,now)).join(''):empty(qry?'No match.':'Nothing that can be done right now.',all.length&&!qry?'Tasks waiting for their time window are under “All”.':'');
-    const later=f(all.filter(t=>!classify(t,now).ws.open)); if(later.length)body+='<h3 class="tk-sec">Waiting for their time window</h3>'+later.map(t=>row(t,now)).join(''); }
+  if(tab==='now'){ const l=f(nowList), sn=subs.filter(x=>x.open); body=l.length||sn.length?l.map(t=>row(t,now)).join(''):empty(qry?'No match.':'Nothing that can be done right now.',all.length&&!qry?'Tasks waiting for their time window are under “All”.':'');
+    body+=subSec(sn,'Sub jobs — '+esc(TY[type]?TY[type].t:'')+' — can do now');
+    const later=f(all.filter(t=>!classify(t,now).ws.open)); if(later.length)body+='<h3 class="tk-sec">Waiting for their time window</h3>'+later.map(t=>row(t,now)).join('');
+    body+=subSec(subs.filter(x=>!x.open),'Sub jobs waiting for their time window'); }
   else if(tab==='tour'){ const l=f(trList);
     body='<p class="tk-note">'+(on?'Planned for this tour, or due before it ends at '+hm(tr.e)+'.':'Planned for your next tour ('+esc(tr.label)+' '+esc(day(tr.s))+' '+hm(tr.s)+'–'+hm(tr.e)+'), or due before it ends.')+'</p>'
       +(l.length?l.map(t=>row(t,now)).join(''):empty('Nothing for '+(on?'this':'your next')+' tour.','Open a task and pick one of your tours under “Deadline” to plan it.')); }
-  else if(tab==='today'){ const l=f(todayList); body=l.length?l.map(t=>row(t,now)).join(''):empty('Nothing due today.',''); }
+  else if(tab==='today'){ const l=f(todayList), st=subs.filter(x=>x.dl!=null&&sod(x.dl)<=sod(now)); body=l.length||st.length?l.map(t=>row(t,now)).join(''):empty('Nothing due today.','');
+    body+=subSec(st,'Sub jobs — '+esc(TY[type]?TY[type].t:'')+' — due today or overdue'); }
   else if(tab==='done'){ const l=f(done); body=l.length?'<p class="tk-note">Completed tasks are kept for 30 days, then deleted automatically.</p>'+l.map(t=>row(t,now)).join(''):empty('No completed tasks yet.',''); }
-  else { const l=f(all); if(!l.length)body=empty(qry?'No match.':'No tasks yet.',qry?'':'Tap ＋ to add one — CCTV to collect, a statement to take, something for nights…');
+  else { const l=f(all); if(!l.length)body=subs.length?'':empty(qry?'No match.':'No tasks yet.',qry?'':'Tap ＋ to add one — CCTV to collect, a statement to take, something for nights…');
     else { const g={}; const order=['Overdue','Today','Tomorrow','This week','Later','No date'];
-      l.forEach(t=>{const c=classify(t,now); let k='No date'; const ed=Math.min(t.due||9e15,c.sd||9e15); if(ed<9e15){const dd=Math.round((sod(ed)-sod(now))/DAY); k=(c.od||c.sdo)?'Overdue':dd===0?'Today':dd===1?'Tomorrow':dd<7?'This week':'Later';} (g[k]=g[k]||[]).push(t);});
-      order.forEach(k=>{ if(g[k])body+='<h3 class="tk-sec'+(k==='Overdue'?' red':'')+'">'+k+' <span>'+g[k].length+'</span></h3>'+g[k].map(t=>row(t,now)).join(''); }); } }
+      l.forEach(t=>{const c=classify(t,now); let k='No date'; const ed=Math.min(t.due||9e15,c.sd||9e15,(c.ug&&c.ug.dl)||9e15); if(ed<9e15){const dd=Math.round((sod(ed)-sod(now))/DAY); k=(c.od||c.sdo)?'Overdue':dd===0?'Today':dd===1?'Tomorrow':dd<7?'This week':'Later';} (g[k]=g[k]||[]).push(t);});
+      order.forEach(k=>{ if(g[k])body+='<h3 class="tk-sec'+(k==='Overdue'?' red':'')+'">'+k+' <span>'+g[k].length+'</span></h3>'+g[k].map(t=>row(t,now)).join(''); }); }
+    body+=subSec(subs,'Sub jobs — '+esc(TY[type]?TY[type].t:'')+' — in other jobs'); }
   h+=body;
-  if(!permOK()&&open_().some(t=>t.due||t.remWin))h+='<button type="button" class="tk-remcard" data-a="rem"><b>🔕 Reminders are off</b><span>Allow notifications so due tasks can remind you.</span></button>';
+  if(!permOK()&&open_().some(t=>t.due||t.remWin||nextStepDue(t)||anyStep(t,n=>n.remWin&&!isDone(n))))h+='<button type="button" class="tk-remcard" data-a="rem"><b>🔕 Reminders are off</b><span>Allow notifications so due tasks can remind you.</span></button>';
   { let on=false; try{ on=!!(JSON.parse(localStorage.getItem('gr_sync')||'{}')||{}).on; }catch(e){}
     h+='<p class="tk-foot">'+(on?'Saved on this device and synced, encrypted, to your Google Drive.':'Saved only on this device.')+' Keep details of members of the public to the minimum — this isn’t your official notebook.</p>'
       +(on||!W.openSync?'':'<button type="button" class="tk-synclink">'+(W.GRI?W.GRI('cloud'):'')+'Use your tasks on your computer too — Sync across devices</button>'); }
   h+='</div>';
   main.innerHTML=h; main.scrollTop=0;
   main.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;setPref('tab',tab);renderList();});
+  { const d4=main.querySelector('.tk-4d'); if(d4)d4.onclick=()=>openDays(); }
   main.querySelectorAll('[data-ty]').forEach(b=>b.onclick=()=>{setPref('type',b.dataset.ty);renderList();});
   main.querySelectorAll('[data-ck]').forEach(b=>b.onclick=()=>toggleDone(b.dataset.ck));
   main.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>editTask(b.dataset.ed));
+  main.querySelectorAll('[data-sck]').forEach(b=>b.onclick=()=>{ const [ti,si]=b.dataset.sck.split('|'); tickSub(ti,si); });
+  main.querySelectorAll('[data-sop]').forEach(b=>b.onclick=()=>{ const [ti,si]=b.dataset.sop.split('|'); openSub(ti,si); });
   const rc=main.querySelector('[data-a="rem"]'); if(rc)rc.onclick=async()=>{ if(await enableReminders())renderList(); };
   const sl=main.querySelector('.tk-synclink'); if(sl)sl.onclick=()=>{ closeTasks(); W.openSync(); };
   const qi=main.querySelector('.tk-q'); if(qi)qi.oninput=()=>{ qry=qi.value; const pos=qi.selectionStart; renderList(); const q2=main.querySelector('.tk-q'); if(q2){ q2.focus(); try{ q2.setSelectionRange(pos,pos); }catch(e){} } };
@@ -672,6 +967,7 @@ function quick(q){ // chip value → ms
   if(q==='t17')return at(0,17);
   if(q==='t23')return at(0,23,0);
   if(q==='m09')return at(1,9);
+  if(q==='m1030')return at(1,10,30);
   if(/^\+\d+d$/.test(q))return at(parseInt(q.slice(1)),9);
   if(q==='-1d')return n.getTime()-DAY;
   if(q==='-2h')return n.getTime()-2*H;
@@ -704,7 +1000,9 @@ function renderEdit(){
   h+='<label class="tk-lab">What needs doing</label><input class="tk-in f-title" maxlength="120" autocomplete="off" placeholder="'+esc(placeholder(t))+'" value="'+esc(t.title)+'">'
    +'<textarea class="tk-in tk-ta f-notes" maxlength="2000" placeholder="Notes — reference numbers, contact, what’s been done… (optional)">'+esc(t.notes)+'</textarea>'
    +'<button type="button" class="tk-urg'+(t.urgent?' on':'')+'">'+svg(IC.flag)+'<b>'+(t.urgent?'Urgent':'Mark as urgent')+'</b><span>'+(t.urgent?'Shown first, in red':'Tap to flag it')+'</span></button>';
+  h+=caseHtml(t,now);
   if(t.type==='enquiry'&&t.kind==='spsv')h+='<button type="button" class="tk-sec-btn wide f-psv">'+svg(IC.memo)+'Open the SPSV cover report stencil</button>';
+  if(t.type==='cctv'&&W.GRForms)h+='<button type="button" class="tk-sec-btn wide f-cctvf">'+svg(IC.memo)+'CCTV continuity statement — print and fill in by pen</button>';
   h+=stepsHtml(t);
   h+=placeHtml(t);
   if(t.type==='cctv')h+=cctvHtml(t,now);
@@ -731,6 +1029,16 @@ function renderEdit(){
   main.innerHTML=h;
   wireEdit();
 }
+/* ---------- where the case is at — it decides how urgent each step is ---------- */
+function caseHtml(t,now){ const c=caseOf(t), u=urgOf(t,null,now);
+  let h='<div class="tk-case"><label class="tk-lab">Where’s the case at? <small>optional — it decides how urgent each step is</small></label>'
+   +'<div class="tk-stg">'+STAGES.map(x=>'<button type="button" class="tk-kind cs-st'+(c.st===x.k?' on':'')+'" data-cst="'+x.k+'" aria-pressed="'+(c.st===x.k)+'"><span class="tk-ki">'+svg(IC[x.i])+'</span><span class="cs-tx"><b>'+esc(x.t)+'</b><small>'+esc(x.s)+'</small></span></button>').join('')+'</div>';
+  if(c.guess)h+='<p class="tk-hint sm">Going by the type of task — tap one to set it.</p>';
+  if(c.st==='charged')h+='<label class="tk-lab sm">Next court date</label>'+dtHtml('csCourt',c.court||null,[['Tomorrow 10:30','m1030'],['+7 days','+7d'],['+14 days','+14d']],(t._raw||{}).csCourt);
+  if(c.st==='summons'||c.st==='traffic')h+='<label class="tk-lab sm">Date of the offence</label>'+dtHtml('csOff',c.off||null,[['Today','now'],['Yesterday','-1d']],(t._raw||{}).csOff)+'<p class="tk-hint sm cs-lim">'+limHint(c)+'</p>';
+  if(c.st)h+='<div class="cs-iv"><span>Suspect interviewed?</span>'+[['yes','Yes'],['no','Not yet'],['na','No suspect']].map(([k,l])=>'<button type="button" class="tk-d'+(c.intv===k?' on':'')+'" data-civ="'+k+'" aria-pressed="'+(c.intv===k)+'">'+l+'</button>').join('')+'</div>';
+  return h+'<p class="cs-urg l'+u.lv+'">'+svg(IC.flag)+'<b>'+LV[u.lv]+'</b><span>'+esc(u.why.join(' · '))+'</span></p></div>'; }
+const limHint=c=>c.off?'Last safe day to apply for the summons: <b>'+esc(dateOnly(limitEnd(c.off,6)))+'</b> — 6 months, for summary offences (indictable and either-way offences have no limit).':'Add the date of the offence to count the 6-month limit for summary offences.';
 function placeholder(t){ const k=kindOf(t); if(k&&k.ph)return k.ph;
   return ({cctv:'e.g. Collect CCTV — Centra, Dorset St',statement:'e.g. Statement from shop manager',arrest:'e.g. Arrest on bench warrant — address on PULSE',enquiry:'e.g. Enquiries at the shops on Talbot St',night:'e.g. Check back lane behind the chipper',call:'e.g. Ring the injured party back',visit:'e.g. House call — 12 Summerhill',court:'e.g. Court 8, CCJ — 10:30',file:'e.g. Update PULSE incident',exhibit:'e.g. Send exhibit to FSI',traffic:'e.g. Check the insurance produced',victim:'e.g. Update the injured party',email:'e.g. Email the council for footage',limit:'e.g. Apply for summons — s.4 Public Order',admin:'e.g. Submit the overtime claim',other:'e.g. Anything to remember'})[t.type]||''; }
 
@@ -739,7 +1047,7 @@ function stepsHtml(t){
   const L=t.steps||[], c=cnt(L), tpl=stepsFor(t), kd=kindOf(t), N=nodeCount(L);
   let h='<label class="tk-lab">Steps <small>'+(c.m?c.n+' of '+c.m+' done':'optional — break it into steps, and steps into smaller steps')+'</small></label>';
   if(c.m)h+='<div class="tk-prog" aria-hidden="true"><i style="width:'+Math.round(100*c.n/c.m)+'%"></i></div>';
-  if(L.length){ const o={ed:sEd,now:Date.now(),budget:{left:40,cut:0}}; h+=treeHtml(L,o);
+  if(L.length){ const o={ed:sEd,now:Date.now(),budget:{left:40,cut:0}}; o.urg=stepUrgs(t,o.now); h+=treeHtml(L,o);
     if(o.budget.cut)h+='<button type="button" class="tk-link st-full more">'+svg(IC.expand)+'Show all '+N+' steps</button>'; }
   if(c.m&&c.n===c.m&&curId&&!t.done)h+='<button type="button" class="tk-alldone">'+svg(IC.check)+'All steps done — mark the task done</button>';
   h+='<div class="tk-stadd"><input class="tk-in st-new" maxlength="200" placeholder="Add a step" enterkeyhint="done" aria-label="New step"><button type="button" class="tk-sec-btn st-add" aria-label="Add the step">'+svg(IC.plus)+'</button></div>'
@@ -760,7 +1068,10 @@ function snRow(n,o){
   let meta='';
   if(has)meta+='<span class="sn-m'+(c.n===c.m?' all':'')+'">'+c.n+'/'+c.m+'</span>';
   if(n.due&&!done)meta+='<span class="sn-m'+(od?' od':td?' td':'')+'">'+svg(IC.cal)+(od?'overdue — ':'by ')+esc(rel(n.due,now))+'</span>';
+  if(n.win&&!done)meta+=winChip(n,now);
   if(n.n)meta+='<span class="sn-m nt">'+svg(IC.memo)+'<span>'+esc(n.n.split('\n')[0].slice(0,80))+'</span></span>';
+  if(n.type&&TY[n.type])meta='<span class="sn-m ty"><span class="sn-tyi ty-'+n.type+'">'+svg(IC[n.type]||IC.other)+'</span>'+esc(TY[n.type].t)+'</span>'+meta;
+  { const u=!done&&o.urg?o.urg.get(n.id):null, ul=u?u.mx:0; if(u&&(ul>=3||n.pri))meta='<span class="sn-m ug l'+ul+'">'+svg(IC.flag)+LV[ul]+(u.mx>u.lv?' inside':'')+'</span>'+meta; }
   let h='<div class="sn'+(done?' done':'')+(has?' par':'')+(n.c?' col':'')+(ed?' ed':'')+'" data-sid="'+n.id+'">'
    +(has?'<button type="button" class="sn-car" aria-expanded="'+(!n.c)+'" aria-label="'+(n.c?'Show':'Hide')+' its sub-steps">'+svg(IC.chev)+'</button>':'<span class="sn-car" aria-hidden="true"></span>')
    +'<button type="button" class="sn-ck" aria-label="'+(done?'Mark not done':has?'Mark it and all its sub-steps done':'Mark done')+'">'+(has?ringSvg(c):svg(IC.check))+'</button>'
@@ -769,6 +1080,9 @@ function snRow(n,o){
    +'<button type="button" class="sn-more" aria-label="Options for this step — sub-steps, date, move, delete">'+svg(IC.dots)+'</button></div>';
   if(has&&!n.c){ const L=o.hide?ch.filter(k=>!isDone(k)||k.id===o.ed):ch; if(L.length)h+='<div class="sn-kids">'+L.map(k=>snRow(k,o)).join('')+'</div>'; }
   return h; }
+function winChip(n,now){ const w=winOf(n); if(!w)return '<span class="sn-m wn">'+svg(IC.any)+'Any time</span>';
+  const o=inWin(w,now), x=o?null:nextOpen(w,now);
+  return '<span class="sn-m wn'+(o?' op':'')+'">'+svg(IC[w.k]||IC.custom)+esc(w.k==='custom'?w.label:WN[w.k].t)+' · '+(o?'open now':'opens '+esc(x?rel(x,now):'—'))+'</span>'; }
 function treeHtml(list,o){ const L=o.hide?(list||[]).filter(k=>!isDone(k)||k.id===o.ed):(list||[]); return '<div class="tk-tree">'+L.map(n=>snRow(n,o)).join('')+'</div>'; }
 
 /* ---------- place: phone, email and opening hours ---------- */
@@ -891,6 +1205,9 @@ function readDraft(){
     t.sol=t.sol||{months:6}; t.sol.off=isNaN(off)?null:off; }
   commitEdit();
   const pq=r.querySelector('.f-place'); if(pq)t._pq=pq.value;
+  if(r.querySelector('[data-dt="csCourt"]')){ const v=dtRead(r,'csCourt'); t.cs=Object.assign({},t.cs||{}); if(!isNaN(v))t.cs.court=v; else delete t.cs.court; }
+  if(r.querySelector('[data-dt="csOff"]')){ let v=dtRead(r,'csOff'); if(isNaN(v)){ const d=r.querySelector('[data-dt="csOff"] .dt-d'); if(d&&d.value){ const [y,mo,da]=d.value.split('-').map(Number); v=new Date(y,mo-1,da,12,0,0,0).getTime(); } }
+    t.cs=Object.assign({},t.cs||{}); if(!isNaN(v))t.cs.off=v; else delete t.cs.off; }
 }
 function wireEdit(){
   const r=main, t=draft, rer=rerEdit;
@@ -901,7 +1218,12 @@ function wireEdit(){
     if(k==='cctv'||k==='limit')t.urgent=t.urgent||k==='cctv';
     rer(); });
   r.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{ readDraft(); t.kind=t.kind===b.dataset.kind?null:b.dataset.kind; vib(10); rer(); });
+  r.querySelectorAll('[data-cst]').forEach(b=>b.onclick=()=>{ readDraft(); const c=caseOf(t), k=b.dataset.cst; t.cs=Object.assign({},t.cs||{}); t.cs.st=(c.st===k&&!c.guess)?null:k; if(!t.cs.st)delete t.cs.st; vib(10); rer(); });
+  r.querySelectorAll('[data-civ]').forEach(b=>b.onclick=()=>{ readDraft(); t.cs=Object.assign({},t.cs||{}); t.cs.intv=t.cs.intv===b.dataset.civ?null:b.dataset.civ; if(!t.cs.intv)delete t.cs.intv; vib(10); rer(); });
+  ['csCourt','csOff'].forEach(k=>dtWire(r,k,()=>{ readDraft(); const u=urgOf(t,null,Date.now()), p=r.querySelector('.cs-urg'); if(p){ p.className='cs-urg l'+u.lv; p.innerHTML=svg(IC.flag)+'<b>'+LV[u.lv]+'</b><span>'+esc(u.why.join(' · '))+'</span>'; }
+    const lh=r.querySelector('.cs-lim'); if(lh)lh.innerHTML=limHint(caseOf(t)); }));
   r.querySelector('.tk-urg').onclick=()=>{ readDraft(); t.urgent=!t.urgent; vib(15); rer(); };
+  const cf=r.querySelector('.f-cctvf'); if(cf)cf.onclick=()=>{ commitEdit(); if(curId)stepsSync(); W.GRForms.open('cctv'); };
   const psv=r.querySelector('.f-psv'); if(psv)psv.onclick=()=>{ try{ if(typeof STEN!=='undefined'&&STEN&&typeof openStencil==='function'){ const i=STEN.findIndex(x=>x.id==='psv_cover'); if(i>=0){ closeTasks(); openStencil(i); return; } } }catch(e){} toast('The stencil is still loading — try again in a moment'); };
   r.querySelectorAll('[data-win]').forEach(b=>b.onclick=()=>{ readDraft(); t.win=b.dataset.win; t.wDays=null; if(t.win==='custom'&&!t.wFrom){t.wFrom='09:00';t.wTo='17:00';} rer(); });
   r.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{ readDraft(); t.wDays=b.dataset.days; rer(); });
@@ -1056,36 +1378,119 @@ function stepTourChips(){ stTours=[]; if(!RO())return ''; const L=tours(Date.now
 function stepSheet(id){ const t=draft; if(!t)return; commitEdit(); const ae=D.activeElement; sEd=null; if(ae&&ae.blur&&main.contains(ae))ae.blur(); edbar(false);
   if(main.querySelector('.sn-in'))reSteps(false);
   const x=locate(t.steps,id); if(!x)return; const n=x.n, has=kids(n).length, c=has?cnt(n.steps):null, lvl=levelOf(t.steps,id);
+  const sw={win:n.win&&WN[n.win]?n.win:'',wFrom:n.wFrom||'',wTo:n.wTo||'',wDays:n.wDays||null,remWin:!!n.remWin};
+  let sty=n.type&&TY[n.type]?n.type:'', chance=null, opAt=null, sav=n.avail||'', saway=n.awayBy||null, spri=n.pri>=1&&n.pri<=4?n.pri:0;
   let h='<div class="tk-grip"></div><h3 class="sn-sh">'+esc(n.t||'Step')+'</h3><p class="tk-note">'+(lvl>1?'Level '+lvl+' · ':'')+(has?c.n+' of '+c.m+' sub-steps done':'No sub-steps yet')+'</p>'
    +'<div class="sn-acts"><button type="button" data-sa="sub">'+svg(IC.sub)+'Add a sub-step</button>'
    +(has?'<button type="button" data-sa="zoom">'+svg(IC.expand)+'Open it on its own</button>':'<button type="button" data-sa="edit">'+svg(IC.pen)+'Change the wording</button>')
    +'<button type="button" data-sa="up">'+svg(IC.up)+'Move up</button><button type="button" data-sa="down">'+svg(IC.down)+'Move down</button>'
    +'<button type="button" data-sa="in">'+svg(IC.indent)+'Put it under the step above</button><button type="button" data-sa="out">'+svg(IC.outdent)+'Move it out a level</button></div>'
+   +'<div class="sn-urg"></div>'
+   +'<label class="tk-lab sm">Type <small>optional</small></label><div class="sn-tys" role="group" aria-label="Type of step">'
+   +[''].concat(TYPES.filter(y=>y.k!=='other').map(y=>y.k)).map(k=>'<button type="button" class="tk-kind sn-ty'+(k===sty?' on':'')+'" data-sty="'+k+'" aria-pressed="'+(k===sty)+'"><span class="tk-ki ty-'+(k||'other')+'">'+svg(IC[k||'other'])+'</span><span>'+esc(k?TY[k].t:'No type')+'</span></button>').join('')+'</div>'
+   +'<div class="sn-tpl"></div>'
+   +'<label class="tk-lab sm">When can it be done?</label><div class="sn-win"></div>'
    +'<label class="tk-lab sm">Do it by <small>optional</small></label>'+dtHtml('sdue',n.due||null,[['Today 17:00','t17'],['Tomorrow 09:00','m09'],['+2 days','+2d'],['+1 week','+7d'],['None','none']])
    +stepTourChips()
-   +'<div class="tk-rems sn-rems"><span>Remind me</span>'+[[0,'At the time'],[60,'1 hour before'],[DAY/MIN,'1 day before']].map(([m,l])=>'<button type="button" class="tk-rm'+((n.rem&&n.rem.length?n.rem:[0]).includes(m)?' on':'')+'" data-srm="'+m+'">'+l+'</button>').join('')+'</div>'
+   +'<div class="tk-rems sn-rems"></div>'
    +'<p class="tk-hint sm sn-dw"></p>'
    +'<label class="tk-lab sm">Note <small>optional</small></label><textarea class="tk-in tk-ta sn-note" maxlength="1000" placeholder="Details for this step">'+esc(n.n||'')+'</textarea>'
    +'<p class="tk-err" hidden></p>'
    +'<div class="tk-row2"><button type="button" class="tk-sec-btn sn-del">'+svg(IC.trash)+'<span>'+(has?'Delete it and its '+nodeCount(n.steps)+' sub-steps':'Delete this step')+'</span></button><button type="button" class="tk-go sn-ok">Done</button></div>';
   sh.innerHTML=h; sh.hidden=false; ov.querySelector('.tk-shade').hidden=false; sh.scrollTop=0;
   let rem=(n.rem&&n.rem.length?n.rem:[0]).slice();
+  // reminders: the usual three, plus "when it opens" once it's planned for a tour
+  const remLab=m=>m===0?'At the time':m<60?m+' min before':m%1440===0?(m===1440?'1 day':(m/1440)+' days')+' before':m%60===0?(m===60?'1 hour':(m/60)+' hours')+' before':Math.floor(m/60)+' h '+(m%60)+' min before';
+  const paintRem=()=>{ const base=[0,60,DAY/MIN], ms=base.concat(rem.filter(m=>!base.includes(m))).sort((p,q)=>p-q), box=sh.querySelector('.sn-rems');
+    box.innerHTML='<span>Remind me</span>'+ms.map(m=>'<button type="button" class="tk-rm'+(rem.includes(m)?' on':'')+'" data-srm="'+m+'">'+esc(opAt&&m===opAt[0]?'When it opens ('+opAt[1]+')':remLab(m))+'</button>').join('');
+    box.querySelectorAll('[data-srm]').forEach(b=>b.onclick=()=>{ const m=+b.dataset.srm; rem=rem.includes(m)?rem.filter(v=>v!==m):rem.concat(m); b.classList.toggle('on',rem.includes(m)); }); };
+  // when it can be done: the same choices as a task, plus "same as above" (the step it's under, or the task)
+  const readSW=()=>{ const f=sh.querySelector('.sn-wf'), to=sh.querySelector('.sn-wt'); if(f&&to){ const a=parseHM(f.value), b=parseHM(to.value); sw.wFrom=a?p2(a[0])+':'+p2(a[1]):f.value.trim(); sw.wTo=b?p2(b[0])+':'+p2(b[1]):to.value.trim(); }
+    const rw=sh.querySelector('.sn-rw'); if(rw)sw.remWin=rw.checked; };
+  const badWin=()=>{ readSW(); return sw.win==='custom'&&(!parseHM(sw.wFrom)||!parseHM(sw.wTo)||sw.wFrom===sw.wTo); };
+  const wName=w=>w?(w.k==='custom'?w.label:WN[w.k].t):'any time';
+  const paintWinInfo=()=>{ const box=sh.querySelector('.sn-winfo'); if(!box)return; const up=upWin(t,id), now=Date.now(), eff=sw.win?(badWin()?null:winOf(sw)):up.w; let h='';
+    chance=null;
+    if(eff){ const o=inWin(eff,now), nx=o?null:nextOpen(eff,now);
+      h+='<p class="tk-hint sn-wst">'+(o?'<span class="grn">Open now</span>':'Next opens <b>'+esc(nx?rel(nx,now):'—')+'</b>')+' · '+esc(eff.label.trim())+' · '+esc(DAYSET[eff.days])+'</p>';
+      if(RO()){ chance=nextChance(sw.win?Object.assign({},sw):(up.src||t),now);
+        h+=chance?'<p class="tk-ro tip">'+svg(IC.any)+'<span>Next chance on duty in its window: <b>'+esc(day(chance.s)+' '+hm(chance.s)+'–'+hm(chance.e))+'</b> ('+esc(chance.tour.label)+')</span><button type="button" class="sn-plan">Plan it</button></p>'
+          :'<p class="tk-ro warn">'+svg(IC.any)+'<span>None of your tours in the next 6 weeks overlaps its time window.</span></p>'; } }
+    box.innerHTML=h;
+    const pb=box.querySelector('.sn-plan'); if(pb)pb.onclick=()=>{ if(!chance)return; const s=chance.s, e=chance.e;
+      dtSet(sh,'sdue',e); sh.querySelectorAll('[data-stour]').forEach(b=>b.classList.remove('on'));
+      if(s>Date.now()+MIN){ const m=Math.round((e-s)/MIN); opAt=[m,hm(s)]; if(!rem.includes(m))rem.push(m); } else opAt=null;
+      paintRem(); dw(); vib(10); toast('Planned: '+day(s)+' '+hm(s)+'–'+hm(e)); }; };
+  const paintWin=()=>{ const box=sh.querySelector('.sn-win'), up=upWin(t,id);
+    let h='<div class="tk-wins"><button type="button" class="tk-win'+(sw.win?'':' on')+'" data-swin="" aria-pressed="'+!sw.win+'">'+svg(IC.up)+'<b>Same as above</b><small>'+esc(wName(up.w))+'</small></button>'
+      +WINS.map(w=>'<button type="button" class="tk-win'+(w.k===sw.win?' on':'')+'" data-swin="'+w.k+'" aria-pressed="'+(w.k===sw.win)+'">'+svg(IC[w.k])+'<b>'+esc(w.t)+'</b><small>'+(w.from?esc(w.from+'–'+w.to):w.k==='any'?'no restriction':'set times')+'</small></button>').join('')+'</div>';
+    if(sw.win==='custom')h+='<div class="tk-cw"><input class="tk-in sn-wf" inputmode="numeric" maxlength="5" placeholder="From HH:MM" aria-label="From — 24-hour time" value="'+esc(sw.wFrom||'')+'"><span>to</span><input class="tk-in sn-wt" inputmode="numeric" maxlength="5" placeholder="To HH:MM" aria-label="To — 24-hour time" value="'+esc(sw.wTo||'')+'"></div>';
+    if(sw.win&&sw.win!=='any')h+='<div class="tk-days">'+Object.keys(DAYSET).map(k=>'<button type="button" class="tk-d'+((sw.wDays||WN[sw.win].days||'all')===k?' on':'')+'" data-sdays="'+k+'">'+DAYSET[k]+'</button>').join('')+'</div>'
+      +'<label class="tk-chk"><input type="checkbox" class="sn-rw"'+(sw.remWin?' checked':'')+'><span>Remind me when it opens</span></label>';
+    box.innerHTML=h+'<div class="sn-winfo"></div>';
+    box.querySelectorAll('[data-swin]').forEach(b=>b.onclick=()=>{ readSW(); const k=b.dataset.swin; if(k===sw.win)return; sw.win=k; sw.wDays=null;
+      if(k==='custom'&&!parseHM(sw.wFrom)){ sw.wFrom='09:00'; sw.wTo='17:00'; } if(!k||k==='any')sw.remWin=false; paintWin(); vib(8); });
+    box.querySelectorAll('[data-sdays]').forEach(b=>b.onclick=()=>{ readSW(); sw.wDays=b.dataset.sdays; paintWin(); });
+    box.querySelectorAll('.sn-wf,.sn-wt').forEach(i=>{ i.addEventListener('input',()=>{ const dg=i.value.replace(/\D/g,'').slice(0,4), v=dg.length>2?dg.slice(0,2)+':'+dg.slice(2):dg; if(v!==i.value)i.value=v; if(v.length===5)paintWinInfo(); });
+      i.addEventListener('blur',()=>{ const p=parseHM(i.value); if(p)i.value=p2(p[0])+':'+p2(p[1]); paintWinInfo(); }); });
+    paintWinInfo(); };
+  // a type gives the step its symbol and offers that type's usual steps as its sub-steps
+  const paintTpl=()=>{ const box=sh.querySelector('.sn-tpl'), y=locate(t.steps,id), L=sty&&STEPS[sty];
+    const miss=y&&L&&levelOf(t.steps,id)<MAXD?(have=>L.filter(z=>!have.has(tplText(z))))(new Set(kids(y.n).map(k=>k.t))):[];
+    if(!miss.length){ box.innerHTML=''; return; }
+    box.innerHTML='<button type="button" class="tk-link sn-tplb">'+svg(IC.cliplist)+(kids(y.n).length?'Add the rest of the usual steps for '+esc(TY[sty].t)+' ('+miss.length+')':'Add the usual steps for '+esc(TY[sty].t)+' as sub-steps ('+miss.length+')')+'</button>';
+    box.querySelector('.sn-tplb').onclick=()=>go(()=>{ const z=locate(t.steps,id); if(!z)return; if(nodeCount(t.steps)+miss.length>MAXN){ toast('That’s the most steps one task can hold ('+MAXN+')'); return; }
+      const before=JSON.stringify(t.steps); z.n.steps=(z.n.steps||[]).concat(tplNodes(miss)); z.n.c=false; z.n.u=Date.now(); norm(t.steps); stepsSync(); reSteps(false);
+      toastUndo(miss.length+' usual steps added',()=>restoreSteps(t,before)); }); };
   const dw=()=>{ const d=dtRead(sh,'sdue'), p=sh.querySelector('.sn-dw'); p.textContent=!isNaN(d)&&t.due&&d>t.due?'That’s after the task’s own deadline ('+full(t.due)+').':''; };
-  dtWire(sh,'sdue',()=>{ sh.querySelectorAll('[data-stour]').forEach(b=>b.classList.remove('on')); dw(); }); dw();
-  sh.querySelectorAll('[data-stour]').forEach(b=>b.onclick=()=>{ const sp=stTours[+b.dataset.stour]; if(!sp)return; dtSet(sh,'sdue',sp.e); sh.querySelectorAll('[data-stour]').forEach(x=>x.classList.toggle('on',x===b)); dw(); });
-  sh.querySelectorAll('[data-srm]').forEach(b=>b.onclick=()=>{ const m=+b.dataset.srm; rem=rem.includes(m)?rem.filter(v=>v!==m):rem.concat(m); b.classList.toggle('on',rem.includes(m)); });
+  dtWire(sh,'sdue',()=>{ sh.querySelectorAll('[data-stour]').forEach(b=>b.classList.remove('on')); if(opAt){ opAt=null; paintRem(); } dw(); });
+  sh.querySelectorAll('[data-stour]').forEach(b=>b.onclick=()=>{ const sp=stTours[+b.dataset.stour]; if(!sp)return; dtSet(sh,'sdue',sp.e); sh.querySelectorAll('[data-stour]').forEach(x=>x.classList.toggle('on',x===b)); if(opAt){ opAt=null; paintRem(); } dw(); });
   const partial=()=>{ const w=sh.querySelector('[data-dt="sdue"]'); return !!((w.querySelector('.dt-d').value||w.querySelector('.dt-t').value.trim())&&isNaN(dtRead(sh,'sdue'))); };
-  const apply=()=>{ const y=locate(draft&&draft.steps,id); if(!y||partial())return false; const d=dtRead(sh,'sdue'), nd=isNaN(d)?null:d, nt=sh.querySelector('.sn-note').value.trim().slice(0,1000), nr=rem.length?rem.slice().sort((p,q)=>p-q):[];
-    if((y.n.due||null)===nd&&(y.n.n||'')===nt&&JSON.stringify(y.n.rem||[0])===JSON.stringify(nr))return false;
-    y.n.due=nd; if(nt)y.n.n=nt; else delete y.n.n; y.n.rem=nr; y.n.u=Date.now(); stepsSync(); return true; };
-  sh._onclose=()=>{ const bad=partial(); if(apply())reSteps(false); if(bad)toast('The date wasn’t finished, so it wasn’t saved'); };
+  // keep what's finished — an unfinished date or unfinished custom times stay as they were
+  const apply=()=>{ const y=locate(draft&&draft.steps,id); if(!y)return false; const pd=partial(), bw=badWin();
+    const d=dtRead(sh,'sdue'), nd=pd?(y.n.due||null):(isNaN(d)?null:d), nt=sh.querySelector('.sn-note').value.trim().slice(0,1000), nr=rem.length?rem.slice().sort((p,q)=>p-q):[];
+    const nw=bw?{win:y.n.win||null,wFrom:y.n.wFrom||null,wTo:y.n.wTo||null,wDays:y.n.wDays||null,remWin:!!y.n.remWin}
+      :{win:sw.win||null,wFrom:sw.win==='custom'?sw.wFrom:null,wTo:sw.win==='custom'?sw.wTo:null,wDays:sw.win&&sw.win!=='any'?(sw.wDays||null):null,remWin:!!(sw.win&&sw.win!=='any'&&sw.remWin)};
+    const na=sav||null, nb=sav==='away'?(saway||null):null, np=spri||null;
+    if((y.n.due||null)===nd&&(y.n.n||'')===nt&&JSON.stringify(y.n.rem||[0])===JSON.stringify(nr)&&(y.n.type||'')===sty
+      &&['win','wFrom','wTo','wDays'].every(k=>(y.n[k]||null)===nw[k])&&!!y.n.remWin===nw.remWin&&(y.n.avail||null)===na&&(y.n.awayBy||null)===nb&&(y.n.pri||null)===np)return false;
+    y.n.due=nd; if(nt)y.n.n=nt; else delete y.n.n; y.n.rem=nr; if(sty)y.n.type=sty; else delete y.n.type;
+    if(na)y.n.avail=na; else delete y.n.avail; if(nb)y.n.awayBy=nb; else delete y.n.awayBy; if(np)y.n.pri=np; else delete y.n.pri;
+    ['win','wFrom','wTo','wDays'].forEach(k=>{ if(nw[k])y.n[k]=nw[k]; else delete y.n[k]; }); if(nw.remWin)y.n.remWin=true; else delete y.n.remWin;
+    y.n.u=Date.now(); stepsSync(); return true; };
+  sh._onclose=()=>{ const pd=partial(), bw=badWin(); if(apply())reSteps(false);
+    if(pd||bw)toast(pd&&bw?'The date and the custom times weren’t finished, so they weren’t saved':pd?'The date wasn’t finished, so it wasn’t saved':'The custom times weren’t finished, so they weren’t saved'); };
   const go=fn=>{ apply(); sh._onclose=null; closeSheet(); fn(); };
   sh.querySelectorAll('[data-sa]').forEach(b=>b.onclick=()=>{ const k=b.dataset.sa;
     if(k==='zoom')go(()=>openPlan(id)); else if(k==='edit')go(()=>{ sEd=id; reSteps(true); }); else go(()=>stepOp(k,id)); });
-  sh.querySelector('.sn-ok').onclick=()=>{ if(partial()){ const e=sh.querySelector('.tk-err'); e.textContent='Finish the date — a date and a 24-hour time — or tap “None”.'; e.hidden=false; return; } const ch=apply(); sh._onclose=null; closeSheet(); if(ch)reSteps(false); };
+  sh.querySelector('.sn-ok').onclick=async()=>{ const e=sh.querySelector('.tk-err');
+    if(partial()){ e.textContent='Finish the date — a date and a 24-hour time — or tap “None”.'; e.hidden=false; e.scrollIntoView({block:'center'}); return; }
+    if(badWin()){ e.textContent='Enter the times as two 24-hour times, e.g. 10:00 to 16:00.'; e.hidden=false; e.scrollIntoView({block:'center'}); return; }
+    const ch=apply(); sh._onclose=null; closeSheet(); if(ch)reSteps(false);
+    const y=locate(t.steps,id); if(y&&(y.n.remWin||y.n.due)&&!permOK()&&('Notification' in W)&&Notification.permission==='default')await enableReminders(); };
   const del=sh.querySelector('.sn-del'); del.onclick=()=>{ if(has&&del.dataset.sure!=='1'){ del.dataset.sure='1'; del.querySelector('span').textContent='Tap again to delete '+(nodeCount(n.steps)+1)+' steps'; return; }
     const before=JSON.stringify(t.steps), y=locate(t.steps,id); sh._onclose=null; closeSheet(); if(!y)return; y.list.splice(y.i,1); if(zoomId&&(zoomId===id||!locate(t.steps,zoomId)))zoomId=null;
     norm(t.steps); stepsSync(); reSteps(false); toastUndo(has?'Deleted '+(nodeCount(n.steps)+1)+' steps':'Step deleted',()=>restoreSteps(t,before)); };
+  sh.querySelectorAll('[data-sty]').forEach(b=>b.onclick=()=>{ if(b.dataset.sty===sty)return; sty=b.dataset.sty;
+    sh.querySelectorAll('[data-sty]').forEach(z=>{ const on=z.dataset.sty===sty; z.classList.toggle('on',on); z.setAttribute('aria-pressed',on); });
+    if(sty&&TY[sty].win&&!sw.win){ readSW(); sw.win=TY[sty].win; paintWin(); }
+    paintTpl(); vib(8); });
+  // how urgent: worked out live from the case, the dates and their availability — or set it yourself
+  const awayVal=ms=>ms?(d=>d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate()))(new Date(ms)):'';
+  const paintUrg=()=>{ const box=sh.querySelector('.sn-urg'), y=locate(t.steps,id); if(!box||!y)return; const now=Date.now(), d=dtRead(sh,'sdue');
+    const p=pathTo(t.steps,id).slice(0,-1); let inh={due:null,why:'',av:null}; p.forEach(a=>{ if(a.due&&(inh.due==null||a.due<inh.due)){ inh.due=a.due; inh.why='“'+String(a.t).slice(0,40)+'” is due'; } if(a.avail)inh.av={avail:a.avail,awayBy:a.awayBy}; });
+    const tmp=Object.assign({},y.n,{due:isNaN(d)?(partial()?y.n.due:null):d,avail:sav||undefined,awayBy:saway||undefined,pri:spri||undefined}), u=urgOf(t,tmp,now,inh);
+    box.innerHTML='<label class="tk-lab sm">How urgent?</label><p class="cs-urg l'+u.lv+'">'+svg(IC.flag)+'<b>'+LV[u.lv]+'</b><span>'+esc(u.why.join(' · '))+'</span></p>'
+      +'<span class="tk-sublab">Their availability <small>— the person this step needs</small></span><div class="tk-days sn-av">'+AVAIL.map(([k,l])=>'<button type="button" class="tk-d'+(sav===k?' on':'')+'" data-sav="'+k+'" aria-pressed="'+(sav===k)+'">'+l+'</button>').join('')+'</div>'
+      +(sav==='away'?'<label class="sn-awl"><span>Going on</span><input type="date" class="tk-in sn-away" value="'+awayVal(saway)+'" aria-label="The day they go away"></label>':'')
+      +(!sav&&inh.av?'<p class="tk-hint sm">Following the step above: '+esc((AVAIL.find(a=>a[0]===inh.av.avail)||['',''])[1].toLowerCase())+'.</p>':'')
+      +'<span class="tk-sublab">Set it yourself</span><div class="tk-days sn-pri">'+[[0,'Worked out'],[1,'Low'],[2,'Normal'],[3,'High'],[4,'Critical']].map(([k,l])=>'<button type="button" class="tk-d'+(k?' pl'+k:'')+(spri===k?' on':'')+'" data-spri="'+k+'" aria-pressed="'+(spri===k)+'">'+l+'</button>').join('')+'</div>';
+    box.querySelectorAll('[data-sav]').forEach(b=>b.onclick=()=>{ sav=b.dataset.sav; if(sav!=='away')saway=null; vib(8); paintUrg(); if(sav==='away'&&!saway){ const i=box.querySelector('.sn-away'); if(i)try{ i.focus(); }catch(e){} } });
+    box.querySelectorAll('[data-spri]').forEach(b=>b.onclick=()=>{ spri=+b.dataset.spri; vib(8); paintUrg(); });
+    const ai=box.querySelector('.sn-away'); if(ai)ai.addEventListener('change',()=>{ const v=ai.value; if(v){ const [yy,mo,da]=v.split('-').map(Number); saway=new Date(yy,mo-1,da,0,0,0,0).getTime(); } else saway=null; paintUrg(); }); };
+  dtWire(sh,'sdue',()=>paintUrg());
+  paintRem(); paintWin(); paintTpl(); dw(); paintUrg();
+  { const on=sh.querySelector('.sn-ty.on'), row=sh.querySelector('.sn-tys'); if(on&&row&&row.scrollWidth>row.clientWidth)row.scrollLeft=Math.max(0,on.offsetLeft-row.offsetLeft-12); }
 }
 /* full screen: the whole plan, or one step and everything under it */
 function openPlan(z){ if(view==='edit')readDraft(); commitEdit(); sEd=null; edbar(false); zoomId=z||null; view='plan'; render(); main.scrollTop=0; }
@@ -1094,12 +1499,12 @@ function renderPlan(keep){ const t=draft; if(!t){ view='list'; renderList(); ret
   ov.querySelector('.tk-title').textContent='Steps'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
   pruneEmpty(t.steps||(t.steps=[]),sEd); norm(t.steps);
   const z=zoomId?locate(t.steps,zoomId):null; if(zoomId&&!z)zoomId=null;
-  const all=cnt(t.steps), list=z?kids(z.n):t.steps, ty=tyOf(t), sd=nextStepDue(t), o={ed:sEd,now,hide:hideDone};
+  const all=cnt(t.steps), list=z?kids(z.n):t.steps, ty=tyOf(t), sd=nextStepDue(t), o={ed:sEd,now,hide:hideDone,urg:stepUrgs(t,now)};
   let h='<div class="tk-wrap tk-plan"><div class="pl-head"><span class="tk-ico ty-'+ty.k+'">'+svg(icOf(t))+'</span><div class="pl-ht"><b>'+esc(t.title||ty.t)+'</b><small>'
     +(all.m?all.n+' of '+all.m+' steps done':'No steps yet')+(sd?' · next by '+esc(rel(sd,now)):'')+'</small>'+(all.m?'<div class="tk-prog"><i style="width:'+Math.round(100*all.n/all.m)+'%"></i></div>':'')+'</div></div>';
   if(z){ const p=pathTo(t.steps,z.n.id);
     h+='<nav class="pl-crumbs" aria-label="Back up to"><button type="button" data-z="">'+svg(IC.up)+'All steps</button>'+p.slice(0,-1).map(x=>'<span aria-hidden="true">›</span><button type="button" data-z="'+x.id+'">'+esc(x.t)+'</button>').join('')+'</nav>'
-      +'<div class="pl-zoom">'+treeHtml([Object.assign({},z.n,{c:true})],{ed:sEd,now})+'</div>'; }
+      +'<div class="pl-zoom">'+treeHtml([Object.assign({},z.n,{c:true})],{ed:sEd,now,urg:o.urg})+'</div>'; }
   h+='<div class="pl-ctl"><button type="button" data-pc="hide" class="'+(hideDone?'on':'')+'" aria-pressed="'+hideDone+'">'+svg(IC.eyeoff)+'Hide done</button>'
    +(list.some(x=>kids(x).length)?'<button type="button" data-pc="col">'+svg(IC.colall)+'Collapse all</button><button type="button" data-pc="exp">'+svg(IC.expall)+'Expand all</button>':'')
    +'<button type="button" data-pc="paste">'+svg(IC.cliplist)+'Paste a list</button>'+(hasKey()?'<button type="button" data-pc="ai">'+svg(IC.spark)+'Break it down</button>':'')
@@ -1272,7 +1677,7 @@ function icsText(list){ const now=Date.now(), te=new TextEncoder();
   const fold=l=>{ const out=[]; let cur='', n=0; for(const ch of l){ const b=te.encode(ch).length; if(n+b>74){ out.push(cur); cur=' '; n=1; } cur+=ch; n+=b; } out.push(cur); return out.join('\r\n'); };
   const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Assisting//Tasks//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
   list.forEach(t=>{ walk(t.steps,n=>{ if(!n.due||isDone(n))return;
-      L.push('BEGIN:VEVENT','UID:'+t.id+'-'+n.id+'@assisting','DTSTAMP:'+ut(now),'DTSTART:'+ut(n.due-30*MIN),'DTEND:'+ut(n.due),'SUMMARY:'+ie('Step: '+n.t+' — '+(t.title||tyOf(t).t)),'DESCRIPTION:'+ie((n.n?n.n+'\n\n':'')+'Part of: '+(t.title||tyOf(t).t)+'\n\nFrom Assisting'));
+      L.push('BEGIN:VEVENT','UID:'+t.id+'-'+n.id+'@assisting','DTSTAMP:'+ut(now),'DTSTART:'+ut(n.due-30*MIN),'DTEND:'+ut(n.due),'SUMMARY:'+ie('Step: '+n.t+' — '+(t.title||tyOf(t).t)),'DESCRIPTION:'+ie((n.n?n.n+'\n\n':'')+(stepTags(n)?stepTags(n)+'\n\n':'')+'Part of: '+(t.title||tyOf(t).t)+'\n\nFrom Assisting'));
       [...new Set(n.rem&&n.rem.length?n.rem:[0])].sort((a,b)=>a-b).slice(0,3).forEach(m=>L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+ie(n.t),'TRIGGER:'+dur(30*MIN-m*MIN),'END:VALARM'));
       L.push('END:VEVENT'); }); });
   list.filter(t=>t.due).forEach(t=>{ const s=planned(t)?t.tour.s:t.due-30*MIN, e=t.due;
@@ -1371,6 +1776,83 @@ const KIND_RE={
  admin:[['claim',/claim|overtime|expenses/],['course',/course|training/],['kit',/uniform|\bkit\b|boots/],['leave',/leave|roster/],['forms',/\bforms?\b|sign/],['meeting',/meeting|briefing/]]};
 function guessKind(type,s){ const L=KIND_RE[type]; if(!L)return null; s=String(s||'').toLowerCase(); for(const [k,re] of L)if(re.test(s))return k; return null; }
 function guessDue(s){ s=String(s).toLowerCase(); return /\btoday\b|\btonight\b|\basap\b/.test(s)?'today':/tomorrow|\btmrw\b|\btmw\b|\btmr\b/.test(s)?'tomorrow':/this week|by fri|end of week/.test(s)?'week':'none'; }
+/* ===== a pasted list → tasks =====
+   Recognises the list copied from Assisting (Tasks → Share → Copy the list, any version): numbered tasks "3. [URGENT] Statement · Witness: title",
+   then "Due …"/"OVERDUE since …", "When: …", "Place: …", notes, and "Steps — n of m done:" with [x]/[ ] steps (indented sub-steps, their notes,
+   type, urgency, time of day and "by" dates). Anything else is read as one task per line, with "-" lines under a task becoming its steps. */
+const DT_RE=/(\d{1,2}):(\d{2})\s+[A-Za-z]{3}\s+(\d{1,2})\/(\d{1,2})\/(\d{4})/;
+const dtParse=x=>{ const m=DT_RE.exec(x||''); if(!m)return null; const d=new Date(+m[5],+m[4]-1,+m[3],+m[1],+m[2]); return isNaN(d)?null:d.getTime(); };
+const tyByLabel=lb=>{ lb=String(lb||'').trim().toLowerCase(); const y=TYPES.find(x=>x.t.toLowerCase()===lb); return y?y.k:null; };
+const kindByLabel=(type,lb)=>{ const y=TY[type]; lb=String(lb||'').trim().toLowerCase(); const k=y&&y.kinds&&y.kinds.find(z=>z.t.toLowerCase()===lb); return k?k.k:null; };
+function winByLabel(x){ x=String(x||'').trim(); let days=null;
+  Object.entries(DAYSET).forEach(([k,v])=>{ if(k!=='all'&&x.endsWith(' '+v)){ days=k; x=x.slice(0,-v.length-1).trim(); } });
+  const w=WINS.find(y=>y.k!=='any'&&y.k!=='custom'&&x.toLowerCase().startsWith(y.t.toLowerCase()));
+  if(w)return {win:w.k,wDays:days&&days!==(w.days||'all')?days:null};
+  const m=/(\d{1,2}:\d{2})\s*[–-]\s*(\d{1,2}:\d{2})/.exec(x); if(m)return {win:'custom',wFrom:m[1].padStart(5,'0'),wTo:m[2].padStart(5,'0'),wDays:days};
+  return null; }
+function stepFrom(n){   // "Take statement (High · Statement · Business hours 09:00–17:30 Mon–Fri) — by 17:00 Fri 23/10/2026"
+  let t=n.t; const by=/\s+—\s+by\s+(.+)$/.exec(t); if(by){ const d=dtParse(by[1]); if(d){ n.due=d; n.rem=[0]; } t=t.slice(0,by.index); }
+  const tg=/\s+\(([^()]*)\)$/.exec(t);
+  if(tg){ let used=0; tg[1].split(' · ').map(x=>x.trim()).forEach(p=>{ const lv=LV.indexOf(p); if(lv>=1){ n.pri=lv; used++; return; }
+      const ty=tyByLabel(p); if(ty){ n.type=ty; used++; return; } if(p==='any time'){ used++; return; }
+      if(/^going away/.test(p)){ n.avail='away'; const m=/(\d{1,2}) ([A-Z][a-z]{2})$/.exec(p); if(m){ const mi=MON.indexOf(m[2]); if(mi>=0){ const d=new Date(); let y=d.getFullYear(); const c=new Date(y,mi,+m[1],12); if(c.getTime()<Date.now()-180*DAY)y++; n.awayBy=new Date(y,mi,+m[1],12).getTime(); } } used++; return; }
+      if(p==='hard to reach'){ n.avail='hard'; used++; return; } if(p==='only free at certain times'){ n.avail='lim'; used++; return; }
+      const w=winByLabel(p); if(w){ Object.assign(n,w); used++; } });
+    if(used)t=t.slice(0,tg.index); }
+  n.t=t.trim().slice(0,200)||'Step'; }
+function stepsFromBlock(lines){ const root=[], st=[{ind:-1,list:root}]; let last=null;
+  lines.forEach(raw=>{ const m=/^(\s*)(.*)$/.exec(raw), ind=m[1].replace(/\t/g,'    ').length, x=m[2].trim(); if(!x)return;
+    const ck=/^\[([ xX✓✔]?)\]\s*(.*)$/.exec(x);
+    if(!ck){ if(last&&/^\(.*\)$/.test(x))last.n=(last.n?last.n+'\n':'')+x.slice(1,-1).replace(/ · /g,'\n'); else if(last)last.t+=' '+x; return; }
+    while(st.length>1&&st[st.length-1].ind>=ind)st.pop(); while(st.length>MAXD)st.pop();
+    const node={id:sid(),t:ck[2],done:/[xX✓✔]/.test(ck[1])?Date.now():null}; stepFrom(node); last=node;
+    st[st.length-1].list.push(node); st.push({ind,list:(node.steps=[])}); });
+  return norm(root); }
+function plainJobs(txt){ return parseOutline(txt,MAXD).map(n=>{ const l=n.t, ty=guessType(l);
+  return {on:true,text:l.slice(0,120),type:ty,kind:guessKind(ty,l),urgent:/urgent|asap|!!/i.test(l),due:guessDue(l),dueAt:null,steps:kids(n).length?n.steps:[]}; }).filter(x=>x.text.length>1); }
+function parseJobs(txt){ txt=String(txt||'').replace(/\r/g,''); const L=txt.split('\n'), JOB=/^ {0,2}(\d{1,3})[.)]\s+(.+)$/;
+  const head=r=>{ r=r.replace(/^\[URGENT\]\s*/i,''); const c=/^([^:]{2,60}):\s+(.*)$/.exec(r); return c&&tyByLabel(c[1].split(' · ')[0])?c:null; };
+  const app=L.some(l=>{ const m=JOB.exec(l); return !!(m&&head(m[2].trim())); })||(/^\s*TASKS\s+—/m.test(txt)&&/^ {3}(Due|OVERDUE since|Steps —|When:)/m.test(txt));
+  if(!app)return plainJobs(txt);
+  const out=[]; let cur=null, inSteps=false, blk=[];
+  const flush=()=>{ if(!cur)return; if(blk.length)cur.steps=stepsFromBlock(blk); cur.notes=cur.notesL.join('\n').trim(); delete cur.notesL; out.push(cur); cur=null; inSteps=false; blk=[]; };
+  L.forEach(raw=>{ if(!raw.trim()||/^\s*TASKS\s+—/.test(raw))return;
+    const m=JOB.exec(raw);
+    if(m&&!/^ {3}/.test(raw)){ flush(); let r=m[2].trim(); const urgent=/^\[URGENT\]/i.test(r); r=r.replace(/^\[URGENT\]\s*/i,'');
+      const c=head(r); let type=null, kind=null, title=r;
+      if(c){ const pr=c[1].split(' · '); type=tyByLabel(pr[0]); kind=pr[1]?kindByLabel(type,pr[1]):null; title=c[2].trim()||TY[type].t; }
+      else { type=guessType(r); kind=guessKind(type,r); }
+      cur={on:true,text:title.slice(0,120),type,kind,urgent,due:'none',dueAt:null,place:null,notesL:[],steps:[]}; return; }
+    if(!cur){ out.push(...plainJobs(raw)); return; }
+    if(inSteps){ blk.push(raw.replace(/^ {3}/,'')); return; }
+    const t=raw.trim(); let mm;
+    if((mm=/^(OVERDUE since|Due)\s+(.*)$/.exec(t))){ const d=dtParse(mm[2]); if(d){ cur.dueAt=d; cur.due='exact'; } else cur.notesL.push(t); return; }
+    if((mm=/^When:\s+(.*)$/.exec(t))){ const w=winByLabel(mm[1]); if(w)Object.assign(cur,w); return; }
+    if((mm=/^Place:\s+(.*)$/.exec(t))){ const parts=mm[1].split(' · '), nm=parts[0], i=nm.indexOf(', ');
+      cur.place={n:(i>0?nm.slice(0,i):nm).trim(),a:i>0?nm.slice(i+2).trim():''}; parts.slice(1).forEach(p=>{ if(/^tel /.test(p))cur.place.ph=p.slice(4).trim(); else if(/@/.test(p))cur.place.em=p.trim(); }); return; }
+    if(/^Footage overwritten from/.test(t))return;
+    if(/^Steps\s+—\s+\d+\s+of\s+\d+\s+done:?$/.test(t)){ inSteps=true; return; }
+    cur.notesL.push(t); });
+  flush(); return out; }
+/* duplicates: the same (or nearly the same) title and type as a task you have — or one earlier in the same paste */
+const normT=x=>String(x||'').toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').replace(/\b(the|a|an|re|for|from|to|of|at|on|in|and|with)\b/g,' ').replace(/\s+/g,' ').trim();
+function simT(a,b){ const A=new Set(normT(a).split(' ').filter(w=>w.length>1)), B=new Set(normT(b).split(' ').filter(w=>w.length>1)); if(!A.size||!B.size)return 0;
+  let i=0; A.forEach(w=>{ if(B.has(w))i++; }); return i/Math.max(A.size,B.size); }
+const reId=n=>{ const c=Object.assign({},n,{id:sid()}); if(kids(n).length)c.steps=n.steps.map(reId); else delete c.steps; return c; };
+function newSteps(dst,src){ let k=0; (src||[]).forEach(x=>{ const m=(dst||[]).find(d=>normT(d.t)===normT(x.t)); k+=m?newSteps(m.steps,x.steps):nodeCount([x]); }); return k; }
+function mergeSteps(dst,src){ (src||[]).forEach(x=>{ const m=dst.find(d=>normT(d.t)===normT(x.t)); if(m){ if(kids(x).length){ if(!Array.isArray(m.steps))m.steps=[]; mergeSteps(m.steps,x.steps); } } else dst.push(reId(x)); }); return dst; }
+function markDups(items){ const now=Date.now(), pool=DB.tasks.filter(t=>!t.done||now-t.done<30*DAY), seen=[];
+  items.forEach(x=>{ x.dup=null; x.merge=false; let best=null, bs=0;
+    const sc=(title,type)=>{ const ok=!type||!x.type||type===x.type||type==='other'||x.type==='other'; if(!ok)return 0; return normT(title)===normT(x.text)?1:simT(title,x.text); };
+    pool.forEach(t=>{ const v=sc(t.title||'',t.type); if(v>bs){ bs=v; best={t}; } });
+    seen.forEach(y=>{ const v=sc(y.text,y.type); if(v>bs){ bs=v; best={y}; } });
+    if(best&&bs>=0.8){ x.on=false; x.dup=best.t?{id:best.t.id,title:best.t.title||tyOf(best.t).t,done:best.t.done||null,nw:newSteps(best.t.steps,x.steps)}:{batch:true,title:best.y.text,nw:0}; }
+    else seen.push(x); });
+  return items; }
+function triInfo(x){ const out=[], y=TY[x.type]; if(x.kind&&y&&y.kinds){ const k=y.kinds.find(z=>z.k===x.kind); if(k)out.push(k.t); }
+  if(x.steps&&x.steps.length){ const c=cnt(x.steps); out.push(c.m+' step'+(c.m===1?'':'s')+(c.n?' ('+c.n+' done)':'')); }
+  if(x.win&&WN[x.win]&&x.win!=='any')out.push(x.win==='custom'?(x.wFrom||'')+'–'+(x.wTo||''):WN[x.win].t);
+  if(x.place&&x.place.n)out.push(x.place.n); if(x.notes)out.push('notes'); return out; }
 function lineItems(txt){ return String(txt||'').split(/\r?\n/).map(l=>l.replace(/^\s*(?:[-*•·▪◦›>]|\d{1,2}[.)]|\[[ xX✓]?\]|[☐□✓✔])\s*/,'').trim()).filter(l=>l.length>1)
   .map(l=>({on:true,text:l.slice(0,120),type:guessType(l),urgent:/urgent|asap|!!/i.test(l),due:guessDue(l)})); }
 function startScan(){ scan={imgs:[],items:[],busy:false,err:'',mode:'pick'}; view='scan'; render(); }
@@ -1417,13 +1899,13 @@ async function readWithClaude(){ const key=(localStorage.getItem(AIKEY)||'').tri
     if(!scan)return; scan.busy=false; if(!items.length){ scan.err='Claude couldn’t find any tasks in '+(scan.imgs.length>1?'those images':'that image')+' — type them in instead.'; render(); return; }
     scan.items=items; scan.mode='triage'; render();
   }catch(e){ if(!scan)return; scan.busy=false; scan.err=(e&&e.message&&!/JSON|Unexpected/.test(e.message))?e.message:'Couldn’t read the list — try a clearer photo or screenshot, or type it in.'; render(); } }
-function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; } ov.querySelector('.tk-title').textContent='Photos → tasks'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
+function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; } ov.querySelector('.tk-title').textContent=s.imgs&&s.imgs.length?'Photos → tasks':s.mode==='pick'?'Add a list of tasks':'List → tasks'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
   let h='<div class="tk-wrap tk-scanv">';
   if(s.mode==='pick'){
     h+='<p class="tk-lead">Turn a to-do list into tasks.</p>'
       +'<button type="button" class="tk-pick sc-cam">'+svg(IC.camera)+'<span><b>Take a photo</b><small>Notebook page, whiteboard, a printed list</small></span></button>'
       +'<button type="button" class="tk-pick sc-gal">'+svg(IC.images)+'<span><b>Choose screenshots or photos</b><small>From your gallery — e.g. screenshots of your notes app. Pick several at once.</small></span></button>'
-      +'<button type="button" class="tk-pick sec sc-type">'+svg(IC.other)+'<span><b>Type it in</b><small>One task per line</small></span></button>'
+      +'<button type="button" class="tk-pick sec sc-type">'+svg(IC.cliplist)+'<span><b>Paste or type a list</b><small>One task per line — or paste the list copied from Assisting (keeps dates, steps and notes)</small></span></button>'
       +'<p class="tk-hint">Up to '+SCAN_MAX+' images at a time. Long scrolling screenshots are cut into parts so they stay readable.</p></div>';
     main.innerHTML=h; main.scrollTop=0;
     main.querySelector('.sc-cam').onclick=()=>pickImages(true);
@@ -1441,14 +1923,25 @@ function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; 
     else h+='<div class="tk-row2 col"><button type="button" class="tk-go sc-ai">✦ Read '+(s.imgs.length>1?'them':'it')+' with Claude</button><button type="button" class="tk-sec-btn sc-type">Type it in myself</button></div>'
       +'<p class="tk-hint"><b>Read with Claude</b> sends '+(s.imgs.length>1?'these '+s.imgs.length+' images':'this image')+' to Anthropic’s Claude service with your API key to read the writing — handwriting and screenshots included. Only do that if Garda policy allows it for what’s on the list: <b>if it has personal details of members of the public, type it in instead</b>. The images aren’t kept on the phone either way.</p>';
   } else if(s.mode==='type'){
-    h+='<label class="tk-lab">One task per line</label><textarea class="tk-in tk-ta big f-lines" placeholder="e.g.\nCCTV Centra Dorset St\nRing IP back re statement\nCourt Thurs 10:30">'+esc(s.lines||'')+'</textarea><div class="tk-row2"><button type="button" class="tk-sec-btn sc-back">Back</button><button type="button" class="tk-go sc-split">Sort into tasks</button></div>';
+    h+='<label class="tk-lab">One task per line — or paste a list copied from Assisting</label>'
+      +(navigator.clipboard&&navigator.clipboard.readText?'<button type="button" class="tk-link sc-paste">'+svg(IC.cliplist)+'Paste from the clipboard</button>':'')
+      +'<textarea class="tk-in tk-ta big f-lines" placeholder="e.g.\nCCTV Centra Dorset St\nRing IP back re statement\n- statement\n- medical report\nCourt Thurs 10:30">'+esc(s.lines||'')+'</textarea>'
+      +'<p class="tk-hint">From an older copy of the app: Tasks → Share → Copy the list, then paste it here — dates, times of day, places, notes and steps (ticked or not) come across. Lines starting “-” under a task become its steps. Jobs you already have are spotted and left out.</p>'
+      +'<div class="tk-row2"><button type="button" class="tk-sec-btn sc-back">Back</button><button type="button" class="tk-go sc-split">Sort into tasks</button></div>';
   } else {
     const n=s.items.filter(x=>x.on&&x.text.trim()).length;
-    h+='<label class="tk-lab">Check each one — untick anything that isn’t a task</label><div class="tk-tri">'+s.items.map((x,i)=>'<div class="tk-tr'+(x.on?'':' off')+'" data-i="'+i+'">'
+    const nd=s.items.filter(x=>x.dup).length, nowT=Date.now();
+    h+='<label class="tk-lab">Check each one — untick anything that isn’t a task</label>'
+      +(nd?'<p class="tk-dupnote">'+svg(IC.flag)+'<span><b>'+nd+' look'+(nd===1?'s':'')+' like '+(nd===1?'a job':'jobs')+' you already have</b> — left unticked. Tick one to add it anyway'+(s.items.some(x=>x.dup&&x.dup.nw)?', or add its new steps to the job you have':'')+'.</span></p>':'')
+      +'<div class="tk-tri">'+s.items.map((x,i)=>'<div class="tk-tr'+(x.on?'':' off')+(x.dup?' dup':'')+'" data-i="'+i+'">'
       +'<button type="button" class="tk-tron" aria-label="Include">'+svg(IC.check)+'</button><div class="tk-trb"><input class="tk-in tr-t" maxlength="120" value="'+esc(x.text)+'">'
       +'<div class="tk-trm"><select class="tk-in tr-y">'+TYPES.map(y=>'<option value="'+y.k+'"'+(y.k===x.type?' selected':'')+'>'+esc(y.t)+'</option>').join('')+'</select>'
-      +'<select class="tk-in tr-d">'+[['none','No deadline'],['today','Today'],['tomorrow','Tomorrow'],['week','This week']].map(([v,l])=>'<option value="'+v+'"'+(v===x.due?' selected':'')+'>'+l+'</option>').join('')+'</select>'
-      +'<button type="button" class="tk-tru'+(x.urgent?' on':'')+'" aria-label="Urgent">'+svg(IC.flag)+'</button></div></div></div>').join('')+'</div>'
+      +'<select class="tk-in tr-d">'+(x.dueAt?[['exact',(x.dueAt<Date.now()?'Overdue · ':'Due ')+full(x.dueAt)]]:[]).concat([['none','No deadline'],['today','Today'],['tomorrow','Tomorrow'],['week','This week']]).map(([v,l])=>'<option value="'+v+'"'+(v===x.due?' selected':'')+'>'+esc(l)+'</option>').join('')+'</select>'
+      +'<button type="button" class="tk-tru'+(x.urgent?' on':'')+'" aria-label="Urgent">'+svg(IC.flag)+'</button></div>'
+      +((info=>info.length?'<small class="tr-info">'+esc(info.join(' · '))+'</small>':'')(triInfo(x)))
+      +(x.dup?'<div class="tr-dup">'+svg(IC.flag)+'<span>'+(x.dup.batch?'Twice in this list: “'+esc(x.dup.title.slice(0,60))+'”':(x.dup.done?'Already done '+esc(rel(x.dup.done,nowT))+': ':'Already in your list: ')+'“'+esc(String(x.dup.title).slice(0,60))+'”')+'</span></div>'
+        +(x.dup.nw?'<button type="button" class="tr-mg'+(x.merge?' on':'')+'" aria-pressed="'+!!x.merge+'">'+svg(IC.sub)+'Add its '+x.dup.nw+' new step'+(x.dup.nw===1?'':'s')+' to that job</button>':''):'')
+      +'</div></div>').join('')+'</div>'
       +'<button type="button" class="tk-link sc-more">'+svg(IC.plus)+'Add a line</button>'
       +'<div class="tk-row2"><button type="button" class="tk-sec-btn sc-back">Cancel</button><button type="button" class="tk-go sc-add"'+(n?'':' disabled')+'>Add '+n+' task'+(n===1?'':'s')+'</button></div>';
   }
@@ -1461,20 +1954,28 @@ function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; 
   main.querySelectorAll('.tk-thx').forEach(b=>b.onclick=()=>{ s.imgs.splice(+b.dataset.i,1); s.err=''; if(!s.imgs.length)s.mode='pick'; render(); });
   if(q('.sc-addimg'))q('.sc-addimg').onclick=()=>pickImages(false);
   main.querySelectorAll('.tk-th img').forEach(im=>im.onclick=()=>{ const v=D.createElement('div'); v.className='tk-big'; v.innerHTML='<img src="'+im.src+'" alt=""><small>Tap to close</small>'; v.onclick=()=>v.remove(); ov.appendChild(v); });
-  if(q('.sc-split'))q('.sc-split').onclick=()=>{ s.lines=q('.f-lines').value; const it=lineItems(s.lines); if(!it.length){ s.err='Type at least one task — one per line.'; render(); return; } s.items=it; s.mode='triage'; s.err=''; render(); };
+  if(q('.sc-split'))q('.sc-split').onclick=()=>{ s.lines=q('.f-lines').value; const it=parseJobs(s.lines); if(!it.length){ s.err='Type at least one task — one per line.'; render(); return; } s.items=markDups(it); s.mode='triage'; s.err=''; render(); };
+  if(q('.sc-paste'))q('.sc-paste').onclick=async()=>{ try{ const t=await navigator.clipboard.readText(); if(!t||!t.trim()){ toast('Nothing to paste — copy the list first'); return; } const ta=q('.f-lines'); ta.value=(ta.value.trim()?ta.value.replace(/\s*$/,'\n'):'')+t; s.lines=ta.value; ta.focus(); }catch(e){ toast('Press and hold in the box, then Paste'); } };
   if(s.mode==='triage'){
-    const sync=()=>{ const n=s.items.filter(x=>x.on&&x.text.trim()).length, b=q('.sc-add'); b.disabled=!n; b.textContent='Add '+n+' task'+(n===1?'':'s'); };
+    const sync=()=>{ const n=s.items.filter(x=>x.on&&x.text.trim()).length, g=s.items.filter(x=>!x.on&&x.merge&&x.dup&&x.dup.id).length, b=q('.sc-add'); b.disabled=!n&&!g;
+      b.textContent=(n||!g?'Add '+n+' task'+(n===1?'':'s'):'')+(g?(n?' · ':'')+'update '+g:''); };
+    sync();
     main.querySelectorAll('.tk-tr').forEach(r=>{ const x=s.items[+r.dataset.i];
       r.querySelector('.tk-tron').onclick=()=>{ x.on=!x.on; r.classList.toggle('off',!x.on); sync(); };
       r.querySelector('.tr-t').oninput=e=>{ x.text=e.target.value; sync(); };
-      r.querySelector('.tr-y').onchange=e=>{ x.type=e.target.value; };
+      r.querySelector('.tr-y').onchange=e=>{ x.type=e.target.value; x.kind=null; };
+      const mg=r.querySelector('.tr-mg'); if(mg)mg.onclick=()=>{ x.merge=!x.merge; mg.classList.toggle('on',x.merge); mg.setAttribute('aria-pressed',x.merge); sync(); };
       r.querySelector('.tr-d').onchange=e=>{ x.due=e.target.value; };
       r.querySelector('.tk-tru').onclick=e=>{ x.urgent=!x.urgent; e.currentTarget.classList.toggle('on',x.urgent); }; });
     q('.sc-more').onclick=()=>{ s.items.push({on:true,text:'',type:'other',urgent:false,due:'none'}); render(); const all=main.querySelectorAll('.tr-t'); if(all.length){ all[all.length-1].focus(); } };
-    q('.sc-add').onclick=()=>{ const now=Date.now(); const L=s.items.filter(x=>x.on&&x.text.trim());
-      L.forEach((x,i)=>{ const ty=TY[x.type]||TY.other; DB.tasks.push({id:uid(),type:x.type,kind:guessKind(x.type,x.text),steps:[],title:x.text.trim().slice(0,120),notes:'',urgent:!!x.urgent,win:ty.win||'any',wDays:null,
-        due:x.due==='today'?quick('t23'):x.due==='tomorrow'?quick('+1d'):x.due==='week'?quick('+7d'):null,rem:x.due==='none'?[]:[0,60],remWin:false,created:now+i,done:null,fired:{}}); });
-      scan=null; save(); view='list'; tab='all'; render(); check(); toast(L.length+' task'+(L.length===1?'':'s')+' added'); };
+    q('.sc-add').onclick=()=>{ const now=Date.now(), L=s.items.filter(x=>x.on&&x.text.trim()), G=s.items.filter(x=>!x.on&&x.merge&&x.dup&&x.dup.id), skip=s.items.filter(x=>x.dup&&!x.on&&!x.merge).length;
+      L.forEach((x,i)=>{ const ty=TY[x.type]||TY.other, due=x.due==='exact'&&x.dueAt?x.dueAt:x.due==='today'?quick('t23'):x.due==='tomorrow'?quick('+1d'):x.due==='week'?quick('+7d'):null;
+        const t={id:uid(),type:x.type,kind:x.kind!=null?x.kind:guessKind(x.type,x.text),steps:norm((x.steps||[]).map(reId)),title:x.text.trim().slice(0,120),notes:x.notes||'',urgent:!!x.urgent,
+          win:x.win||ty.win||'any',wDays:x.wDays||null,due,rem:due?[0,60]:[],remWin:false,place:x.place||null,created:now+i,m:now,done:null,fired:{}};
+        if(x.win==='custom'){ t.wFrom=x.wFrom; t.wTo=x.wTo; } DB.tasks.push(t); });
+      G.forEach(x=>{ const t=byId(x.dup.id); if(!t)return; if(!Array.isArray(t.steps))t.steps=[]; mergeSteps(t.steps,x.steps); norm(t.steps); t.m=now; });
+      scan=null; save(); view='list'; tab='all'; render(); check();
+      toast([L.length?L.length+' task'+(L.length===1?'':'s')+' added':'',G.length?'new steps added to '+G.length+' job'+(G.length===1?'':'s'):'',skip?skip+' duplicate'+(skip===1?'':'s')+' left out':''].filter(Boolean).join(' · ')||'Nothing added'); };
   }
 }
 
@@ -1490,6 +1991,7 @@ function copyList(){
    +'<button type="button" class="tk-pick ls-copy">'+svg(IC.copy)+'<span><b>Copy the list</b><small>Paste it into a message or your notes</small></span></button>'
    +'<button type="button" class="tk-pick ls-mail">'+svg(IC.email)+'<span><b>Email it to me</b><small>'+(prefs().me?esc(prefs().me):'Set your email address the first time')+'</small></span></button>'
    +(navigator.share?'<button type="button" class="tk-pick ls-share">'+svg(IC.share)+'<span><b>Share…</b><small>Another app on this phone</small></span></button>':'')
+   +(W.GRDocs?'<button type="button" class="tk-pick ls-xl">'+svg(IC.db)+'<span><b>Excel spreadsheet</b><small>Every job and sub job — category, urgency, dates and time of day. Email it to yourself to see it at work</small></span></button>':'')
    +'<button type="button" class="tk-pick ls-cal"'+(nd?'':' disabled')+'>'+svg(IC.cal)+'<span><b>Calendar file</b><small>'+(nd?nd+' deadline'+(nd===1?'':'s')+' with reminders — open the file to add them to your calendar':'No tasks with a deadline yet')+'</small></span></button>'
    +'<button type="button" class="tk-sec-btn wide tk-x">Close</button>';
   sh.hidden=false; ov.querySelector('.tk-shade').hidden=false;
@@ -1499,7 +2001,41 @@ function copyList(){
   sh.querySelector('.ls-mail').onclick=()=>{ const go=()=>{ closeSheet(); mailTo('Tasks — '+full(now),txt+'\n\n— sent from Assisting'); }; if(!prefs().me)askEmail(go); else go(); };
   const s2=sh.querySelector('.ls-share'); if(s2)s2.onclick=async()=>{ try{ await navigator.share({title:'Tasks',text:txt}); closeSheet(); }catch(e){} };
   sh.querySelector('.ls-cal').onclick=()=>{ if(!nd)return; closeSheet(); saveIcs(l,'tasks-'+dtVal(now).d+'.ics'); };
+  const xl=sh.querySelector('.ls-xl'); if(xl)xl.onclick=()=>xlSheet();
 }
+
+/* ================= Excel: every job and sub job, to email to yourself ================= */
+function jobsXlsx(){ const now=Date.now(), opn=open_().sort((a,b)=>cmp(sortKey(a,now),sortKey(b,now))), dn=DB.tasks.filter(t=>t.done).sort((a,b)=>b.done-a.done);
+  const dt=ms=>ms?{v:ms,f:'dt'}:'', winTxt=w=>w?w.label.trim()+(w.days!=='all'?' '+DAYSET[w.days]:''):'Any time';
+  const avTxt=n=>n.avail==='away'?'Going away'+(n.awayBy?' '+day(n.awayBy):''):n.avail==='hard'?'Hard to reach':n.avail==='lim'?'Only free at certain times':n.avail==='easy'?'Easy to get':'';
+  const stage=t=>{ const c=caseOf(t); return c.st&&STG[c.st]?STG[c.st].t+(c.st==='charged'&&c.court?' · court '+day(c.court):'')+((c.st==='summons'||c.st==='traffic')&&c.off?' · apply by '+day(limitEnd(c.off,6)):'')+(c.intv==='no'?' · not interviewed':''):''; };
+  const jobs=opn.map(t=>{ const c=classify(t,now), u=c.ug, k=kindOf(t), sc=cnt(t.steps), nx=nextPick(t,c);
+    return [(u?LV[u.lv]:'Normal')+(t.urgent?' · URGENT':''),tyOf(t).t,k?k.t:'',t.title||'',dt(t.due),u&&u.dl?dt(u.dl):'',u?u.own.why.join('; '):'',winTxt(winOf(t)),stage(t),sc.m?sc.n+' of '+sc.m:'',nx?nx.n.t:'',
+      t.place&&t.place.n?t.place.n+(t.place.a?', '+t.place.a:''):'',t.notes||'',dt(t.created)]; });
+  const subs=[]; opn.forEach(t=>{ const M=stepUrgs(t,now);
+    walk(t.steps,(n,d)=>{ const done=isDone(n), u=M.get(n.id), w=n.win?winOf(n):upWin(t,n.id).w;
+      subs.push([t.title||tyOf(t).t,tyOf(t).t,'   '.repeat(d-1)+n.t,d,n.type&&TY[n.type]?TY[n.type].t:'',done?'Done':LV[u?Math.max(u.lv,u.mx||0):2]+(n.pri?' (set by you)':''),
+        dt(n.due),!done&&u&&u.dl?dt(u.dl):'',!done&&u?u.why.join('; '):'',winTxt(w),avTxt(n),n.n||'',done?dt(n.done):'']); }); });
+  const cats=TYPES.map(y=>{ const J=opn.filter(t=>t.type===y.k), S=subJobs(opn,y.k,now), lv=J.map(t=>{ const u=classify(t,now).ug; return u?u.lv:2; }).concat(S.map(x=>x.lv));
+    const od=J.filter(t=>{ const c=classify(t,now); return c.od||c.sdo; }).length+S.filter(x=>x.dl!=null&&x.dl<now).length;
+    return [y.t,J.length,S.length,lv.filter(v=>v===4).length,lv.filter(v=>v===3).length,od]; }).filter(r=>r[1]||r[2]);
+  const sheets=[
+    {name:'Jobs',filter:1,cols:[16,16,20,40,17,17,44,30,30,10,40,30,40,17],head:['Urgency','Category','Kind','Job','Due','Earliest deadline','Why','When it can be done','Case stage','Steps done','Next step','Place','Notes','Added'],rows:jobs},
+    {name:'Sub jobs',filter:1,cols:[34,16,46,7,16,18,17,17,44,30,22,36,17],head:['Job','Job category','Sub job','Level','Category','Urgency','Do it by','Earliest deadline','Why','When it can be done','Availability','Note','Done'],rows:subs},
+    {name:'By category',cols:[22,10,12,10,10,10],head:['Category','Jobs','Sub jobs','Critical','High','Overdue'],rows:cats},
+    {name:'Done (30 days)',filter:1,cols:[16,44,17,17],head:['Category','Job','Done','Added'],rows:dn.map(t=>[tyOf(t).t,t.title||'',dt(t.done),dt(t.created)])},
+    {name:'About',cols:[16,90],rows:[['Made',dt(now)],['From','Assisting — Tasks'],['Jobs',opn.length+' open · '+dn.length+' done in the last 30 days'],['Note','Keep details of members of the public to the minimum — this isn’t your official notebook. Urgency is worked out from deadlines, court dates, time limits and the case, unless you set it yourself.']]}];
+  return {blob:W.GRDocs.xlsx(sheets,'Jobs'),name:'jobs-'+dtVal(now).d+'.xlsx'}; }
+function xlSheet(){ let f=null; try{ f=jobsXlsx(); }catch(e){ toast('Couldn’t make the spreadsheet on this phone'); return; }
+  const can=W.GRDocs.canShare(f.blob,f.name);
+  sh.innerHTML='<div class="tk-grip"></div><h3>Excel spreadsheet</h3><p class="tk-note">'+esc(f.name)+' — sheets: Jobs, Sub jobs, By category, Done. Keep details of members of the public out of personal email.</p>'
+   +(can?'<button type="button" class="tk-pick xs-share">'+svg(IC.share)+'<span><b>Email it / share it</b><small>Pick your email app and send it to yourself — or Drive, WhatsApp…</small></span></button>':'')
+   +'<button type="button" class="tk-pick xs-save">'+svg(IC.download)+'<span><b>Save to this phone</b><small>Then attach it to an email from your Downloads</small></span></button>'
+   +'<button type="button" class="tk-sec-btn wide tk-x">Close</button>';
+  sh.hidden=false; ov.querySelector('.tk-shade').hidden=false;
+  sh.querySelector('.tk-x').onclick=()=>closeSheet();
+  sh.querySelector('.xs-save').onclick=()=>{ W.GRDocs.save(f.blob,f.name); closeSheet(); toast('Saved '+esc(f.name)); };
+  const sb=sh.querySelector('.xs-share'); if(sb)sb.onclick=async()=>{ try{ const ok=await W.GRDocs.share(f.blob,f.name,'Jobs'); if(ok)closeSheet(); }catch(e){ toast('Couldn’t share it — save it instead'); } }; }
 
 /* ================= home-screen strip ================= */
 let strips=[];
@@ -1553,7 +2089,8 @@ function newOn(d){ openTasks(); editTask(null); const now=Date.now(), sp=tourOf(
 /* sync (sync.js): take in the merged list from your other devices. Reminders that already went off there aren't replayed here. */
 function adopt(T){ const byOld=new Map(DB.tasks.map(t=>[t.id,t])), now=Date.now();
   const tasks=(T&&T.tasks||[]).map(t=>{ const o=byOld.get(t.id), x=Object.assign({},t,{fired:o?(o.fired||{}):{},nextWin:o?(o.nextWin||null):null});
-    if(!o||(x.m||0)>(o.m||0)){ dueTimes(x).concat(stepDues(x)).forEach(([k,at])=>{ if(at<=now&&!x.fired[k])x.fired[k]=now; }); }
+    if(!o||(x.m||0)>(o.m||0)){ dueTimes(x).concat(stepDues(x)).forEach(([k,at])=>{ if(at<=now&&!x.fired[k])x.fired[k]=now; });
+      walk(x.steps,n=>{ if(!n.remWin||!n.win)return; const w=winOf(n); if(w&&inWin(w,now))x.fired['w:'+n.id+':'+curOpen(w,now)]=now; }); }
     return x; });
   DB={v:1,tasks,del:(T&&T.del)||{}}; purge(); persist(); paintStrips();
   if(ov&&!ov.hidden&&view==='list')render(); }
@@ -1563,5 +2100,5 @@ function summary(now){ now=now||Date.now(); const l=open_(), tr=tours(now,1)[0]|
   return {open:l.length,overdue:l.filter(t=>{ const c=classify(t,now); return c.od||c.sdo; }).length,urgent:l.filter(t=>t.urgent).length,tourN:tr?tourTasks(tr).length:0,tourOn:!!(tr&&tr.s<=now)}; }
 
 W.openTasks=openTasks; W.closeTasks=closeTasks; W.tskBack=back;
-W.GRTasks=Object.freeze({open:openTasks,newOn,forDay,mountStrip,check,summary,adopt,_db:()=>DB,_lib:{inWin,nextOpen,winOf,limitEnd,addMonths,cctvOverwrite,tours,nextChance,icsText,guessKind,stepsFor,parseOutline,norm,cnt,isDone,nextStepDue,stepLines,taskText,firstOpen}});
+W.GRTasks=Object.freeze({open:openTasks,days:openDays,_xlsx:()=>jobsXlsx(),newOn,forDay,mountStrip,check,summary,adopt,_db:()=>DB,_lib:{inWin,nextOpen,winOf,limitEnd,addMonths,cctvOverwrite,tours,nextChance,icsText,guessKind,stepsFor,parseOutline,parseJobs,markDups,mergeSteps,subJobs,norm,cnt,isDone,nextStepDue,stepLines,taskText,firstOpen,taskWin,openLeaves,upWin,curOpen,stepTags,classify,urgOf,stepUrgs,taskUrg,caseOf,nextPick,plan4,block,planUnits,modeOfText,winIn,impWin}});
 })();

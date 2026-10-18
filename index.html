@@ -17,6 +17,12 @@ if(Math.asin(Math.sin(la)*Math.sin(de)+Math.cos(la)*Math.cos(de)*Math.cos(ha))/r
 if(k&&K[k]){var md=K[k][0],m0=localStorage.getItem('gr_look_mode')||'auto',tone=md==='d'?'dark':md==='l'?'light':(m0==='light'||m0==='dark')?m0:(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
 d.setAttribute('data-look',k);d.setAttribute('data-tone',tone);bar=md==='d'?K[k][1]:(tone==='dark'?K[k][2]:K[k][1]);}}catch(e){}
 var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',bar);})();
+/* iPhone / iPad: stop Safari zooming in on a small text box (pinch-zoom still works), and know the platform for the help texts */
+(function(){var u=navigator.userAgent||'',ios=/iPad|iPhone|iPod/.test(u)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),an=/Android/i.test(u),st=!!(navigator.standalone||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches));
+window.GRP={ios:ios,android:an,standalone:st};
+if(ios){document.documentElement.classList.add('ios');var v=document.querySelector('meta[name="viewport"]');if(v)v.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover');}
+window.grNotifHelp=function(k){if(k==='none')return ios?(st?'This iPhone can’t show notifications from Home Screen apps — update it to iOS 16.4 or later.':'iPhones only show notifications from Home Screen apps: in Safari tap Share, then “Add to Home Screen”, and open Assisting from there.'):'This browser can’t show notifications.';
+return ios?'Notifications are off for Assisting — turn them on in iPhone Settings → Notifications → Assisting.':an?'Notifications are blocked — allow them in Android Settings → Apps → Chrome → Notifications.':'Notifications are blocked — allow them in your browser’s site settings (the icon left of the address).';};})();
 /* deep links (?open=… and #…) are read once from here, then taken out of the address so Back or a reload can't run them again */
 (function(){try{var s=location.search,h=location.hash;window.__entry={search:s,hash:h};if(s||h)history.replaceState(null,'',location.pathname);}catch(e){window.__entry={search:'',hash:''};}})();
 /* app lock: nothing shows until the password is entered (lock.js decides) */
@@ -49,8 +55,10 @@ var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('co
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="sync.css">
 <link rel="stylesheet" href="looks.css">
+<link rel="stylesheet" href="forms.css">
 </head>
 <body>
+<div id="iosbar" aria-hidden="true"></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="embG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e7cf8a"/><stop offset=".55" stop-color="#c9a24e"/><stop offset="1" stop-color="#9c7a32"/></linearGradient>
   <linearGradient id="embN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16294a"/><stop offset="1" stop-color="#0a1630"/></linearGradient>
@@ -100,6 +108,7 @@ var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('co
 <script src="vendor/leaflet-geoman.min.js"></script>
 <script src="icons.js"></script>
 <script src="docs.js"></script>
+<script src="forms.js"></script>
 <script src="lock.js"></script>
 <script src="app.js"></script>
 <script src="search.js"></script>

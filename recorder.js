@@ -123,6 +123,7 @@ function storageErr(e){
 function micErr(e){
   const n=e&&e.name;
   if(n==='NotAllowedError'||n==='SecurityError'||n==='PermissionDeniedError')
+    if(W.GRP&&W.GRP.ios)return 'Microphone permission was refused. On iPhone: Settings → Apps → Safari → Microphone → Ask or Allow (older iPhones: Settings → Safari → Microphone). Then tap Record again and allow it.';
     return 'Microphone permission was refused. Allow it in Chrome: ⋮ menu → Settings → Site settings → Microphone → allow this app. If it is already allowed there, check Android Settings → Apps → Chrome → Permissions → Microphone. Then tap Record again.';
   if(n==='NotFoundError'||n==='DevicesNotFoundError'||n==='OverconstrainedError')return 'No microphone was found on this device.';
   if(n==='NotReadableError'||n==='TrackStartError'||n==='AbortError')return 'The microphone is busy — another app or a call is using it. Close it and tap Record again.';

@@ -1,4 +1,4 @@
-window.GRAPP='68';
+window.GRAPP='79';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -165,10 +165,11 @@ function bindUI(){
   if(top){
     top.insertAdjacentHTML('beforeend','<div id="rdProg"></div>');
     const star=$('#rdStar');
-    star.insertAdjacentHTML('beforebegin','<button id="rdBook" class="iconbtn" title="Book reading — page by page" aria-label="Book reading" aria-pressed="false">'+(window.GRI?GRI('book-open-text'):'B')+'</button><button id="rdDl" class="iconbtn" title="Download as Word" aria-label="Download Word document" style="display:none">'+(window.GRI?GRI('download'):'⬇')+'</button>');
+    star.insertAdjacentHTML('beforebegin','<button id="rdListen" class="iconbtn" title="Read aloud" aria-label="Read this page aloud" aria-pressed="false">'+(window.GRI?GRI('volume-2'):'♪')+'</button><button id="rdBook" class="iconbtn" title="Book reading — page by page" aria-label="Book reading" aria-pressed="false">'+(window.GRI?GRI('book-open-text'):'B')+'</button><button id="rdDl" class="iconbtn" title="Download as Word" aria-label="Download Word document" style="display:none">'+(window.GRI?GRI('download'):'⬇')+'</button>');
     const rb=$('#rdBack'); if(rb&&window.GRI)rb.innerHTML=GRI('chevron-left');
     $('#rdDl').addEventListener('click',()=>{if(curDoc){ if(curDoc.blocks)downloadBlocks(curDoc); else downloadDoc(curDoc.title,curDoc.text); }});
     $('#rdBook').addEventListener('click',bookToggle);
+    $('#rdListen').addEventListener('click',()=>{ if(TTS.on)ttsStop(); else ttsStart(); });
     bookWire();
     rdBody.addEventListener('scroll',()=>{if(book.on)return;const el=rdBody;const max=el.scrollHeight-el.clientHeight;
       const p=max>0?(el.scrollTop/max*100):0;const bar=$('#rdProg');if(bar)bar.style.width=p+'%';},{passive:true});
@@ -280,11 +281,13 @@ const HOME=[
   ['hImm','plane','Immigration','status · smuggling · trafficking']]},
  {h:'Law & authority',c:[
   ['qbEss','star','Essential case law','the ones that changed everything'],
-  ['qbCases','library','Full case library','383 cases, categorised'],
+  ['qbCases','library','Full case library','every case by topic · ✓ checked'],
   ['hBail','scale','Objecting to bail',"O'Callaghan · s.2 · burglary presumption"],
   ['hOcall','clipboard-list',"O'Callaghan worksheet",'systematic objection'],
   ['hBailpack','folder-open','Bail pack','case-manager worksheet'],
   ['hAmend','file-pen-line','Recent amendments','new laws by area — verify'],
+  ['hSentence','scale','Aggravating & mitigating','sentencing · what to bring to court'],
+  ['hDiscretion','shield-check','Garda discretion','legal basis · limits · recording'],
   ['hJudg','gavel','Judgments search','BAILII Ireland · Supreme · Appeal · High'],
   ['hCourtLists','calendar-clock','Court lists','CCJ & all Dublin courts — today']]},
  {h:'Files & paperwork',c:[
@@ -403,6 +406,12 @@ function homeQuick(box){
   go('hRadio',()=>{ if(window.GRMedia) GRMedia.openRadio(); });
   go('hSocial',()=>{ if(window.openSocial) openSocial(); });
   { const top=view.querySelector('.sx-top'); if(top&&!view.querySelector('#homeHello'))top.insertAdjacentHTML('beforebegin','<div id="homeHello" aria-hidden="true"></div>'); }
+  // iPhone in Safari: how to put it on the Home Screen (offline, and the only way an iPhone lets it send reminders)
+  { const P=window.GRP||{}; let gone=false; try{ gone=localStorage.getItem('gr_ios_hint')==='x'; }catch(e){}
+    const at=view.querySelector('#homeHello')||view.querySelector('.sx-top');
+    if(P.ios&&!P.standalone&&!gone&&at&&!view.querySelector('#iosHint')){
+      at.insertAdjacentHTML('beforebegin','<div id="iosHint" class="ios-hint" role="note"><b>Put Assisting on your Home Screen</b><span>In Safari tap <b>Share</b> '+GRI('share')+' then <b>Add to Home Screen</b>, and open Assisting from there. It works offline, and an iPhone only lets a Home Screen app send reminders.</span><button type="button" aria-label="Hide this tip">✕</button></div>');
+      view.querySelector('#iosHint button').addEventListener('click',()=>{ try{ localStorage.setItem('gr_ios_hint','x'); }catch(e){} const e=document.getElementById('iosHint'); if(e)e.remove(); }); } }
   paintToday();
   if(window.GRPatrol) GRPatrol.mountStrip(box.querySelector('#homePatrol'));
   if(window.GRGaol) GRGaol.mountStrip(box.querySelector('#homeGaol'));
@@ -433,6 +442,8 @@ function homeQuick(box){
   go('hClamp',()=>openGuide3('clamping'));
   go('hRoute',()=>{ if(window.openRoute)window.openRoute(); });
   go('hIndec',()=>openGuide3('indecency'));
+  go('hSentence',()=>openGuide3('sentencing'));
+  go('hDiscretion',()=>openGuide3('discretion'));
   go('hIplan',()=>openGuide3('iplan'));
   go('hAmend',()=>openGuide3('amendments'));
   go('hJudg',()=>renderJudgments());
@@ -723,7 +734,10 @@ function openCase(name){
   $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
   let h='';
-  if(c.chk)h+='<div class="cs-chk">'+(window.GRI?GRI('check'):'✓')+'<span>'+(c.conf==='high'?'Checked against the judgment or a reliable case note — sources below.':'Checked against one source only — read the judgment before relying on it in court.')+'</span></div>';
+  const wbox=c.warn?'<div class="cs-warn">'+(window.GRI?GRI('triangle-alert'):'⚠')+'<span>'+esc(c.warn)+'</span></div>':'';
+  if(!c.chk)h+=wbox;   // unchecked: the warning comes first; checked: the ✓ first, then the note about the manual
+  if(c.chk)h+='<div class="cs-chk'+(c.conf==='low'?' low':'')+'">'+(window.GRI?GRI(c.conf==='low'?'info':'check'):'✓')+'<span>'+(c.conf==='high'?'Checked against the judgment or a reliable case note — sources below.':c.conf==='low'?'Only partly checked — the free report doesn’t show the ruling. Read the judgment before relying on it.':'Checked against one source only — read the judgment before relying on it in court.')+'</span></div>';
+  if(c.chk)h+=wbox;
   if(c.why)h+='<div class="rbox note"><b>'+(c.chk?'On the job:':'Why it matters:')+'</b> '+esc(c.why)+'</div>';
   else if(c.d)h+='<div class="rbox note">'+esc(c.d)+'</div>';
   if(c.f){if(c.f.facts)h+='<div class="rsub">Facts</div><p>'+esc(c.f.facts)+'</p>';
@@ -734,14 +748,17 @@ function openCase(name){
     h+='<div class="rsub">In your manual</div>'+(c.chk?'<p class="cs-man">Your manual’s notes on this case haven’t been re-checked — where they differ, go by the checked summary above.</p>':'');
     h+=(c.s||[]).map(sn=>'<p><span class="xref" data-a="'+sn.a+'">'+esc(pageLabel(sn.a))+'</span> — '+esc(sn.t)+'</p>').join('')||'<p>Open the pages below for full context.</p>';
     h+='<div class="rsub">Every page it appears on</div><p>'+c.p.map(p=>'<span class="xref" data-a="'+p+'">'+esc(pageLabel(p))+'</span>').join(' · ')+'</p>'; }
-  h+='<div class="rsub">Full judgment (needs signal)</div><p><span class="extj" data-u="bailii">BAILII</span> · <span class="extj" data-u="courts">Courts.ie</span> · <span class="extj" data-u="westlaw">Westlaw (your login)</span></p>';
+  { const nc=caseNeutral(c), jur=caseJur(c);
+    h+='<div class="rsub">Full judgment (needs signal)</div><p>'+(nc?'<span class="extj" data-u="cite">BAILII — '+esc(nc.s)+'</span> · ':'')
+      +'<span class="extj" data-u="bailii">'+(nc?'Search BAILII by name':jur==='echr'?'BAILII — Human Rights Court':jur==='all'?'BAILII — all courts':'BAILII')+'</span>'
+      +(jur==='ie'?' · <span class="extj" data-u="courts">Courts.ie</span>':'')+' · <span class="extj" data-u="westlaw">Westlaw (your login)</span></p>'; }
   rdBody.innerHTML=h; curDoc={title:c.n,text:[c.c.filter(Boolean).join(' · '),c.court?(c.court+(c.y?' '+c.y:'')):'',c.why?'On the job: '+c.why:(c.d||''),c.f?('Facts: '+(c.f.facts||'')+'\nHeld: '+(c.f.held||'')):'',c.st?'Still the law? '+c.st:'',(c.src||[]).length?'Checked against: '+c.src.map(x=>x.t+' — '+x.u).join('\n'):'',(c.s||[]).map(x=>pageLabel(x.a)+' — '+x.t).join('\n\n')].filter(Boolean).join('\n\n')}; updateDlBtn();
   rdBody.querySelectorAll('.xref').forEach(x=>x.addEventListener('click',()=>openPage(+x.dataset.a)));
   rdBody.querySelectorAll('.extj').forEach(x=>x.addEventListener('click',()=>{
     if(x.dataset.href){ window.open(x.dataset.href,'_blank','noopener'); return; }
-    const q=encodeURIComponent(c.n.replace(/\s*\((19|20)\d\d\)$/,''));
-    window.open({bailii:'https://www.bailii.org/cgi-bin/lucy_search_1.cgi?sort=rank&highlight=1&mask_path=ie&query='+q,
-      courts:'https://www.courts.ie/judgments?search_api_fulltext='+q,westlaw:'https://www.westlaw.ie'}[x.dataset.u],'_blank');}));
+    const nm=c.n.replace(/\s*\((19|20)\d\d\)$/,''), q=encodeURIComponent(nm), nc=caseNeutral(c), jur=caseJur(c);
+    window.open({cite:nc?bailiiCiteURL(nc):'',bailii:bailiiURL(bailiiName(nm),{ie:'ie/cases',echr:'eu/cases/ECHR',all:''}[jur],'rank'),
+      courts:'https://www.courts.ie/judgments?search_api_fulltext='+q,westlaw:'https://www.westlaw.ie'}[x.dataset.u],'_blank','noopener');}));
   rdBody.scrollTop=0;
 }
 function renderOffences(){
@@ -775,7 +792,7 @@ function renderStencils(){
   for(const cat of cats){
     html+=`<h2 class="sec">${esc(cat)}</h2>`;
     STEN.forEach((st,i)=>{ if(st.cat!==cat)return;
-      html+=`<button class="hit" data-i="${i}"><div class="h-title">${esc(st.t)}</div><div class="h-loc">≈${Math.round(st.b.split(/\s+/).length)} words</div></button>`;});
+      html+=`<button class="hit" data-i="${i}"><div class="h-title">${esc(st.t)}</div><div class="h-loc">${st.form?'Printable form · 2 A4 pages · fill in by pen':'≈'+Math.round(st.b.split(/\s+/).length)+' words'}</div></button>`;});
   }
   view.innerHTML=html;wireBack();
   $$('#view .hit').forEach(b=>b.addEventListener('click',()=>openStencil(+b.dataset.i)));
@@ -797,6 +814,7 @@ function reflow(txt){
 function paraHtml(txtEsc){ return txtEsc.split(/\n\n/).map(b=>'<p>'+b.replace(/\n/g,'<br>')+'</p>').join(''); }
 function openStencil(i){
   const st=STEN[i];
+  if(st&&st.form&&window.GRForms){ GRForms.open(st.form); return; }   // a print-and-fill form, not a text stencil
   reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
   $('#rdTitle').textContent=st.t; $('#rdPage').textContent='Stencil · '+st.cat;
   const star=$('#rdStar'); star.textContent='⧉';
@@ -956,7 +974,7 @@ function renderIndex(){
   }));
 }
 
-const ESSENTIALS={'dpp v jc':'Rewrote the exclusionary rule — inadvertent breach of rights no longer means automatic exclusion.','dpp v kenny':'The old strict exclusion rule — the world before JC; still cited constantly.','damache v dpp':'Search warrant issued by a Supt tied to the investigation = unconstitutional. Independence required.','dpp v gormley':'No interviewing after solicitor requested until access given — constitutional right.','dpp v doyle':'No constitutional right to have the solicitor IN the interview room — the counterpoint to Gormley.','christie v leachinsky':'You must tell a person WHY they are arrested, in ordinary language. Foundation of arrest law.','o\'callaghan':'Bail exists only to secure trial attendance — the foundation of all bail objections.','braddish v dpp':'Duty to seek out and PRESERVE evidence — lose the CCTV, lose the case.','dunne v dpp':'Extends Braddish — the preservation duty in action.','allan v uk':'Covert questioning of a detainee via informant breaches the right to silence.','people (dpp) v shaw':'Voluntariness and fundamental fairness — the confession admissibility test.','dpp v avadenei':'Technical defects don\'t automatically kill the prosecution — substance over form.','v casey':'The identification warning — every ID case runs through Casey.','r v turnbull':'The UK ID guidelines that shaped ADVOKATE.','dpp v cash':'Reasonable suspicion may rest on material that is itself inadmissible.','v quirke':'Computer/phone searches need specific authorisation in the warrant — get the wording right.'};
+const ESSENTIALS={'dpp v jc':'Rewrote the exclusionary rule — inadvertent breach of rights no longer means automatic exclusion.','dpp v kenny':'The old strict exclusion rule — the world before JC; still cited constantly.','damache v dpp':'Search warrant issued by a Supt tied to the investigation = unconstitutional. Independence required.','dpp v gormley':'No interviewing after solicitor requested until access given — constitutional right.','dpp v doyle':'No constitutional right to have the solicitor IN the interview room — the counterpoint to Gormley.','christie v leachinsky':'You must tell a person WHY they are arrested, in ordinary language. Foundation of arrest law.','o\'callaghan':'Bail exists only to secure trial attendance — the foundation of all bail objections.','braddish v dpp':'Duty to seek out and PRESERVE evidence — lose the CCTV, lose the case.','dunne v dpp':'Extends Braddish — the preservation duty in action.','allan v united kingdom':'Covert questioning of a detainee via informant breaches the right to silence.','dpp v shaw':'Voluntariness and fundamental fairness — the confession admissibility test.','dpp v avadenei':'Technical defects don\'t automatically kill the prosecution — substance over form.','v casey (no 2)':'The identification warning — every ID case runs through Casey.','r v turnbull':'The UK ID guidelines that shaped ADVOKATE.','v cash':'Reasonable suspicion may rest on material that is itself inadmissible.','v quirke':'Computer/phone searches need specific authorisation in the warrant — get the wording right.'};
 let caseQ='';
 function caseSurname(n){
   return n.toLowerCase().replace(/^(the\s)?(people\s\((dpp|ag)\)|dpp|the\sstate\s\([^)]+\)|attorney\sgeneral|ag|re|r|minister[a-z\s]*)\sv\s/,'');
@@ -964,7 +982,7 @@ function caseSurname(n){
 function renderCases(){
   const rail=$('#rail'), list=$('#ixlist');
   list.insertAdjacentHTML('beforebegin',`<div class="searchbox" style="top:auto"><input id="cq" type="search" placeholder="Filter ${CASES.length} cases — name, citation, topic…" value="${esc(caseQ)}"></div>
-  <div class="chips catchips">${['All',...new Set(CASES.map(c=>c.cat))].map(c=>`<button class="chip ${c===(window.caseCat||'All')?'on':''}" data-cc="${c}">${c}</button>`).join('')}</div>`);
+  <div class="chips catchips">${['All','⚠ Check first',...new Set(CASES.map(c=>c.cat))].map(c=>`<button class="chip ${c===(window.caseCat||'All')?'on':''}${c==='⚠ Check first'?' warnchip':''}" data-cc="${c}">${c}${c==='⚠ Check first'?' ('+CASES.filter(x=>x.warn).length+')':''}</button>`).join('')}</div>`);
   $$('.catchips .chip').forEach(ch=>ch.addEventListener('click',()=>{window.caseCat=ch.dataset.cc;renderIndex();}));
   const draw=()=>{
     const q=caseQ.trim().toLowerCase();
@@ -976,15 +994,17 @@ function renderCases(){
     }
     let items=CASES.filter(c=>!q||c.n.toLowerCase().includes(q)||c.c.join(' ').toLowerCase().includes(q)||(c.d||'').toLowerCase().includes(q)||((c.topic||'')+' '+(c.why||'')).toLowerCase().includes(q))
       .slice().sort((a,b)=>caseSurname(a.n).localeCompare(caseSurname(b.n),'en',{sensitivity:'base'}));
-    if(window.caseCat&&window.caseCat!=='All')items=items.filter(c=>c.cat===window.caseCat);
+    if(window.caseCat==='⚠ Check first'){ items=items.filter(c=>c.warn); essHtml='<p class="warnintro">Cases where your manual is wrong, or that couldn’t be confirmed. Open one to see what’s wrong and the pages it appears on — worth correcting in your volumes.</p>'; }
+    else if(window.caseCat&&window.caseCat!=='All')items=items.filter(c=>c.cat===window.caseCat);
     let html='', cur='', letters=new Set();
     for(const c of items){
       const L=(caseSurname(c.n)[0]||'#').toUpperCase().replace(/[^A-Z]/,'#');
       if(L!==cur&&!q){cur=L;letters.add(L);html+=`<div class="letterhead" id="L${L}">${L}</div>`;}
       html+=`<div class="cslot"><button class="ixrow case cshead"><span class="term">${esc(c.n)}</span>
-        <div class="refs">${c.chk?'<span class="chkpill" title="Checked summary">✓ checked</span>':''}<span class="catpill">${esc(c.cat||'General')}</span> ${c.c.filter(Boolean).length?esc(c.c.filter(Boolean).slice(0,2).join(' · ')):'cited in text'} · ${c.p.length?c.p.length+'pp':esc(c.court||'')+(c.y?' '+c.y:'')} ▾</div>
+        <div class="refs">${c.chk?'<span class="chkpill" title="Checked summary">✓ checked</span>':c.warn?'<span class="warnpill" title="Couldn’t be confirmed — check before citing">⚠ check first</span>':''}<span class="catpill">${esc(c.cat||'General')}</span> ${c.c.filter(Boolean).length?esc(c.c.filter(Boolean).slice(0,2).join(' · ')):'cited in text'} · ${c.p.length?c.p.length+'pp':esc(c.court||'')+(c.y?' '+c.y:'')} ▾</div>
         <div class="csdesc">${esc((c.d||'').slice(0,150))}</div></button>
         <div class="csbody hidden">
+          ${!c.chk&&c.warn?'<div class="cs-warn">'+(window.GRI?GRI('triangle-alert'):'⚠')+'<span>'+esc(c.warn)+'</span></div>':''}
           ${c.chk?`<button class="cssum" data-n="${esc(c.n)}"><b>Held</b> — ${esc((c.f&&c.f.held)||c.d||'')}${c.why?`<span><b>On the job</b> — ${esc(c.why)}</span>`:''}<em>Open the full summary ›</em></button>`:''}
           ${c.s.map(sn=>`<button class="cssnip" data-a="${sn.a}"><b>${esc(pageLabel(sn.a))}${sn.a>=993?' · 2007':''}</b> — ${esc(sn.t)}</button>`).join('')}
           <div class="cspages">${c.p.map(p=>`<button class="cspg" data-a="${p}">${esc(pageLabel(p))}</button>`).join('')}</div>
@@ -1426,8 +1446,30 @@ const BL_COURTS=[['ie/cases','All Irish courts'],['ie/cases/IESC','Supreme Court
 let blCourt='ie/cases', blSort='rank';
 function bailiiURL(q,court,sort){
   return 'https://www.bailii.org/cgi-bin/lucy_search_1.cgi?method=boolean&query='+encodeURIComponent(q)
-    +'&mask_path='+(court||'ie/cases')+'&datelow=&datehigh=&sort='+(sort==='date'?'date':'rank')+'&highlight=1';
+    +(court===''?'':'&mask_path='+(court||'ie/cases'))+'&datelow=&datehigh=&sort='+(sort==='date'?'date':'rank')+'&highlight=1';
 }
+/* a case's own neutral citation ([2015] IESC 31) — BAILII's page addresses for these changed over the years, so the link
+   searches BAILII for the citation as an exact phrase: the judgment itself comes up first, then the cases that cite it */
+function caseNeutral(c){ const m=/\[(\d{4})\]\s*(IESC|IECA|IEHC|IECCA)\s*(\d+)\b/.exec((c.c||[]).join(' ')+' '+(c.n||'')); return m?{y:m[1],ct:m[2],n:m[3],s:'['+m[1]+'] '+m[2]+' '+m[3]}:null; }
+// BAILII's titles spell the State side many ways (DPP, D.P.P., Director of Public Prosecutions, The People (at the suit of…)),
+// so for those cases search for the other party's name as a phrase; initials (DPP v JC) become "J C" to match "J.C."
+function bailiiName(n){ n=String(n||'').replace(/\s*\((19|20)\d\d\)$/,'').replace(/[’‘]/g,"'").trim();
+  const st='(?:The\\s+)?(?:People|DPP|D\\.P\\.P\\.|AG|A\\.G\\.|Attorney[- ]General|Director of Public Prosecutions|Ireland|Minister\\b.*|Commissioner\\b.*|Governor\\b.*)';
+  const a=new RegExp('^'+st+'(?:\\s*\\([^)]*\\))?\\s+v\\.?\\s+(.+)$','i').exec(n), b=a?null:new RegExp('^(.+?)\\s+v\\.?\\s+(?:'+st+'|(?:the\\s+)?(?:'+ECHR_ST+'))$','i').exec(n);
+  let x=(a?a[1]:b?b[1]:'').replace(/\s*\(No\.?\s*\d+\)\s*$/i,'').trim(); if(!x)return n;
+  if(/^[A-Z]{1,4}$/.test(x))x=x.split('').join(' ');
+  return '"'+x.replace(/"/g,'')+'"'; }
+function bailiiCiteURL(nc){ return bailiiURL('"'+nc.y+' '+nc.ct+' '+nc.n+'"','ie/cases/'+nc.ct,'rank'); }
+const ECHR_ST='UK|United Kingdom|Belgium|Bulgaria|Turkey|France|Germany|Italy|Spain|Russia|Poland|Netherlands|Austria|Switzerland|Sweden|Norway|Finland|Denmark|Greece|Portugal|Romania|Croatia|Slovakia|Slovenia|Hungary|Czech Republic|Moldova|Ukraine|Georgia|Armenia|Azerbaijan|Latvia|Lithuania|Estonia|Malta|Cyprus|Luxembourg|Iceland|Liechtenstein|Monaco|San Marino|Andorra|Montenegro|Serbia|Albania|North Macedonia|Bosnia and Herzegovina';
+// which of BAILII's collections to search: Irish courts, the European Court of Human Rights, or everything (English and other cases)
+function caseJur(c){ const cit=(c.c||[]).join(' ')+' '+(c.court||''), n=String(c.n||'').replace(/\s*\((19|20)\d\d\)$/,'');
+  const hr=/E\.?H\.?R\.?R|\bECHR\b|European Court of Human Rights/i.test(cit)||new RegExp('\\sv\\.?\\s+(the\\s+)?('+ECHR_ST+')$','i').test(n);
+  const abroad=/England|Wales|House of Lords|Privy Council|United Kingdom|Northern Ireland|Scotland|Canada|Australia|New Zealand|United States/i.test(c.court||'');   // e.g. "Court of Appeal (England & Wales)"
+  const ie=!!caseNeutral(c)||/\b(I\.?R\.?|I\.?L\.?R\.?M\.?|IESC|IECA|IEHC|IECCA|IECC|Frewen)\b/.test(cit)||(!abroad&&/^(High|Supreme|Court of (Criminal )?Appeal|Special Criminal|Central Criminal)/.test(c.court||''));
+  if(hr)return ie?'all':'echr';   // both an Irish and a Strasbourg citation: search everything
+  if(ie)return 'ie';
+  if(abroad||/\b(AC|KB|QB|WLR|All ER|Cr\.? ?App\.? ?R|Crim\.? ?LR|UKHL|UKSC|EWCA|EWHC|UKPC|NICA|SCR|CLR|HCA|U\.S\.)\b/.test(cit)||/^R v /.test(n)||/Justice of the European Union/.test(c.court||''))return 'all';
+  return 'ie'; }
 function blRecent(){ try{ const r=JSON.parse(localStorage.getItem('gr_bl_recent')||'[]'); return Array.isArray(r)?r:[]; }catch(e){ return []; } }
 function openBailii(q,court,sort){
   q=String(q||'').trim(); if(!q)return false;
@@ -1556,8 +1598,36 @@ function toggleFav(){
   saveFavs(); $('#rdStar').textContent=favs.some(f=>f.a===curPage)?'★':'☆';
 }
 
+/* ---------- read aloud: the page in the phone's own voice (pause, stop, speed) ----------
+   Android's pause/resume is unreliable, so pausing stops the voice and resuming starts the current sentence again. */
+const TTS={on:false,paused:false,q:[],i:0,rate:+(localStorage.getItem('gr_tts_rate')||1)||1};
+function ttsVoice(){ let v=[]; try{ v=speechSynthesis.getVoices()||[]; }catch(e){} return v.find(x=>/^en[-_]IE/i.test(x.lang))||v.find(x=>/^en[-_]GB/i.test(x.lang)&&x.localService)||v.find(x=>/^en[-_]GB/i.test(x.lang))||v.find(x=>/^en/i.test(x.lang))||null; }
+function ttsChunks(t){ t=String(t||'').replace(/\s+/g,' ').trim(); const out=[], re=/[^.!?;:]+[.!?;:]*\s*/g; let m, cur='';
+  while((m=re.exec(t))){ const x=m[0]; if(cur&&(cur+x).length>220){ out.push(cur.trim()); cur=''; } if(x.length>220){ for(let i=0;i<x.length;i+=200)out.push(x.slice(i,i+200)); continue; } cur+=x; }
+  if(cur.trim())out.push(cur.trim()); return out; }
+function ttsSpeak(){ if(!TTS.on||TTS.paused)return; if(TTS.i>=TTS.q.length){ ttsStop(); return; }
+  const u=new SpeechSynthesisUtterance(TTS.q[TTS.i]), v=ttsVoice(); if(v){ u.voice=v; u.lang=v.lang; } else u.lang='en-IE'; u.rate=TTS.rate;
+  u.onend=()=>{ if(!TTS.on||TTS.paused)return; TTS.i++; ttsSpeak(); };
+  u.onerror=e=>{ if(!TTS.on||TTS.paused||(e&&(e.error==='interrupted'||e.error==='canceled')))return; TTS.i++; ttsSpeak(); };
+  try{ speechSynthesis.speak(u); }catch(e){} ttsPaint(); }
+function ttsStart(){ if(!('speechSynthesis' in window)){ if(window.grToast)grToast('This browser can’t read aloud'); return; }
+  const t=(rdBody.innerText||'').trim(); if(!t){ if(window.grToast)grToast('Nothing to read on this page'); return; }
+  try{ speechSynthesis.cancel(); }catch(e){} TTS.q=ttsChunks(t); TTS.i=0; TTS.on=true; TTS.paused=false; ttsSpeak(); }
+function ttsStop(){ if(!TTS.on&&!document.getElementById('ttsBar'))return; TTS.on=false; TTS.paused=false; try{ speechSynthesis.cancel(); }catch(e){} ttsPaint(); }
+function ttsPause(){ if(!TTS.on)return; TTS.paused=!TTS.paused; try{ speechSynthesis.cancel(); }catch(e){} if(!TTS.paused)ttsSpeak(); ttsPaint(); }
+function ttsPaint(){ const b=$('#rdListen'); if(b){ b.classList.toggle('on',TTS.on); b.setAttribute('aria-pressed',String(TTS.on)); }
+  let bar=document.getElementById('ttsBar');
+  if(!TTS.on){ if(bar)bar.remove(); return; }
+  if(!bar){ bar=document.createElement('div'); bar.id='ttsBar'; bar.setAttribute('role','group'); bar.setAttribute('aria-label','Read aloud'); reader.appendChild(bar);
+    bar.addEventListener('click',e=>{ const k=e.target.closest('[data-tts]'); if(!k)return; const a=k.dataset.tts;
+      if(a==='pp')ttsPause(); else if(a==='stop')ttsStop(); else if(a==='rate'){ const R=[1,1.25,1.5,0.85]; TTS.rate=R[(R.indexOf(TTS.rate)+1)%R.length]||1; try{ localStorage.setItem('gr_tts_rate',String(TTS.rate)); }catch(_){} if(!TTS.paused){ try{ speechSynthesis.cancel(); }catch(_){} ttsSpeak(); } ttsPaint(); } }); }
+  const h='<button type="button" data-tts="pp" aria-label="'+(TTS.paused?'Carry on reading':'Pause')+'">'+GRI(TTS.paused?'play':'pause')+'</button><span class="tts-t"><b>'+(TTS.paused?'Paused':'Reading aloud')+'</b><small>'+Math.min(TTS.i+1,TTS.q.length)+' of '+TTS.q.length+'</small></span>'
+    +'<button type="button" data-tts="rate" class="tts-r" aria-label="Reading speed">'+(TTS.rate===1?'1×':TTS.rate+'×')+'</button><button type="button" data-tts="stop" aria-label="Stop reading">'+GRI('square')+'</button>';
+  if(bar._h!==h){ bar._h=h; bar.innerHTML=h; } }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden'&&TTS.on&&!TTS.paused){ /* keep going — Android may carry on with the screen off */ } });
+
 /* ---------- READER ---------- */
-function openPage(abs){ if(!window._pz){window._pz=1;setTimeout(pinchZoom,0);} 
+function openPage(abs){ if(TTS.on)ttsStop(); if(!window._pz){window._pz=1;setTimeout(pinchZoom,0);} 
   try{localStorage.setItem('gr_lastpage',String(abs));}catch(e){}
   try{pushRecent({k:'page',id:abs,t:titleFor(abs).split(' › ').pop(),s:pageLabel(abs)});}catch(e){}
   $('#rdPrev').style.visibility='';$('#rdNext').style.visibility='';$('#rdJump').style.visibility='';
@@ -1634,7 +1704,7 @@ function bookWire(){
   new MutationObserver(()=>{ cancelAnimationFrame(book.raf); book.raf=requestAnimationFrame(bookApply); }).observe(rdBody,{childList:true});
   addEventListener('resize',()=>{ if(book.on)bookRelayout(); });
 }
-function closeReader(){$('#rdPrev').style.visibility='';$('#rdNext').style.visibility='';$('#rdJump').style.visibility='';reader.classList.add('hidden');reader.setAttribute('aria-hidden','true');}
+function closeReader(){ttsStop();$('#rdPrev').style.visibility='';$('#rdNext').style.visibility='';$('#rdJump').style.visibility='';reader.classList.add('hidden');reader.setAttribute('aria-hidden','true');}
 function jumpPrompt(){
   const v=prompt('Go to: printed page (e.g. 272), absolute p.N (e.g. p1219), or V12:8 / SG:3 / ST:6 / PB:2');
   if(!v)return;
@@ -1716,7 +1786,7 @@ function formatPage(txt){
     const sents=[];{let cur='';for(let i=0;i<full.length;i++){cur+=full[i];
       if('.!?'.includes(full[i])&&full[i+1]===' '&&/[A-Z"“(]/.test(full[i+2]||'')){sents.push(cur);cur='';i++;}}
       if(cur.trim())sents.push(cur);}
-    for(let i=0;i<sents.length;i+=3)html+='<p>'+linkify(sents.slice(i,i+3).join('').trim())+'</p>';
+    for(let i=0;i<sents.length;i+=3)html+='<p>'+linkify(sents.slice(i,i+3).join(' ').trim())+'</p>';   // the space after each full stop was being lost here
     para=[];}};
   const flushL=()=>{if(list){html+='<ul class="rlist">'+list.map(x=>'<li>'+linkify(x)+'</li>').join('')+'</ul>';list=null;}};
   const closeSec=()=>{flushP();flushL();if(secOpen){html+='</div></details>';secOpen=false;}};
@@ -1746,7 +1816,12 @@ function formatPage(txt){
   closeSec();flushP();flushL();
   return html;
 }
+// a source written as [https://…] in a guide becomes a small link chip (BAILII, Act, Courts.ie…) that opens in the browser
+function srcLink(u){ let host=''; try{ host=new URL(u).hostname.replace(/^(www\d?|ww2)\./,''); }catch(e){}
+  const lab=/bailii\.org/.test(host)?'BAILII':/irishstatutebook|revisedacts|lawreform/.test(host)?'Act':/courts\.ie/.test(host)?'Courts.ie':/vlex/.test(host)?'vLex':/oireachtas/.test(host)?'Oireachtas':/dppireland/.test(host)?'DPP':/garda\.ie/.test(host)?'garda.ie':(host.split('.').slice(-2).join('.')||'link');
+  return '<a class="srcl" href="'+esc(u)+'" target="_blank" rel="noopener" title="'+esc(u)+'">'+esc(lab)+'</a>'; }
 function linkify(txt){
+  const U=[]; txt=String(txt).replace(/\[(https?:\/\/[^\]\s]+)\]/g,(m,u)=>{ U.push(u); return '\u0001'+(U.length-1)+'\u0002'; });
   let h=esc(txt);
   h=h.replace(/\bp\.\s?(\d{1,4})\b/g,(m,n)=>+n<=META.pages?`<span class="xref" data-a="${n}">${m}</span>`:m);
   h=h.replace(/\b(V12|SG|ST|PB):(\d{1,2})\b/g,(m,k,n)=>{const base={SG:143,ST:968,PB:985,V12:937}[k];return `<span class="xref" data-a="${base+ +n}">${m}</span>`;});
@@ -1754,6 +1829,7 @@ function linkify(txt){
   h=h.replace(/\b(Facts|Held|Issue|Ruling|Test|Rule|Why it matters|Practice point|The point)(\s*[:—–])/g,'<b>$1</b>$2');
   h=h.replace(/\b(s\.?\s?\d+[A-Z]?(?:\(\d+\))?(?:\s(?:of the\s)?[A-Z][A-Za-z\s]{2,40}Act\s(?:19|20)\d{2})?)/g,'<b class="statref">$1</b>');
   h=h.replace(/\b([A-Z][A-Za-z\'’\-]+(?:\s\([A-Z]{2,3}\))?\sv\.?\s[A-Z][A-Za-z\'’\-]+(?:\s[A-Z][A-Za-z\'’\-]+)?)/g,'<i class="caseref">$1</i>');
+  if(U.length)h=h.replace(/\u0001(\d+)\u0002/g,(m,i)=>srcLink(U[+i]));
   return h;
 }
 function stripMd(t){return String(t).replace(/\*{1,3}|_{2,}|^#+\s/gm,'');}
@@ -1788,6 +1864,7 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
     if(document.getElementById('boot'))return true;                       // opening screen: stay put
     if(window.lockBack&&window.lockBack())return true;                     // lock screen or its settings
     if(homeEdit){ homeEditDone(); return true; }                            // customising Home: Back = Done
+    if(window.frmBack&&window.frmBack())return true;                      // print-and-fill form → closed
     { const d=document.getElementById('dsp'); if(d&&!d.classList.contains('hidden')){ d.classList.add('hidden'); return true; } }
     for(const id of ['mStory','mTV','mRadio']){ const el=document.getElementById(id); if(vis(el)){ el.querySelector('.m-x').click(); return true; } }
     if(window.faBack&&window.faBack())return true;                        // first aid: step/CPR → list → closed

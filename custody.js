@@ -214,7 +214,7 @@ function banner(c,t,th){
 }
 async function enableAlerts(){
   unlockAudio();
-  if(!('Notification' in W)){ toast('This browser can’t show notifications — alerts will only show inside the app'); try{localStorage.setItem(LSA,'1');}catch(e){} render(); return; }
+  if(!('Notification' in W)){ toast((W.grNotifHelp?W.grNotifHelp('none'):'This browser can’t show notifications.')+' Until then, alerts only show inside the app.'); try{localStorage.setItem(LSA,'1');}catch(e){} render(); return; }
   let p=Notification.permission;
   if(p==='default'){ try{p=await Notification.requestPermission();}catch(e){} }
   if(p!=='granted'){ sheetBlocked(); return; }
@@ -588,8 +588,10 @@ function sheetAlerts(){
   });
 }
 function sheetBlocked(){
-  sheet('<h3>Notifications are blocked</h3><p class="det-note">Android is blocking notifications for this app, so the clock can only warn you while it is on screen.</p>'
-   +'<ol class="det-steps"><li>Open your phone’s <b>Settings → Apps</b>.</li><li>Choose <b>Assisting</b> (older installs: <b>Garda Reference</b>; or <b>Chrome</b> if neither is listed).</li><li>Tap <b>Notifications</b> and allow them.</li><li>Come back and tap <b>Turn on alerts</b> again.</li></ol>'
+  const ios=!!(W.GRP&&W.GRP.ios);
+  sheet('<h3>Notifications are blocked</h3><p class="det-note">'+(ios?'Your iPhone':'Android')+' is blocking notifications for this app, so the clock can only warn you while it is on screen.</p>'
+   +(ios?'<ol class="det-steps"><li>Open the iPhone <b>Settings → Notifications</b>.</li><li>Choose <b>Assisting</b> (it is only listed once Assisting is on your Home Screen).</li><li>Turn on <b>Allow Notifications</b>.</li><li>Come back and tap <b>Turn on alerts</b> again.</li></ol>'
+     :'<ol class="det-steps"><li>Open your phone’s <b>Settings → Apps</b>.</li><li>Choose <b>Assisting</b> (older installs: <b>Garda Reference</b>; or <b>Chrome</b> if neither is listed).</li><li>Tap <b>Notifications</b> and allow them.</li><li>Come back and tap <b>Turn on alerts</b> again.</li></ol>')
    +'<button type="button" class="det-sec-btn ds-x wide">OK</button>');
 }
 function copySummary(c){
