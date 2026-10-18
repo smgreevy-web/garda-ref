@@ -68,13 +68,15 @@ function signIn(){ if(signedIn())return Promise.resolve(tok);
       callback:r=>{ done=true; if(!r||r.error)return no(new Error(r&&r.error==='access_denied'?'Google access wasn’t allowed.':(r&&(r.error_description||r.error))||'Google sign-in failed.'));
         if(r.scope&&r.scope.indexOf('drive.appdata')<0)return no(new Error('Tick the Google Drive box when Google asks, so the app can keep its copy there.'));
         tok=r.access_token; tokExp=Date.now()+(+r.expires_in||3600)*1000; try{ sessionStorage.setItem('gr_sync_tok',JSON.stringify({t:tok,exp:tokExp})); }catch(e){} setCfg({consented:1}); ok(tok); },
-      error_callback:e=>{ if(done)return; done=true; const t=e&&e.type; no(new Error(t==='popup_closed'?'Google sign-in was closed before it finished.':t==='popup_failed_to_open'?'The Google window was blocked — allow pop-ups for this site and tap again.':'Google sign-in failed.')); } });
+      error_callback:e=>{ if(done||signedIn())return; done=true;   /* an older sign-in window closing after a newer one worked isn't an error */ const t=e&&e.type; no(new Error(t==='popup_closed'?'Google sign-in was closed before it finished.':t==='popup_failed_to_open'?'The Google window was blocked — allow pop-ups for this site and tap again.':'Google sign-in failed.')); } });
     try{ tc.requestAccessToken(); }catch(e){ no(new Error('Google sign-in failed: '+e.message)); } }); }
 
 /* ---------- Google Drive: one file in the app's private folder ---------- */
-async function api(url,opt){ const o=Object.assign({},opt||{}); o.headers=Object.assign({Authorization:'Bearer '+tok},o.headers||{});
+async function api(url,opt,again){ const o=Object.assign({},opt||{}); o.headers=Object.assign({Authorization:'Bearer '+tok},o.headers||{});
   const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),25000); o.signal=ctl.signal; let r;
-  try{ r=await fetch(url,o); }catch(e){ throw new Error(e&&e.name==='AbortError'?'Google Drive didn’t answer — check your signal.':'Couldn’t reach Google Drive — check your signal.'); } finally{ clearTimeout(to); }
+  try{ r=await fetch(url,o); }catch(e){ clearTimeout(to);
+    if(!again&&!(o.method&&o.method!=='GET'))return api(url,opt,true);   // a look-up that timed out or dropped is tried once more before saying so
+    throw new Error(e&&e.name==='AbortError'?'Google Drive didn’t answer — check your signal.':'Couldn’t reach Google Drive — check your signal.'); } finally{ clearTimeout(to); }
   if(r.status===401){ forget(); throw Object.assign(new Error('Google sign-in has run out — tap Sync to sign in again.'),{code:'auth'}); }
   if(!r.ok){ let m='Google Drive said no ('+r.status+')'; try{ const j=await r.json(); if(j&&j.error&&j.error.message)m+=': '+j.error.message; }catch(e){} throw Object.assign(new Error(m),{status:r.status}); }
   return r; }

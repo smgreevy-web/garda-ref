@@ -1,4 +1,4 @@
-window.GRAPP='79';
+window.GRAPP='82';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -1127,6 +1127,7 @@ const TOOLS_MENU=[
   ['tpl','mail','Templates & forms','CCTV preservation · s.41 DP · passport · welfare'],
   ['exhibits','clipboard-list','Exhibits builder','SMG1–99 · continuity · copy for report'],
   ['cctv','cctv','CCTV preservation','Generate the request text'],
+  ['cctvst','file-pen','CCTV continuity statement','Print and fill in by pen · plain or tick boxes'],
   ['checks','list-checks','Checklists','Scene · arrest · warrant · exhibits · interview · ID']]],
  ['Law & guides',[
   ['guides2','book-open','Deep guides','Searches · weapons · RTC · précis · missing person'],
@@ -1160,6 +1161,7 @@ function renderTools(){
     const v=b.dataset.v;
     if(v==='toolbox'){ if(window.openToolbox) openToolbox(); return; }
     if(v==='patrol'){ if(window.openPatrol) openPatrol(); return; }
+    if(v==='cctvst'){ if(window.GRForms) GRForms.open('cctv'); return; }
     if(v==='gaol'){ if(window.openGaol) openGaol(); return; }
     if(v==='social'){ if(window.openSocial) openSocial(); return; }
     if(v==='wanted'){ renderWanted(); return; }

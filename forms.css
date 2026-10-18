@@ -10,7 +10,8 @@
 #frm .fm-tt b{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #frm .fm-tt span{font-size:13px;color:var(--dim,#8b939e)}
 #frm .fm-main{flex:1 1 auto;overflow:auto;-webkit-overflow-scrolling:touch;padding:12px 12px calc(28px + env(safe-area-inset-bottom,0px))}
-#frm .fm-acts{display:flex;gap:8px;flex-wrap:wrap}
+#frm .fm-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#frm .fm-acts .fm-print{grid-column:1/-1}
 #frm .fm-b{flex:1 1 30%;min-width:96px;min-height:52px;padding:6px 10px;border-radius:12px;border:1px solid var(--accline,rgba(143,176,214,.38));background:var(--surface2,#1f242b);color:var(--tx,#e4e7eb);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;gap:7px;line-height:1.15;text-align:center}
 #frm .fm-b svg{flex:0 0 auto;width:20px;height:20px}
 #frm .fm-print{background:var(--acc,#8fb0d6);border-color:var(--acc,#8fb0d6);color:var(--accink,#0f1720)}
@@ -32,6 +33,7 @@
 #frm .ftt span{font-size:.92em}
 #frm .frefs{flex:0 1 46%;display:flex;flex-direction:column}
 #frm .fhd.c .frefs{flex-basis:40%}
+#frm .fpn{align-self:flex-end;font-size:1.05em;font-weight:700;white-space:nowrap;line-height:1.5}
 #frm .fr{display:flex;flex-wrap:wrap;column-gap:1em;margin:0}
 #frm .ff{display:flex;align-items:flex-end;flex:var(--g,1) 1 0;gap:.4em;min-width:min(100%,9em)}
 #frm .ff b{font-weight:600;font-size:.84em;white-space:nowrap;line-height:1.9}
@@ -60,7 +62,6 @@
 #frm .ftb td{height:2.45em;border:1px solid #111}
 #frm .fln i{display:block;height:2.05em;border-bottom:1px solid #111}
 #frm .fft{display:flex;flex-wrap:wrap;align-items:flex-end;column-gap:1.2em;margin-top:.7em;padding-top:.15em;border-top:1.5px solid #111;font-size:.86em}
-#frm .fft>span:first-child{font-weight:700;white-space:nowrap;line-height:2.2}
 #frm .fft .fg{height:1.9em}
 @media (max-width:420px){ #frm .fpg{font-size:13px;padding:12px 10px 8px} #frm .frefs{flex-basis:100%} #frm .fhd{flex-wrap:wrap} }
 

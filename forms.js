@@ -14,7 +14,6 @@ const DECL='I hereby declare that this statement is true to the best of my knowl
 const FORMS={
  cctv:{t:'CCTV continuity statement',v:'Plain — delete as appropriate',alt:'cctvtick',file:'cctv-continuity',
   tip:'Print it, fill it in by pen — cross out what doesn’t apply where it says “delete as appropriate” — and have the witness sign the declaration, the bottom of each page and the end.',
-  refs:[['PULSE incident no.'],['Exhibit no.']],
   pages:[[
    {f:[['Statement of',3],['Phone',1.6]]},
    {f:[['Address',1]]},
@@ -68,9 +67,8 @@ const FORMS={
    {f:[['Taken by Garda',2.2],['Reg. no.',1],['Signed',1.8]],big:1},
    {sm:'* Delete as appropriate.'}
   ]]},
- cctvtick:{t:'CCTV continuity statement',v:'Tick boxes',alt:'cctv',file:'cctv-continuity-tick-boxes',sub:'CCTV footage — continuity',cont:'STATEMENT OF WITNESS — continued',
+ cctvtick:{t:'CCTV continuity statement',v:'Tick boxes',alt:'cctv',file:'cctv-continuity-tick-boxes',
   tip:'Print it, fill it in by pen — tick the boxes that apply — and have the witness sign the declaration, the bottom of each page and the end.',
-  refs:[['PULSE incident no.'],['Exhibit no.']],
   pages:[[
    {f:[['Statement of',3],['Phone',1.6]]},
    {f:[['Address',1]]},
@@ -137,29 +135,32 @@ function block(x){
   return ''; }
 function formHtml(k){ const F=FORMS[k], n=F.pages.length;
   return F.pages.map((P,i)=>'<section class="fpg f-'+k+'" aria-label="Page '+(i+1)+' of '+n+'">'
-    +(i===0?'<header class="fhd"><div class="ftt"><b>STATEMENT OF WITNESS</b>'+(F.sub?'<span>'+esc(F.sub)+'</span>':'')+'</div><div class="frefs">'+F.refs.map(([l])=>'<span class="ff" style="--g:1"><b>'+esc(l)+'</b><i class="fg"></i></span>').join('')+'</div></header>'
-      :'<header class="fhd c"><div class="ftt"><b>'+esc(F.cont||'STATEMENT OF WITNESS')+'</b>'+(F.sub?'<span>'+esc(F.sub)+'</span>':'')+'</div><div class="frefs"><span class="ff" style="--g:1"><b>Name of witness</b><i class="fg"></i></span></div></header>')
+    +'<header class="fhd'+(i?' c':'')+'"><div class="ftt"><b>'+esc(i&&F.cont?F.cont:'STATEMENT OF WITNESS')+'</b>'+(F.sub?'<span>'+esc(F.sub)+'</span>':'')+'</div>'
+      +'<div class="frefs"><b class="fpn">Page '+(i+1)+' of '+n+'</b>'+(i?'<span class="ff" style="--g:1"><b>Name of witness</b><i class="fg"></i></span>':'')+'</div></header>'
     +'<div class="fbody">'+P.map(block).join('')+'</div>'
-    +'<footer class="fft"><span>Page '+(i+1)+' of '+n+'</span><span class="ff" style="--g:1"><b>Witness</b><i class="fg"></i></span><span class="ff" style="--g:1"><b>Garda</b><i class="fg"></i></span></footer></section>').join(''); }
+    +'<footer class="fft"><span class="ff" style="--g:1"><b>Witness</b><i class="fg"></i></span><span class="ff" style="--g:1"><b>Garda</b><i class="fg"></i></span></footer></section>').join(''); }
 
 /* ---------- the screen ---------- */
 let ov=null, cur=null;
 function build(){ if(ov&&ov.isConnected)return;
   ov=D.createElement('div'); ov.id='frm'; ov.hidden=true; ov.setAttribute('role','dialog'); ov.setAttribute('aria-label','Print-and-fill form');
   ov.innerHTML='<div class="fm-top"><button type="button" class="fm-back">‹ Back</button><div class="fm-tt"><b class="fm-title"></b><span>Print · fill in by pen</span></div></div>'
-    +'<div class="fm-main"><div class="fm-vers" role="group" aria-label="Version" hidden></div><div class="fm-acts"><button type="button" class="fm-b fm-print">'+ic('print')+'Print</button><button type="button" class="fm-b fm-share">'+ic('share')+'Send the PDF</button><button type="button" class="fm-b fm-save">'+ic('down')+'Save the PDF</button></div>'
+    +'<div class="fm-main"><div class="fm-vers" role="group" aria-label="Version" hidden></div><div class="fm-acts"><button type="button" class="fm-b fm-print">'+ic('print')+'Print</button>'
+      +'<button type="button" class="fm-b" data-f="pdf" data-send="1">'+ic('share')+'Send the PDF</button><button type="button" class="fm-b" data-f="pdf">'+ic('down')+'Save the PDF</button>'
+      +'<button type="button" class="fm-b" data-f="docx" data-send="1">'+ic('share')+'Send as Word</button><button type="button" class="fm-b" data-f="docx">'+ic('down')+'Save as Word</button></div>'
     +'<p class="fm-tip"></p><div class="fm-doc"></div><p class="fm-foot">An independent template, not an official Garda form — check it against your station’s statement form and your Sergeant’s direction. Nothing you write here is saved; it’s for paper.</p></div><div class="fm-toast"></div>';
   D.body.appendChild(ov);
   ov.querySelector('.fm-back').onclick=()=>close();
   ov.querySelector('.fm-print').onclick=()=>{ const np=D.getElementById('nts-print'); if(np)np.remove(); try{ W.print(); }catch(e){ toast('Printing isn’t available on this phone — send the PDF to yourself instead'); } };
-  ov.querySelector('.fm-share').onclick=()=>pdf(true);
-  ov.querySelector('.fm-save').onclick=()=>pdf(false); }
+  ov.querySelectorAll('.fm-acts [data-f]').forEach(b=>b.onclick=()=>file(b.dataset.f,!!b.dataset.send)); }
 function ic(k){ const P={print:'<path d="M7 9V3h10v6M7 18H4.5A1.5 1.5 0 0 1 3 16.5v-6A1.5 1.5 0 0 1 4.5 9h15a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H17"/><path d="M7 14h10v7H7z"/>',
   share:'<path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M16 6l-4-4-4 4M12 2v13"/>',down:'<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>'};
   return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+P[k]+'</svg>'; }
 function toast(m){ const t=ov.querySelector('.fm-toast'); t.textContent=m; t.classList.add('on'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('on'),3400); }
-async function pdf(send){ const F=FORMS[cur]; if(!F)return; const name=F.file+'.pdf';
-  let blob; try{ const r=await fetch('forms/'+name); if(!r.ok)throw 0; blob=await r.blob(); blob=new Blob([blob],{type:'application/pdf'}); }catch(e){ toast('Couldn’t open the PDF — tap Print instead'); return; }
+// the same form as a PDF (to print) or a Word file (to type into or print at work) — made with the app and kept in forms/
+const MIME={pdf:'application/pdf',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'};
+async function file(ext,send){ const F=FORMS[cur]; if(!F)return; const name=F.file+'.'+ext;
+  let blob; try{ const r=await fetch('forms/'+name); if(!r.ok)throw 0; blob=new Blob([await r.blob()],{type:MIME[ext]}); }catch(e){ toast('Couldn’t open the '+(ext==='pdf'?'PDF':'Word file')+' — tap Print instead'); return; }
   const G=W.GRDocs;
   if(send&&G&&G.canShare(blob,name)){ if(await G.share(blob,name,F.t))return; }
   if(G){ G.save(blob,name); toast(send?'Saved '+name+' — email it to yourself from your downloads':'Saved '+name+' to your downloads'); } }
@@ -174,5 +175,5 @@ function open(k){ if(!FORMS[k])return false; build(); cur=k; const F=FORMS[k];
   if(W.grHudTick)W.grHudTick(); return true; }
 function close(){ if(!ov||ov.hidden)return false; ov.hidden=true; D.body.classList.remove('frm-open'); ov.querySelector('.fm-doc').innerHTML=''; cur=null; return true; }
 W.frmBack=()=>close();
-W.GRForms=Object.freeze({open,close,html:formHtml,list:()=>Object.keys(FORMS).map(k=>({k,t:FORMS[k].t,v:FORMS[k].v||'',fixed:!!FORMS[k].fixed,file:'forms/'+FORMS[k].file+'.pdf'}))});
+W.GRForms=Object.freeze({open,close,html:formHtml,def:k=>FORMS[k]?JSON.parse(JSON.stringify(FORMS[k])):null,list:()=>Object.keys(FORMS).map(k=>({k,t:FORMS[k].t,v:FORMS[k].v||'',fixed:!!FORMS[k].fixed,file:'forms/'+FORMS[k].file+'.pdf'}))});
 })();

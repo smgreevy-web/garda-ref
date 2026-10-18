@@ -772,7 +772,7 @@ let ov=null, main=null, sh=null, view='list', curId=null, tab=null, draft=null;
 function build(){
   if(ov&&ov.isConnected)return;
   ov=D.createElement('div'); ov.id='tsk'; ov.hidden=true; ov.setAttribute('role','dialog'); ov.setAttribute('aria-label','Tasks');
-  ov.innerHTML='<div class="tk-top"><button type="button" class="tk-back">‹ Back</button><div class="tk-tt"><b class="tk-title">Tasks</b><span class="hudclock" data-f="line"></span></div><button type="button" class="tk-sync" hidden aria-label="Sync across devices"></button><button type="button" class="tk-scan" aria-label="Photo or screenshots of a to-do list">'+svg(IC.scan)+'</button><button type="button" class="tk-copy" aria-label="Share or copy the list">'+svg(IC.share)+'</button></div>'
+  ov.innerHTML='<div class="tk-top"><button type="button" class="tk-back">‹ Back</button><div class="tk-tt"><b class="tk-title">Tasks</b><span class="hudclock" data-f="line"></span></div><button type="button" class="tk-sync" hidden aria-label="Sync across devices"></button><button type="button" class="tk-scan" aria-label="Add a list — paste your list, a photo or type it">'+svg(IC.scan)+'</button><button type="button" class="tk-copy" aria-label="Share or copy the list">'+svg(IC.share)+'</button></div>'
     +'<div class="tk-main"></div><button type="button" class="tk-fab" aria-label="New task">'+svg(IC.plus)+'</button><div class="tk-shade" hidden></div><div class="tk-sheet" hidden></div><div class="tk-toast"></div>'
     +'<div class="tk-edbar" hidden role="toolbar" aria-label="Step tools">'+[['out','outdent','Out'],['in','indent','In'],['up','up','Up'],['down','down','Down'],['sub','sub','Sub-step'],['more','dots','More'],['done','check','Done']].map(([k,i,l])=>'<button type="button" class="eb-'+k+'" data-eb="'+k+'">'+svg(IC[i])+l+'</button>').join('')+'</div>';
   D.body.appendChild(ov); main=ov.querySelector('.tk-main'); sh=ov.querySelector('.tk-sheet');
@@ -919,6 +919,7 @@ function renderList(){
       l.forEach(t=>{const c=classify(t,now); let k='No date'; const ed=Math.min(t.due||9e15,c.sd||9e15,(c.ug&&c.ug.dl)||9e15); if(ed<9e15){const dd=Math.round((sod(ed)-sod(now))/DAY); k=(c.od||c.sdo)?'Overdue':dd===0?'Today':dd===1?'Tomorrow':dd<7?'This week':'Later';} (g[k]=g[k]||[]).push(t);});
       order.forEach(k=>{ if(g[k])body+='<h3 class="tk-sec'+(k==='Overdue'?' red':'')+'">'+k+' <span>'+g[k].length+'</span></h3>'+g[k].map(t=>row(t,now)).join(''); }); }
     body+=subSec(subs,'Sub jobs — '+esc(TY[type]?TY[type].t:'')+' — in other jobs'); }
+  if(!DB.tasks.length&&!qry)body='<button type="button" class="tk-pick tk-pastego">'+svg(IC.copy)+'<span><b>Paste your list</b><small>Moving from another version or phone? There: Tasks → Share → Move to a new version or phone. Then tap here — it all comes back as it was.</small></span></button>'+body;
   h+=body;
   if(!permOK()&&open_().some(t=>t.due||t.remWin||nextStepDue(t)||anyStep(t,n=>n.remWin&&!isDone(n))))h+='<button type="button" class="tk-remcard" data-a="rem"><b>🔕 Reminders are off</b><span>Allow notifications so due tasks can remind you.</span></button>';
   { let on=false; try{ on=!!(JSON.parse(localStorage.getItem('gr_sync')||'{}')||{}).on; }catch(e){}
@@ -928,6 +929,7 @@ function renderList(){
   main.innerHTML=h; main.scrollTop=0;
   main.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;setPref('tab',tab);renderList();});
   { const d4=main.querySelector('.tk-4d'); if(d4)d4.onclick=()=>openDays(); }
+  { const pg=main.querySelector('.tk-pastego'); if(pg)pg.onclick=()=>{ scan={imgs:[],items:[],busy:false,err:'',mode:'type'}; pasteGo(scan); }; }
   main.querySelectorAll('[data-ty]').forEach(b=>b.onclick=()=>{setPref('type',b.dataset.ty);renderList();});
   main.querySelectorAll('[data-ck]').forEach(b=>b.onclick=()=>toggleDone(b.dataset.ck));
   main.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>editTask(b.dataset.ed));
@@ -1814,6 +1816,7 @@ function parseJobs(txt){ txt=String(txt||'').replace(/\r/g,''); const L=txt.spli
   const head=r=>{ r=r.replace(/^\[URGENT\]\s*/i,''); const c=/^([^:]{2,60}):\s+(.*)$/.exec(r); return c&&tyByLabel(c[1].split(' · ')[0])?c:null; };
   const app=L.some(l=>{ const m=JOB.exec(l); return !!(m&&head(m[2].trim())); })||(/^\s*TASKS\s+—/m.test(txt)&&/^ {3}(Due|OVERDUE since|Steps —|When:)/m.test(txt));
   if(!app)return plainJobs(txt);
+  const done_=x=>{ x.app=true; return x; };
   const out=[]; let cur=null, inSteps=false, blk=[];
   const flush=()=>{ if(!cur)return; if(blk.length)cur.steps=stepsFromBlock(blk); cur.notes=cur.notesL.join('\n').trim(); delete cur.notesL; out.push(cur); cur=null; inSteps=false; blk=[]; };
   L.forEach(raw=>{ if(!raw.trim()||/^\s*TASKS\s+—/.test(raw))return;
@@ -1830,10 +1833,9 @@ function parseJobs(txt){ txt=String(txt||'').replace(/\r/g,''); const L=txt.spli
     if((mm=/^When:\s+(.*)$/.exec(t))){ const w=winByLabel(mm[1]); if(w)Object.assign(cur,w); return; }
     if((mm=/^Place:\s+(.*)$/.exec(t))){ const parts=mm[1].split(' · '), nm=parts[0], i=nm.indexOf(', ');
       cur.place={n:(i>0?nm.slice(0,i):nm).trim(),a:i>0?nm.slice(i+2).trim():''}; parts.slice(1).forEach(p=>{ if(/^tel /.test(p))cur.place.ph=p.slice(4).trim(); else if(/@/.test(p))cur.place.em=p.trim(); }); return; }
-    if(/^Footage overwritten from/.test(t))return;
     if(/^Steps\s+—\s+\d+\s+of\s+\d+\s+done:?$/.test(t)){ inSteps=true; return; }
     cur.notesL.push(t); });
-  flush(); return out; }
+  flush(); return done_(out); }
 /* duplicates: the same (or nearly the same) title and type as a task you have — or one earlier in the same paste */
 const normT=x=>String(x||'').toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').replace(/\b(the|a|an|re|for|from|to|of|at|on|in|and|with)\b/g,' ').replace(/\s+/g,' ').trim();
 function simT(a,b){ const A=new Set(normT(a).split(' ').filter(w=>w.length>1)), B=new Set(normT(b).split(' ').filter(w=>w.length>1)); if(!A.size||!B.size)return 0;
@@ -1856,6 +1858,10 @@ function triInfo(x){ const out=[], y=TY[x.type]; if(x.kind&&y&&y.kinds){ const k
 function lineItems(txt){ return String(txt||'').split(/\r?\n/).map(l=>l.replace(/^\s*(?:[-*•·▪◦›>]|\d{1,2}[.)]|\[[ xX✓]?\]|[☐□✓✔])\s*/,'').trim()).filter(l=>l.length>1)
   .map(l=>({on:true,text:l.slice(0,120),type:guessType(l),urgent:/urgent|asap|!!/i.test(l),due:guessDue(l)})); }
 function startScan(){ scan={imgs:[],items:[],busy:false,err:'',mode:'pick'}; view='scan'; render(); }
+async function pasteGo(s){ s=s||(scan={imgs:[],items:[],busy:false,err:'',mode:'type'}); view='scan';
+  let t=''; try{ if(navigator.clipboard&&navigator.clipboard.readText)t=await navigator.clipboard.readText(); }catch(e){}
+  if(t&&await takePaste(s,t))return;
+  s.mode='type'; s.err=t&&t.trim()?'':'Press and hold in the box, then Paste — or copy your list in the other version first.'; if(t&&t.trim())s.lines=t; render(); setTimeout(()=>{ const a=main.querySelector('.f-lines'); if(a)a.focus(); },50); }
 /* camera = one photo now; gallery = pick several screenshots or photos at once (e.g. screenshots of your phone's notes app) */
 function pickImages(camera){ const inp=D.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.style.display='none';
   if(camera)inp.setAttribute('capture','environment'); else inp.multiple=true;
@@ -1902,12 +1908,14 @@ async function readWithClaude(){ const key=(localStorage.getItem(AIKEY)||'').tri
 function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; } ov.querySelector('.tk-title').textContent=s.imgs&&s.imgs.length?'Photos → tasks':s.mode==='pick'?'Add a list of tasks':'List → tasks'; ov.querySelector('.tk-fab').hidden=true; ov.querySelector('.tk-copy').hidden=true; ov.querySelector('.tk-scan').hidden=true;
   let h='<div class="tk-wrap tk-scanv">';
   if(s.mode==='pick'){
-    h+='<p class="tk-lead">Turn a to-do list into tasks.</p>'
+    h+='<p class="tk-lead">Bring in your list, or turn a to-do list into tasks.</p>'
+      +'<button type="button" class="tk-pick sc-pgo">'+svg(IC.copy)+'<span><b>Paste your list</b><small>Copied from Assisting — this version or an older one. Everything comes back as it was, in one tap.</small></span></button>'
       +'<button type="button" class="tk-pick sc-cam">'+svg(IC.camera)+'<span><b>Take a photo</b><small>Notebook page, whiteboard, a printed list</small></span></button>'
       +'<button type="button" class="tk-pick sc-gal">'+svg(IC.images)+'<span><b>Choose screenshots or photos</b><small>From your gallery — e.g. screenshots of your notes app. Pick several at once.</small></span></button>'
       +'<button type="button" class="tk-pick sec sc-type">'+svg(IC.cliplist)+'<span><b>Paste or type a list</b><small>One task per line — or paste the list copied from Assisting (keeps dates, steps and notes)</small></span></button>'
       +'<p class="tk-hint">Up to '+SCAN_MAX+' images at a time. Long scrolling screenshots are cut into parts so they stay readable.</p></div>';
     main.innerHTML=h; main.scrollTop=0;
+    main.querySelector('.sc-pgo').onclick=()=>pasteGo(s);
     main.querySelector('.sc-cam').onclick=()=>pickImages(true);
     main.querySelector('.sc-gal').onclick=()=>pickImages(false);
     main.querySelector('.sc-type').onclick=()=>{ s.mode='type'; s.err=''; render(); setTimeout(()=>{ const t=main.querySelector('.f-lines'); if(t)t.focus(); },50); };
@@ -1922,6 +1930,14 @@ function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; 
     else if(s.mode==='key')h+='<label class="tk-lab">Your Anthropic API key</label><input class="tk-in f-key" type="password" autocomplete="off" placeholder="sk-ant-…"><p class="tk-hint">Stored only on this phone (the same key as AI search). Each photo costs about a cent.</p><div class="tk-row2"><button type="button" class="tk-sec-btn sc-back">Back</button><button type="button" class="tk-go sc-savekey">Save and read</button></div>';
     else h+='<div class="tk-row2 col"><button type="button" class="tk-go sc-ai">✦ Read '+(s.imgs.length>1?'them':'it')+' with Claude</button><button type="button" class="tk-sec-btn sc-type">Type it in myself</button></div>'
       +'<p class="tk-hint"><b>Read with Claude</b> sends '+(s.imgs.length>1?'these '+s.imgs.length+' images':'this image')+' to Anthropic’s Claude service with your API key to read the writing — handwriting and screenshots included. Only do that if Garda policy allows it for what’s on the list: <b>if it has personal details of members of the public, type it in instead</b>. The images aren’t kept on the phone either way.</p>';
+  } else if(s.mode==='restore'){ const d=s.move, nr=d.roster&&d.roster.cycle&&!localStorage.getItem('gr_roster');
+    h+='<p class="tk-lead">Your list from Assisting</p><div class="tk-mv"><b>'+esc(moveSum(d))+'</b><span>Copied '+esc(rel(d.at||Date.now(),Date.now()))+'</span></div>'
+      +'<p class="tk-hint">Everything comes back exactly as it was — steps and sub jobs, notes, dates, times of day, urgency, case stage and done jobs'+(nr?', and your roster and details':'')+'. Jobs already on this phone are kept: where both have the same job, the one changed last wins. Nothing here is deleted.</p>'
+      +'<div class="tk-row2"><button type="button" class="tk-sec-btn sc-back">Cancel</button><button type="button" class="tk-go sc-restore">Bring it all back</button></div>';
+  } else if(s.mode==='quick'){ const n=s.items.filter(x=>!x.dup&&x.text.trim()).length, nd=s.items.filter(x=>x.dup).length, ng=s.items.filter(x=>x.dup&&x.dup.id&&x.dup.nw).length, st=s.items.filter(x=>!x.dup).reduce((a,x)=>a+cnt(x.steps).m,0);
+    h+='<p class="tk-lead">Your list from Assisting</p><div class="tk-mv">'+(n?'<b>'+n+' job'+(n===1?'':'s')+(st?' with '+st+' step'+(st===1?'':'s'):'')+'</b><span>with their categories, dates, times of day, places, notes and steps — ticked or not</span>':'<b>Nothing new to add</b><span>Every job in it is already on this phone</span>')+'</div>'
+      +(nd?'<p class="tk-dupnote">'+svg(IC.flag)+'<span><b>'+nd+' already here</b> — left out'+(ng?', with any new steps added to '+(ng===1?'it':'them'):'')+'.</span></p>':'')
+      +'<div class="tk-row2"><button type="button" class="tk-sec-btn sc-check">Check them first</button><button type="button" class="tk-go sc-all"'+(n||ng?'':' disabled')+'>'+(n?'Add them all':ng?'Add the new steps':'Nothing new')+'</button></div>';
   } else if(s.mode==='type'){
     h+='<label class="tk-lab">One task per line — or paste a list copied from Assisting</label>'
       +(navigator.clipboard&&navigator.clipboard.readText?'<button type="button" class="tk-link sc-paste">'+svg(IC.cliplist)+'Paste from the clipboard</button>':'')
@@ -1950,12 +1966,16 @@ function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; 
   if(q('.sc-ai'))q('.sc-ai').onclick=()=>readWithClaude();
   if(q('.sc-type'))q('.sc-type').onclick=()=>{ s.mode='type'; s.err=''; render(); setTimeout(()=>{ const t=q('.f-lines'); if(t)t.focus(); },50); };
   if(q('.sc-savekey'))q('.sc-savekey').onclick=()=>{ const k=q('.f-key').value.trim(); if(!/^sk-ant-/.test(k)){ s.err='That doesn’t look like an Anthropic key (it starts sk-ant-).'; render(); return; } localStorage.setItem(AIKEY,k); s.mode='choose'; s.err=''; readWithClaude(); };
-  main.querySelectorAll('.sc-back').forEach(b=>b.onclick=()=>{ if(s.mode==='triage'||s.mode==='choose'){ scan=null; view='list'; render(); } else { s.mode=s.imgs.length?'choose':'pick'; s.err=''; render(); } });
+  if(q('.sc-restore'))q('.sc-restore').onclick=()=>{ const r=restoreMove(s.move); scan=null; view='list'; tab='all'; render();
+    toast([r.added?r.added+' job'+(r.added===1?'':'s')+' back':'',r.updated?r.updated+' brought up to date':'',r.kept?r.kept+' already up to date here':'',r.roster?'roster back':''].filter(Boolean).join(' · ')||'Nothing new — it’s all here already'); };
+  if(q('.sc-all'))q('.sc-all').onclick=()=>addAll(s);
+  if(q('.sc-check'))q('.sc-check').onclick=()=>{ s.mode='triage'; render(); };
+  main.querySelectorAll('.sc-back').forEach(b=>b.onclick=()=>{ if(s.mode==='restore'||s.mode==='quick'){ s.mode='type'; s.err=''; render(); return; } if(s.mode==='triage'||s.mode==='choose'){ scan=null; view='list'; render(); } else { s.mode=s.imgs.length?'choose':'pick'; s.err=''; render(); } });
   main.querySelectorAll('.tk-thx').forEach(b=>b.onclick=()=>{ s.imgs.splice(+b.dataset.i,1); s.err=''; if(!s.imgs.length)s.mode='pick'; render(); });
   if(q('.sc-addimg'))q('.sc-addimg').onclick=()=>pickImages(false);
   main.querySelectorAll('.tk-th img').forEach(im=>im.onclick=()=>{ const v=D.createElement('div'); v.className='tk-big'; v.innerHTML='<img src="'+im.src+'" alt=""><small>Tap to close</small>'; v.onclick=()=>v.remove(); ov.appendChild(v); });
-  if(q('.sc-split'))q('.sc-split').onclick=()=>{ s.lines=q('.f-lines').value; const it=parseJobs(s.lines); if(!it.length){ s.err='Type at least one task — one per line.'; render(); return; } s.items=markDups(it); s.mode='triage'; s.err=''; render(); };
-  if(q('.sc-paste'))q('.sc-paste').onclick=async()=>{ try{ const t=await navigator.clipboard.readText(); if(!t||!t.trim()){ toast('Nothing to paste — copy the list first'); return; } const ta=q('.f-lines'); ta.value=(ta.value.trim()?ta.value.replace(/\s*$/,'\n'):'')+t; s.lines=ta.value; ta.focus(); }catch(e){ toast('Press and hold in the box, then Paste'); } };
+  if(q('.sc-split'))q('.sc-split').onclick=async()=>{ s.lines=q('.f-lines').value; if(MV_RX.test(s.lines)){ await takePaste(s,s.lines); return; } const it=parseJobs(s.lines); if(!it.length){ s.err='Type at least one task — one per line.'; render(); return; } s.items=markDups(it); s.mode='triage'; s.err=''; render(); };
+  if(q('.sc-paste'))q('.sc-paste').onclick=async()=>{ try{ const t=await navigator.clipboard.readText(); if(!t||!t.trim()){ toast('Nothing to paste — copy the list first'); return; } if(!q('.f-lines').value.trim()&&await takePaste(s,t))return; const ta=q('.f-lines'); ta.value=(ta.value.trim()?ta.value.replace(/\s*$/,'\n'):'')+t; s.lines=ta.value; ta.focus(); }catch(e){ toast('Press and hold in the box, then Paste'); } };
   if(s.mode==='triage'){
     const sync=()=>{ const n=s.items.filter(x=>x.on&&x.text.trim()).length, g=s.items.filter(x=>!x.on&&x.merge&&x.dup&&x.dup.id).length, b=q('.sc-add'); b.disabled=!n&&!g;
       b.textContent=(n||!g?'Add '+n+' task'+(n===1?'':'s'):'')+(g?(n?' · ':'')+'update '+g:''); };
@@ -1969,15 +1989,64 @@ function renderScan(){ const s=scan; if(!s){ view='list'; renderList(); return; 
       r.querySelector('.tk-tru').onclick=e=>{ x.urgent=!x.urgent; e.currentTarget.classList.toggle('on',x.urgent); }; });
     q('.sc-more').onclick=()=>{ s.items.push({on:true,text:'',type:'other',urgent:false,due:'none'}); render(); const all=main.querySelectorAll('.tr-t'); if(all.length){ all[all.length-1].focus(); } };
     q('.sc-add').onclick=()=>{ const now=Date.now(), L=s.items.filter(x=>x.on&&x.text.trim()), G=s.items.filter(x=>!x.on&&x.merge&&x.dup&&x.dup.id), skip=s.items.filter(x=>x.dup&&!x.on&&!x.merge).length;
-      L.forEach((x,i)=>{ const ty=TY[x.type]||TY.other, due=x.due==='exact'&&x.dueAt?x.dueAt:x.due==='today'?quick('t23'):x.due==='tomorrow'?quick('+1d'):x.due==='week'?quick('+7d'):null;
-        const t={id:uid(),type:x.type,kind:x.kind!=null?x.kind:guessKind(x.type,x.text),steps:norm((x.steps||[]).map(reId)),title:x.text.trim().slice(0,120),notes:x.notes||'',urgent:!!x.urgent,
-          win:x.win||ty.win||'any',wDays:x.wDays||null,due,rem:due?[0,60]:[],remWin:false,place:x.place||null,created:now+i,m:now,done:null,fired:{}};
-        if(x.win==='custom'){ t.wFrom=x.wFrom; t.wTo=x.wTo; } DB.tasks.push(t); });
+      L.forEach((x,i)=>DB.tasks.push(itemTask(x,now,i)));
       G.forEach(x=>{ const t=byId(x.dup.id); if(!t)return; if(!Array.isArray(t.steps))t.steps=[]; mergeSteps(t.steps,x.steps); norm(t.steps); t.m=now; });
       scan=null; save(); view='list'; tab='all'; render(); check();
       toast([L.length?L.length+' task'+(L.length===1?'':'s')+' added':'',G.length?'new steps added to '+G.length+' job'+(G.length===1?'':'s'):'',skip?skip+' duplicate'+(skip===1?'':'s')+' left out':''].filter(Boolean).join(' · ')||'Nothing added'); };
   }
 }
+
+/* ================= move your list to a new version or phone =================
+   "Move to a new version" copies everything exactly — every job with all its steps, sub jobs, notes, urgency, windows,
+   case stage, done jobs — plus My roster (your days and details), packed into one block of text. Paste it into Tasks in
+   the other copy and it all comes back as it was, in one tap: nothing to re-sort. Jobs already there are kept, whichever
+   was changed last wins, and nothing there is deleted. */
+const MV_HEAD='--- ASSISTING · YOUR LIST · paste it into Tasks to bring it all back exactly ---', MV_END='--- END OF LIST ---';
+const MV_RX=/ASSISTING\s*·?\s*YOUR LIST[^\n]*\n([\s\S]*?)-{2,}\s*END OF LIST/i;
+const b64e=u=>{ let s=''; for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(s); };
+async function pipe(u8,cs){ const w=cs.writable.getWriter(); w.write(u8).catch(()=>{}); w.close().catch(()=>{}); return new Uint8Array(await new Response(cs.readable).arrayBuffer()); }
+function moveData(){ const L=k=>{ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } };
+  return {app:'Assisting',v:1,at:Date.now(),tasks:DB.tasks.map(t=>{ const x=Object.assign({},t); delete x.fired; delete x.nextWin; return x; }),del:DB.del||{},roster:L('gr_roster'),favs:L('gr_favs_v1')}; }
+async function moveText(){ const j=new TextEncoder().encode(JSON.stringify(moveData())); let body;
+  try{ body=W.CompressionStream?'z'+b64e(await pipe(j,new CompressionStream('deflate-raw'))):null; }catch(e){ body=null; }
+  if(!body)body='j'+b64e(j);
+  const L=[]; for(let i=0;i<body.length;i+=76)L.push(body.slice(i,i+76));
+  return MV_HEAD+'\n'+L.join('\n')+'\n'+MV_END; }
+async function readMove(txt){ const m=MV_RX.exec(String(txt||'')); if(!m)return null;
+  const body=m[1].replace(/[^A-Za-z0-9+/=]/g,''); if(body.length<4)throw new Error('The list is cut short — copy it again in the other version.');
+  let u; try{ u=Uint8Array.from(atob(body.slice(1)),c=>c.charCodeAt(0)); }catch(e){ throw new Error('The list didn’t paste in full — copy it again in the other version.'); }
+  if(body[0]==='z'){ if(!W.DecompressionStream)throw new Error('This browser can’t open the list — update it, or use Chrome.');
+    try{ u=await pipe(u,new DecompressionStream('deflate-raw')); }catch(e){ throw new Error('The list didn’t paste in full — copy it again in the other version.'); } }
+  let d; try{ d=JSON.parse(new TextDecoder().decode(u)); }catch(e){ throw new Error('The list didn’t paste in full — copy it again in the other version.'); }
+  if(!d||d.app!=='Assisting'||!Array.isArray(d.tasks))throw new Error('That isn’t a list from Assisting.');
+  return d; }
+function restoreMove(d){ const now=Date.now(), have=new Map(DB.tasks.map(t=>[t.id,t])), r={added:0,updated:0,kept:0,roster:false};
+  DB.del=DB.del||{}; Object.entries(d.del||{}).forEach(([k,v])=>{ if(!DB.del[k]||DB.del[k]<v)DB.del[k]=v; });
+  (d.tasks||[]).forEach(t=>{ if(!t||!t.id||(DB.del[t.id]&&DB.del[t.id]>=(t.m||0)))return;
+    const x=Object.assign({},t,{fired:{},nextWin:null}); if(Array.isArray(x.steps))norm(x.steps);
+    // reminders that would already have gone off aren't replayed
+    dueTimes(x).concat(stepDues(x)).forEach(([k,at])=>{ if(at<=now)x.fired[k]=now; });
+    walk(x.steps,n=>{ if(!n.remWin||!n.win)return; const w=winOf(n); if(w&&inWin(w,now))x.fired['w:'+n.id+':'+curOpen(w,now)]=now; });
+    const h=have.get(t.id); if(!h){ DB.tasks.push(x); r.added++; } else if((x.m||0)>(h.m||0)){ Object.assign(h,x); r.updated++; } else r.kept++; });
+  try{ if(d.roster&&d.roster.cycle&&!localStorage.getItem('gr_roster')){ localStorage.setItem('gr_roster',JSON.stringify(d.roster)); r.roster=true; if(W.GRRoster&&W.GRRoster._reload)W.GRRoster._reload(); } }catch(e){}
+  try{ const f=JSON.parse(localStorage.getItem('gr_favs_v1')||'[]'); if(Array.isArray(d.favs)&&d.favs.length&&!(Array.isArray(f)&&f.length)){ localStorage.setItem('gr_favs_v1',JSON.stringify(d.favs)); if(W.grFavsReload)W.grFavsReload(); } }catch(e){}
+  save(); check(); return r; }
+function moveSum(d){ const o=d.tasks.filter(t=>!t.done), st=o.reduce((a,t)=>a+cnt(t.steps).m,0);
+  return o.length+' job'+(o.length===1?'':'s')+(st?' with '+st+' step'+(st===1?'':'s'):'')+(d.tasks.length>o.length?' · '+(d.tasks.length-o.length)+' done':'')+(d.roster&&d.roster.cycle?' · My roster':''); }
+// a pasted list: the exact copy → bring it back; a list copied from any older version → add it all in one tap
+async function takePaste(s,txt){ txt=String(txt||''); if(!txt.trim())return false;
+  if(MV_RX.test(txt)){ try{ s.move=await readMove(txt); s.mode='restore'; s.err=''; }catch(e){ s.err=e.message||'Couldn’t read that list.'; s.mode='type'; s.lines=txt; } render(); return true; }
+  const it=parseJobs(txt); if(it.app&&it.length){ s.lines=txt; s.items=markDups(it); s.mode='quick'; s.err=''; render(); return true; }
+  return false; }
+function addAll(s){ const now=Date.now(); let a=0, g=0, skip=0;
+  s.items.forEach((x,i)=>{ if(x.dup){ if(x.dup.id&&x.dup.nw){ const t=byId(x.dup.id); if(t){ if(!Array.isArray(t.steps))t.steps=[]; mergeSteps(t.steps,x.steps); norm(t.steps); t.m=now; g++; } } else skip++; return; }
+    if(!x.text||!x.text.trim())return; DB.tasks.push(itemTask(x,now,i)); a++; });
+  scan=null; save(); view='list'; tab='all'; render(); check();
+  toast([a?a+' job'+(a===1?'':'s')+' added':'',g?'new steps added to '+g+' job'+(g===1?'':'s')+' you had':'',skip?skip+' already here':''].filter(Boolean).join(' · ')||'Nothing new — it’s all here already'); }
+function itemTask(x,now,i){ const ty=TY[x.type]||TY.other, due=x.due==='exact'&&x.dueAt?x.dueAt:x.due==='today'?quick('t23'):x.due==='tomorrow'?quick('+1d'):x.due==='week'?quick('+7d'):null;
+  const t={id:uid(),type:x.type,kind:x.kind!=null?x.kind:guessKind(x.type,x.text),steps:norm((x.steps||[]).map(reId)),title:x.text.trim().slice(0,120),notes:x.notes||'',urgent:!!x.urgent,
+    win:x.win||ty.win||'any',wDays:x.wDays||null,due,rem:due?[0,60]:[],remWin:false,place:x.place||null,created:now+i,m:now,done:null,fired:{}};
+  if(x.win==='custom'){ t.wFrom=x.wFrom; t.wTo=x.wTo; } return t; }
 
 /* ================= share the list (handover): copy · email to me · share · calendar file ================= */
 function listText(l,now){ const lines=['TASKS — '+full(now),''];
@@ -1987,7 +2056,9 @@ function copyList(){
   const now=Date.now(), l=open_().sort((a,b)=>cmp(sortKey(a,now),sortKey(b,now)));
   if(!l.length){toast('No open tasks to share');return;}
   const txt=listText(l,now), nd=l.filter(t=>t.due||nextStepDue(t)).length;
+  let mv=null; moveText().then(x=>{ mv=x; }).catch(()=>{});
   sh.innerHTML='<div class="tk-grip"></div><h3>Share the list</h3><p class="tk-note">'+l.length+' open task'+(l.length===1?'':'s')+'. Keep details of members of the public out of personal email and apps.</p>'
+   +'<button type="button" class="tk-pick ls-move">'+svg(IC.download)+'<span><b>Move to a new version or phone</b><small>Copies everything exactly — paste it into Tasks in the other version or phone and it all comes back as it was</small></span></button>'
    +'<button type="button" class="tk-pick ls-copy">'+svg(IC.copy)+'<span><b>Copy the list</b><small>Paste it into a message or your notes</small></span></button>'
    +'<button type="button" class="tk-pick ls-mail">'+svg(IC.email)+'<span><b>Email it to me</b><small>'+(prefs().me?esc(prefs().me):'Set your email address the first time')+'</small></span></button>'
    +(navigator.share?'<button type="button" class="tk-pick ls-share">'+svg(IC.share)+'<span><b>Share…</b><small>Another app on this phone</small></span></button>':'')
@@ -1998,6 +2069,9 @@ function copyList(){
   sh.querySelector('.tk-x').onclick=()=>closeSheet();
   sh.querySelector('.ls-copy').onclick=()=>{ (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>{ closeSheet(); toast('List copied — paste it into a message or your notes'); }).catch(()=>{
     sh.innerHTML='<div class="tk-grip"></div><h3>Your tasks</h3><textarea class="tk-in tk-ta big" readonly>'+esc(txt)+'</textarea><button type="button" class="tk-sec-btn wide tk-x">Close</button>'; sh.querySelector('.tk-x').onclick=()=>closeSheet(); }); };
+  sh.querySelector('.ls-move').onclick=async()=>{ if(!mv){ try{ mv=await moveText(); }catch(e){ toast('Couldn’t make the copy on this phone'); return; } }
+    (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(mv):Promise.reject()).then(()=>{ closeSheet(); toast('Copied — now open Tasks in the new version and tap Paste your list'); }).catch(()=>{
+      sh.innerHTML='<div class="tk-grip"></div><h3>Your list, to move</h3><p class="tk-note">Select all of it and copy, then paste it into Tasks in the other version.</p><textarea class="tk-in tk-ta big" readonly>'+esc(mv)+'</textarea><button type="button" class="tk-sec-btn wide tk-x">Close</button>'; sh.querySelector('.tk-x').onclick=()=>closeSheet(); }); };
   sh.querySelector('.ls-mail').onclick=()=>{ const go=()=>{ closeSheet(); mailTo('Tasks — '+full(now),txt+'\n\n— sent from Assisting'); }; if(!prefs().me)askEmail(go); else go(); };
   const s2=sh.querySelector('.ls-share'); if(s2)s2.onclick=async()=>{ try{ await navigator.share({title:'Tasks',text:txt}); closeSheet(); }catch(e){} };
   sh.querySelector('.ls-cal').onclick=()=>{ if(!nd)return; closeSheet(); saveIcs(l,'tasks-'+dtVal(now).d+'.ics'); };
@@ -2100,5 +2174,5 @@ function summary(now){ now=now||Date.now(); const l=open_(), tr=tours(now,1)[0]|
   return {open:l.length,overdue:l.filter(t=>{ const c=classify(t,now); return c.od||c.sdo; }).length,urgent:l.filter(t=>t.urgent).length,tourN:tr?tourTasks(tr).length:0,tourOn:!!(tr&&tr.s<=now)}; }
 
 W.openTasks=openTasks; W.closeTasks=closeTasks; W.tskBack=back;
-W.GRTasks=Object.freeze({open:openTasks,days:openDays,_xlsx:()=>jobsXlsx(),newOn,forDay,mountStrip,check,summary,adopt,_db:()=>DB,_lib:{inWin,nextOpen,winOf,limitEnd,addMonths,cctvOverwrite,tours,nextChance,icsText,guessKind,stepsFor,parseOutline,parseJobs,markDups,mergeSteps,subJobs,norm,cnt,isDone,nextStepDue,stepLines,taskText,firstOpen,taskWin,openLeaves,upWin,curOpen,stepTags,classify,urgOf,stepUrgs,taskUrg,caseOf,nextPick,plan4,block,planUnits,modeOfText,winIn,impWin}});
+W.GRTasks=Object.freeze({open:openTasks,days:openDays,_xlsx:()=>jobsXlsx(),newOn,forDay,mountStrip,check,summary,adopt,_db:()=>DB,_lib:{inWin,nextOpen,winOf,limitEnd,addMonths,cctvOverwrite,tours,nextChance,icsText,guessKind,stepsFor,parseOutline,parseJobs,markDups,mergeSteps,subJobs,norm,cnt,isDone,nextStepDue,stepLines,taskText,firstOpen,taskWin,openLeaves,upWin,curOpen,stepTags,classify,urgOf,stepUrgs,taskUrg,caseOf,nextPick,plan4,block,planUnits,modeOfText,winIn,impWin,moveText,readMove,restoreMove,parseJobs2:parseJobs}});
 })();
