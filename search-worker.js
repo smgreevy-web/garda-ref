@@ -107,7 +107,7 @@ async function getJSON(u){ const r=await fetch(u); if(!r.ok)throw new Error(u+' 
 async function build(extra){
   const prog=(d,n)=>postMessage({t:'prog',d,n});
   META=await getJSON('data/meta.json');
-  const names=['az','cases','ops','stencils','kb','ops2','templates','guides3'];
+  const names=['az','cases','ops','stencils','kb','ops2','templates','guides3','cases_deep'];
   const got={}; const missing=[];
   await Promise.all(names.map(async n=>{ try{ got[n]=await getJSON('data/'+n+'.json'); }catch(e){ missing.push(n); } }));
   const total=META.chunks.length+names.length; let done=0;
@@ -127,8 +127,10 @@ async function build(extra){
   /* case law */
   (got.cases||[]).forEach(c=>{
     const cite=(c.c||[]).filter(Boolean).slice(0,2).join(' · ');
-    const x=[c.topic,c.why,c.f&&c.f.held?'Held: '+c.f.held:'',c.f&&c.f.facts?'Facts: '+c.f.facts:'',c.d,c.st?'Status: '+c.st:'',(c.s||[]).map(s=>s.t).join('\n')].filter(Boolean).join('\n\n').slice(0,3200);
+    const x=[c.topic,c.why,c.f&&c.f.held?'Held: '+c.f.held:'',c.f&&c.f.facts?'Facts: '+c.f.facts:'',c.d,c.t?'Test: '+c.t:'',c.st?'Status: '+c.st:'',(c.s||[]).map(s=>s.t).join('\n')].filter(Boolean).join('\n\n').slice(0,3200);
     addDoc('case','c:'+c.n,c.n,(c.cat||'Case law')+(c.court?' · '+c.court+(c.y?' '+c.y:''):'')+(cite?' · '+cite:''),x,{k:'case',n:c.n},c.chk?3.4:3);
+    const d=(got.cases_deep||{})[c.n];   // the in-depth write-up, searchable too
+    if(d)passages([(d.bg||[]).join('\n\n'),d.q,(d.dec||[]).join('\n\n'),(d.later||[]).join('\n'),(d.job||[]).join('\n'),d.law].filter(Boolean).join('\n\n'),900).forEach(P=>addDoc('case','c:'+c.n,c.n,'In depth'+(cite?' · '+cite:''),P.x,{k:'case',n:c.n},3.2));
   }); prog(++done,total);
   /* investigation / deep guides */
   (got.guides3||[]).forEach(g=>{ passages(g.b,950).forEach(P=>addDoc('guide','g:'+g.id,g.t,P.h?P.h:'Guide',P.x,{k:'guide',id:g.id},2)); });
