@@ -816,3 +816,75 @@ a.srcl::after{content:" ↗"}
 /* v74: "Check first" filter in the case library */
 .warnintro{margin:6px 12px 10px;padding:9px 11px;border-radius:10px;border:1px solid color-mix(in srgb,var(--amber) 55%,transparent);background:color-mix(in srgb,var(--amber) 10%,transparent);color:var(--tx);font-size:13.5px;line-height:1.45}
 .catchips .chip.warnchip:not(.on){border-color:color-mix(in srgb,var(--amber) 60%,transparent)}
+
+/* ---------- v83: case law in depth ---------- */
+.cs-djump{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 12px;padding:10px 12px;border-radius:10px;border:1px solid var(--accline);background:var(--accbg);color:var(--tx);font:600 14.5px/1.35 var(--font);text-align:left;cursor:pointer}
+.cs-djump svg{flex:0 0 auto;width:18px;height:18px;color:var(--acc)}
+.cs-deep{margin:0 0 6px}
+.cs-deep h4{margin:16px 0 4px;font:700 14.5px/1.35 var(--fhead,var(--font));color:var(--tx)}
+.cs-deep p{margin:0 0 8px}
+.cs-deep .rlist{margin:2px 0 8px}
+.cs-q{margin:8px 0 10px;padding:8px 12px;border-left:3px solid var(--acc);background:var(--accbg);border-radius:0 8px 8px 0;font-style:italic;color:var(--tx)}
+.cs-q cite{display:block;margin-top:3px;font-style:normal;font-size:13px;color:var(--dim)}
+.cs-dsrc{margin-top:14px!important;font-size:13px;color:var(--dim)}
+.deeppill{display:inline-block;margin-right:5px;padding:0 6px;border-radius:6px;border:1px solid var(--accline);background:var(--accbg);color:var(--tx);font-size:11.5px;font-weight:700;font-style:normal;line-height:1.6}
+.catchips .chip.deepchip{border-color:var(--accline)}
+
+/* In depth starts on a fresh page in book reading */
+.reader.book .rd-body .cs-dh{break-before:column}
+
+/* ---------- case law reference table: Case / Authority · Facts, Ratio & Reasoning · Practical Application ---------- */
+.rd-body .cl-tw{margin:2px -8px 16px}
+.rd-body .cl-t{--clh:color-mix(in srgb,var(--racc) 72%,#0b1a2e);--clb:color-mix(in srgb,var(--rtx) 30%,transparent);
+  width:100%;table-layout:fixed;border-collapse:collapse;border:1px solid var(--clb);background:var(--rsurf);
+  font-family:var(--font);font-size:.74em;line-height:1.46;color:var(--rtx);text-align:left;hyphens:auto;-webkit-hyphens:auto}
+.rd-body .cl-t col.c1{width:22%}.rd-body .cl-t col.c2{width:44%}.rd-body .cl-t col.c3{width:34%}
+.rd-body .cl-t th{background:var(--clh);color:#fff;font-weight:700;font-size:.97em;line-height:1.25;padding:.62em .5em;border:1px solid var(--clb);text-align:left;vertical-align:bottom;hyphens:manual;-webkit-hyphens:manual}
+.rd-body .cl-t td{padding:.62em .5em;border:1px solid var(--clb);vertical-align:top;overflow-wrap:break-word}
+.rd-body .cl-t td p{margin:0 0 .62em;font:inherit;color:inherit;text-align:left}
+.rd-body .cl-t td>p:last-child,.rd-body .cl-t td>ul:last-child{margin-bottom:0}
+.rd-body .cl-t .cl-lb{font-weight:800;letter-spacing:.02em;color:var(--racc)}
+.rd-body .cl-t .cl-h{margin:1em 0 .3em}
+.rd-body .cl-t td>.cl-h:first-child{margin-top:0}
+.rd-body .cl-a .cl-n{display:block;margin:0;padding:0;border:0;background:none;font:700 1.06em/1.3 var(--font);color:var(--rtx);text-align:left;hyphens:manual;-webkit-hyphens:manual;overflow-wrap:break-word}
+.rd-body .cl-a button.cl-n{cursor:pointer;color:var(--racc);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
+.rd-body .cl-a .cl-cit{display:block;margin-top:.3em}
+.rd-body .cl-a .cl-m{display:block;margin-top:.35em;color:var(--rdim);font-size:.93em}
+.rd-body .cl-pills{display:flex;flex-wrap:wrap;gap:.3em;margin-top:.55em}
+.rd-body .cl-pills i{font-style:normal;font-size:.86em;font-weight:600;line-height:1.25;padding:.12em .42em;border-radius:99px;border:1px solid var(--clb);color:var(--rdim)}
+.rd-body .cl-pills i.ok{color:var(--green);border-color:color-mix(in srgb,var(--green) 45%,transparent)}
+.rd-body .cl-pills i.un{color:var(--amber);border-color:color-mix(in srgb,var(--amber) 50%,transparent)}
+.rd-body .cl-pills i.ess,.rd-body .cl-pills i.deep{color:var(--racc);border-color:color-mix(in srgb,var(--racc) 45%,transparent)}
+.rd-body .cl-more{display:block;margin-top:.7em;padding:0;border:0;background:none;font:600 1em/1.3 var(--font);color:var(--racc);text-align:left;cursor:pointer}
+.rd-body .cl-t .cl-un{color:var(--amber);font-weight:700}
+.rd-body .cl-t .cl-w{color:var(--amber)}
+.rd-body .cl-t .cl-nb{color:var(--rdim);font-style:italic}
+.rd-body .cl-t .cl-kq{font-style:italic}
+.rd-body .cl-t .cl-kq span{font-style:normal;color:var(--rdim)}
+.rd-body .cl-t ul.cl-ul{margin:0 0 .62em;padding-left:1.05em;list-style:disc}
+.rd-body .cl-t ul.cl-ul li{margin:0 0 .4em;padding:0;color:inherit;font:inherit}
+.rd-body .cl-t ul.cl-ul li::before{display:none}
+.rd-body{--clb:color-mix(in srgb,var(--rtx) 30%,transparent)}
+.rd-body .cl-tw:has(+.cl-dh){margin-bottom:0}
+.rd-body .cl-dh{display:flex;align-items:flex-start;gap:.4em;margin:-1px -8px 0;padding:.55em .6em;border:1px solid var(--clb);background:color-mix(in srgb,var(--racc) 15%,var(--rsurf));
+  font:700 .74em/1.4 var(--font);color:var(--rtx)}
+.rd-body .cl-dh .gri{flex:0 0 auto;width:1.25em;height:1.25em;margin-top:.05em;color:var(--racc)}
+.rd-body .cl-tw2{margin-top:-1px}
+.reader.book .rd-body .cl-dh{break-before:column;break-after:avoid}
+@media (min-width:600px){.rd-body .cl-dh{margin:-1px 0 0;font-size:.8em}}
+@media (min-width:900px){.rd-body .cl-dh{font-size:.84em}}
+.rd-body .cl-sec{margin:.5em 0 .2em;font:700 1.12em/1.3 var(--fhead,var(--font));color:var(--racc)}
+.rd-body p.cl-intro{margin:0 0 .75em!important;font-style:italic;font-size:.84em;line-height:1.5;color:var(--rdim)!important}
+.rd-body p.cl-foot{margin-top:4px!important;font-size:.78em;color:var(--rdim)!important}
+.rd-body .cl-back{margin:0 0 12px}
+.cl-open{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin:10px 0 4px;padding:10px 12px;font:600 14px/1.3 var(--font);cursor:pointer}
+.cl-open .gri{width:18px;height:18px;flex:0 0 auto}
+.cl-open[hidden]{display:none}
+@media (min-width:600px){.rd-body .cl-tw{margin:2px 0 18px}.rd-body .cl-t{font-size:.8em}}
+@media (min-width:900px){.rd-body .cl-t{font-size:.84em}.rd-body .cl-t col.c1{width:20%}.rd-body .cl-t col.c3{width:36%}}
+/* book reading: the table keeps its sans face and left alignment, and a long row runs on to the next page */
+.reader.book .rd-body .cl-t{font-family:var(--font)!important;line-height:1.46!important}
+.reader.book .rd-body .cl-t td,.reader.book .rd-body .cl-t th,.reader.book .rd-body .cl-t p{text-align:left}
+.reader.book .rd-body .cl-t tr{break-inside:auto}
+.reader.book .rd-body .cl-sec{break-after:avoid}
+.rd-body>p.cs-dsrc{font-size:.8em}

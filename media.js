@@ -253,20 +253,32 @@ function scoreItem(it){
   it.urgent = s>=14 && ageH<8 && cats.has('serious') || (cats.has('missing') && s>=13 && ageH<24);
   it.tier = it.urgent?3:(s>=10?2:(s>=5?1:0));
 }
+// rss2json turns each outlet's RSS into JSON. On a busy mobile network it can time out or refuse a burst of requests,
+// so feeds are fetched a few at a time, each gets a second try after a short pause, and a failure is shown, not hidden.
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let newsState={err:null,at:0};
 async function fetchFeed(F){
   for(const url of F.u){
-    const ac=new AbortController(); const tm=setTimeout(()=>ac.abort(),10000);
-    try{
-      const r=await fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(url),{signal:ac.signal});
-      const j=await r.json(); if(j.status!=='ok'||!(j.items||[]).length)continue;
-      return (j.items||[]).map(i=>{ const d=clean(i.description), c=clean(i.content);
-        const ts=Date.parse(String(i.pubDate||'').replace(' ','T')+'Z')||Date.parse(i.pubDate)||0;
-        return {id:(i.guid||i.link||i.title||'').slice(-120),t:clean(i.title),d:d.slice(0,700),c:(c.length>d.length?c:d).slice(0,6000),ts,src:F.t,sk:F.k,l:/^https:\/\//.test(i.link||'')?String(i.link).slice(0,400):''}; })
-        .filter(it=>!isUKStory(it)); 
-    }catch(e){} finally{clearTimeout(tm);}
+    for(let attempt=0;attempt<2;attempt++){
+      const ac=new AbortController(); const tm=setTimeout(()=>ac.abort(),15000); let retry=false;
+      try{
+        const r=await fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(url),{signal:ac.signal,cache:'no-store'});
+        if(r.status===429||r.status>=500){ retry=true; }
+        else { const j=await r.json();
+          if(j.status==='ok'&&(j.items||[]).length)
+            return (j.items||[]).map(i=>{ const d=clean(i.description), c=clean(i.content);
+              const ts=Date.parse(String(i.pubDate||'').replace(' ','T')+'Z')||Date.parse(i.pubDate)||0;
+              return {id:(i.guid||i.link||i.title||'').slice(-120),t:clean(i.title),d:d.slice(0,700),c:(c.length>d.length?c:d).slice(0,6000),ts,src:F.t,sk:F.k,l:/^https:\/\//.test(i.link||'')?String(i.link).slice(0,400):''}; })
+              .filter(it=>!isUKStory(it));
+          retry=/limit|too many|busy|timeout/i.test(String(j.message||'')); }
+      }catch(e){ retry=!(e&&e.name==='AbortError'); } finally{ clearTimeout(tm); }
+      if(!retry)break; await sleep(1200+attempt*1500);
+    }
   }
   return null;
 }
+async function pool(items,n,fn){ const out=new Array(items.length); let i=0;
+  await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{ while(i<items.length){ const k=i++; out[k]=await fn(items[k]); } })); return out; }
 const STOP=new Set('the a an and or of to in on for at by with from after over into as is are was were be been has have had will says said say its his her their this that it new man woman two three four five one year years old garda gardai gardaí dublin irish ireland'.split(' '));
 const EVT={shoot:/\b(shot|shoot(ing|s)?|gun(man|men|fire)?|firearms?)\b/i,stab:/\b(stab(bed|bing)?|knife|slash(ed)?|machete)\b/i,missing:/\bmissing\b/i,
   crash:/\b(crash|collision|pedestrian|knocked down|hit by)\b/i,fire:/\b(fire|blaze)\b/i,drugs:/\b(drugs?|cocaine|cannabis|heroin|seiz(ed|ure))\b/i,
@@ -303,17 +315,26 @@ async function refreshNews0(force){
   let cached=null; try{cached=JSON.parse(localStorage.getItem(NEWS_KEY)||'null');}catch(e){}
   if(cached&&!news)news=cached;
   if(!force&&cached&&Date.now()-cached.t<8*60000)return;
-  if(navigator.onLine===false)return;
-  const res=await Promise.all(FEEDS.map(F=>fetchFeed(F).then(it=>({k:F.k,t:F.t,items:it||[]}))));
+  if(navigator.onLine===false){ newsState={err:'offline',at:Date.now()}; return; }
+  const res=await pool(FEEDS,4,F=>fetchFeed(F).then(it=>({k:F.k,t:F.t,items:it||[]})));
   const raw=res.filter(x=>x.items.length);
-  if(!raw.length)return;
+  if(!raw.length){ newsState={err:'none',at:Date.now()}; repaintStrips(); return; }
+  newsState={err:null,at:Date.now()};
   // merge same-named outlets (RTÉ ireland/crime/courts) into one source page
   const bySrc={}; raw.forEach(S=>{ (bySrc[S.t]=bySrc[S.t]||[]).push(...S.items); });
   const slim=it=>({id:it.id,t:it.t,d:it.d,c:it.c,ts:it.ts,src:it.src,sk:it.sk});
   news={t:Date.now(),raw:Object.entries(bySrc).map(([t,items])=>({t,items:items.sort((a,b)=>b.ts-a.ts).slice(0,25).map(slim)}))};
   try{localStorage.setItem(NEWS_KEY,JSON.stringify(news));}catch(e){}
-  notifyNew(); document.querySelectorAll('.nstrip').forEach(el=>el.classList.contains('istrip')?paintInner(el):paintStrip(el));
+  notifyNew(); repaintStrips();
 }
+function repaintStrips(){ document.querySelectorAll('.nstrip').forEach(el=>el.classList.contains('istrip')?paintInner(el):paintStrip(el)); }
+// what an empty strip says: loading, offline, couldn't reach the service (with Try again), or simply nothing recent
+function emptyMsg(local){
+  if(navigator.onLine===false)return 'Offline — '+(local?'local ':'')+'news loads when you have signal.';
+  if(newsState.err)return 'Couldn’t reach the news service just now'+(news&&news.t?' (last update '+when(news.t)+')':'')+'. <button type="button" class="ns-retry">Try again</button>';
+  if(news&&news.t)return (local?'No inner-city stories in the last few days.':'No Garda-relevant stories in the last 3 days.')+' <button type="button" class="ns-retry">Refresh</button>';
+  return local?'Loading inner-city news…':'Loading Garda-relevant news…'; }
+function wireRetry(el){ const b=el.querySelector('.ns-retry'); if(b)b.addEventListener('click',e=>{ e.stopPropagation(); b.disabled=true; b.textContent='Loading…'; newsState.err=null; refreshNews(true).then(()=>repaintStrips()); }); }
 function feedNow(){ if(!news||!news.raw)return []; return buildFeed(news.raw.map(S=>({items:S.items.map(x=>Object.assign({},x))}))); }
 function rowHtml(C,i){
   const it=C.lead;
@@ -325,11 +346,12 @@ let _feed=[];
 const STRIP_N=3;   // stories shown on Home; the rest are one tap away
 function paintStrip(el){
   _feed=feedNow();
-  const head='<div class="ns-head"><span class="ns-pip"></span><b>NEED-TO-KNOW NEWS</b><span class="ns-as">'+(news&&news.t?'updated '+hhmm(news.t):'')+'</span><button class="ns-bell'+(nset().on?' on':'')+'" aria-label="News alerts settings">'+bellIc(nset().on)+'</button></div>';
-  if(!_feed.length){ el.innerHTML=head+'<div class="ns-empty">'+(navigator.onLine===false?'Offline — news loads when you have signal.':'Loading Garda-relevant news…')+'</div>'; wireStrip(el); return; }
+  const head='<div class="ns-head"><span class="ns-pip"></span><b>NEED-TO-KNOW NEWS</b><span class="ns-as">'+(news&&news.t?'updated '+when(news.t):'')+'</span><button class="ns-bell'+(nset().on?' on':'')+'" aria-label="News alerts settings">'+bellIc(nset().on)+'</button></div>';
+  if(!_feed.length){ el.innerHTML=head+'<div class="ns-empty">'+emptyMsg(false)+'</div>'; wireStrip(el); wireRetry(el); return; }
   el.innerHTML=head+'<div class="ns-list">'+_feed.slice(0,STRIP_N).map(rowHtml).join('')+'</div>'
     +(_feed.length>STRIP_N?'<button type="button" class="ns-more">View all '+_feed.length+' stories ›</button>':'')
-    +'<div class="ns-foot">ranked for Garda need-to-know · '+(news.raw||[]).length+' Irish sources</div>';
+    +'<div class="ns-foot">'+(newsState.err==='none'?'couldn’t update just now — <button type="button" class="ns-retry">try again</button> · ':'')+'ranked for Garda need-to-know · '+(news.raw||[]).length+' Irish sources</div>';
+  wireRetry(el);
   wireStrip(el);
 }
 function wireStrip(el){
@@ -420,8 +442,8 @@ function innerNow(){
 let _inner=[];
 function paintInner(el){
   _inner=innerNow();
-  const head='<div class="ns-head"><span class="ns-pip loc"></span><b>DUBLIN INNER CITY</b><span class="ns-as">'+(news&&news.t?'updated '+hhmm(news.t):'')+'</span></div>';
-  if(!_inner.length){ el.innerHTML=head+'<div class="ns-empty">'+(navigator.onLine===false?'Offline — local news loads when you have signal.':(news&&news.t?'No inner-city stories in the last few days.':'Loading inner-city news…'))+'</div>'; return; }
+  const head='<div class="ns-head"><span class="ns-pip loc"></span><b>DUBLIN INNER CITY</b><span class="ns-as">'+(news&&news.t?'updated '+when(news.t):'')+'</span></div>';
+  if(!_inner.length){ el.innerHTML=head+'<div class="ns-empty">'+emptyMsg(true)+'</div>'; wireRetry(el); return; }
   el.innerHTML=head+'<div class="ns-list">'+_inner.slice(0,STRIP_N).map(rowHtml).join('')+'</div>'
     +(_inner.length>STRIP_N?'<button type="button" class="ns-more">View all '+_inner.length+' stories ›</button>':'')
     +'<div class="ns-foot">Dublin 1, 2, 3, 7 & 8 · newest first</div>';

@@ -73,13 +73,19 @@ function box(text,TW){ TW=TW||TEXT_W;
 function table(t,TW){ TW=TW||TEXT_W;
   const cols=t.cols&&t.cols.length?t.cols:(t.head||t.rows[0]||[]).map(()=>Math.floor(TW/((t.head||t.rows[0]||[1]).length)));
   const sum=cols.reduce((a,b)=>a+b,0), k=TW/sum, w=cols.map(c=>Math.floor(c*k));
-  const cell=(v,i,head)=>'<w:tc><w:tcPr><w:tcW w:w="'+w[i]+'" w:type="dxa"/>'+(head?'<w:shd w:val="clear" w:color="auto" w:fill="E7E6E6"/>':'')+'</w:tcPr>'
-    +(Array.isArray(v)?para(v,{sz:t.sz||9,b:head||(t.first&&i===0),after:0,line:240}):String(v==null?'':v).split('\n').map(l=>para(l,{sz:t.sz||9,b:head||(t.first&&i===0),after:0,line:240})).join(''))+'</w:tc>';
-  let h='<w:tbl><w:tblPr><w:tblW w:w="'+TW+'" w:type="dxa"/>'+borders(4,'8C8C8C',true)
-    +'<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+  // optional: headFill / headColor (header shading and text colour), split (long rows may run on to the next page),
+  // rich cells {ps:[para…]} (several paragraphs, each plain text or runs), full-width rows {span:'text', fill, color}
+  const hf=t.headFill||'E7E6E6', hc=t.headColor||undefined, keep=t.split?'':'<w:trPr><w:cantSplit/></w:trPr>';
+  const cell=(v,i,head)=>{ const o={sz:t.sz||9,b:head||(t.first&&i===0),color:head?hc:undefined,after:0,line:240};
+    return '<w:tc><w:tcPr><w:tcW w:w="'+w[i]+'" w:type="dxa"/>'+(head?'<w:shd w:val="clear" w:color="auto" w:fill="'+hf+'"/>':'')+'</w:tcPr>'
+    +(v&&v.ps?(v.ps.map(pp=>para(pp,Object.assign({},o,{after:70}))).join('')||para('',o)):Array.isArray(v)?para(v,o):String(v==null?'':v).split('\n').map(l=>para(l,o)).join(''))+'</w:tc>'; };
+  const span=r=>'<w:tr>'+keep+'<w:tc><w:tcPr><w:tcW w:w="'+TW+'" w:type="dxa"/><w:gridSpan w:val="'+w.length+'"/>'+(r.fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+r.fill+'"/>':'')+'</w:tcPr>'
+    +para(r.span,{sz:t.sz||9,b:true,color:r.color,after:0,line:240})+'</w:tc></w:tr>';
+  let h='<w:tbl><w:tblPr><w:tblW w:w="'+TW+'" w:type="dxa"/>'+borders(4,t.line||'8C8C8C',true)
+    +'<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="'+(t.pad||40)+'" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="'+(t.pad||40)+'" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr>'
     +'<w:tblGrid>'+w.map(c=>'<w:gridCol w:w="'+c+'"/>').join('')+'</w:tblGrid>';
   if(t.head&&t.head.some(v=>v!==''&&v!=null))h+='<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>'+t.head.map((v,i)=>cell(v,i,true)).join('')+'</w:tr>';
-  for(const r of t.rows)h+='<w:tr><w:trPr><w:cantSplit/></w:trPr>'+cols.map((_,i)=>cell(r[i],i,false)).join('')+'</w:tr>';
+  for(const r of t.rows)h+=r&&r.span!=null?span(r):'<w:tr>'+keep+cols.map((_,i)=>cell(r[i],i,false)).join('')+'</w:tr>';
   return h+'</w:tbl>'; }
 // a shaded note with a coloured edge — info (blue) or warn (red)
 function callout(c,TW){ const warn=c.tone==='warn', fill=warn?'FBECEC':'EEF3F9', edge=warn?'A23B3B':'2F5496', thin=warn?'E2B4B4':'B8C7DD';

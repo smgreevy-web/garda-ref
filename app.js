@@ -1,4 +1,4 @@
-window.GRAPP='82';
+window.GRAPP='188';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -212,7 +212,7 @@ function subView(){ view.innerHTML='<div id="results"></div>'; view.scrollTop=0;
 const vstack=[]; let vcur=null;
 const SUBVIEWS=['renderPTP','renderGuides','renderMajor','renderEssentials','renderOffences','renderOffence','renderStencils','renderLive','renderClock',
   'renderCourtDay','renderCaution','renderKBtopic','renderLatin','renderAcronyms','renderCCTV','renderCautions','renderTemplates','openTemplate','renderExhibits',
-  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings','renderWanted'];
+  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings','renderWanted','renderSearchPerson'];
 function sameArgs(a,b){ return JSON.stringify(a||[])===JSON.stringify(b||[]); }
 function wrapSubviews(){
   for(const name of SUBVIEWS){ const orig=window[name]; if(typeof orig!=='function'||orig._sv)continue;
@@ -259,6 +259,7 @@ const HOME=[
   ['hSocial','message-circle','Social media','official Garda accounts · Garda Info · Garda Traffic · DMR Facebook · TikTok · read-only','wide']]},
  {h:'On the job',c:[
   ['qbOff','shield','Offences','elements · arrest · statement'],
+  ['hSearchP','user-search','Search of the person','guided · power · grounds · what to say · record'],
   ['hPatrol','walk','Proactive patrol','GPS route · stops · times · patrol log'],
   ['hRoute','route','Emergency route','straight to a call · any road · ignores one-way'],
   ['hClock','timer','Detention clock','deadlines · extensions · alerts'],
@@ -403,6 +404,7 @@ function homeQuick(box){
   go('hTools',()=>{ if(window.openToolbox) window.openToolbox(); });
   go('hFirstAid',()=>{ if(window.openFirstAid) openFirstAid(); });
   go('hLiveNews',()=>{ if(window.GRMedia) GRMedia.openTV('sky'); });
+  go('hSearchP',()=>{ if(window.renderSearchPerson) window.renderSearchPerson(); });
   go('hRadio',()=>{ if(window.GRMedia) GRMedia.openRadio(); });
   go('hSocial',()=>{ if(window.openSocial) openSocial(); });
   { const top=view.querySelector('.sx-top'); if(top&&!view.querySelector('#homeHello'))top.insertAdjacentHTML('beforebegin','<div id="homeHello" aria-hidden="true"></div>'); }
@@ -727,22 +729,155 @@ function renderEssentials(){
   $$('#esslist .hit').forEach(b=>b.addEventListener('click',()=>openCase(b.dataset.n)));
   view.scrollTop=0;
 }
-function openCase(name){
+/* ---------- in-depth write-ups (data/cases_deep.json): facts in full, the reasoning, key lines, later cases, on the job ---------- */
+let DEEP=null, deepP=null;
+function loadDeep(){ if(DEEP)return Promise.resolve(DEEP); if(!deepP)deepP=fetch('data/cases_deep.json').then(r=>r.ok?r.json():{}).catch(()=>({})).then(d=>(DEEP=d||{})); return deepP; }
+const deepOf=n=>DEEP&&DEEP[n]?DEEP[n]:null;
+/* ---------- case law as a reference table: Case / Authority · Facts, Ratio & Reasoning · Practical Application ----------
+   Every case opens as a row of this table (FACTS · HELD · RATIO · TEST · STILL THE LAW?); a case written up in depth gets a
+   second row below (the question · facts in full, reasoning, key lines, later cases · on the job). A topic, a filter or the
+   whole library can be read as one table, numbered by topic, and saved as a Word file in the same layout. */
+const CL_HEAD=['Case / Authority','Facts, Ratio & Reasoning','Practical Application'];
+const CL_CATS=['Arrest & Detention','Search, Entry & Seizure','Confessions & Interviews','Inferences & Silence','Evidence & Exclusion','Identification','Disclosure & Fair Trial','Bail','Street & Public Order','Road Traffic','Sexual & DV','Sentencing','Constitutional & Rights','Immigration & Asylum','General'];
+const CL_INTRO={
+  'Arrest & Detention':'The foundation. Every coercive step flows from a lawful arrest and a lawful detention: your own reasonable suspicion, the reason given in plain language, and every minute in custody accounted for.',
+  'Search, Entry & Seizure':'Entry, search and seizure need lawful authority every time: a valid warrant or a clear statutory power, used within its limits and recorded.',
+  'Confessions & Interviews':'An admission is only as good as the way it was obtained: voluntary, after a caution, with access to a solicitor, and properly recorded.',
+  'Inferences & Silence':'Silence can’t be used against a suspect unless a statute allows an inference and its conditions are met: the warning in ordinary language, a chance to consult a solicitor, a recorded interview.',
+  'Evidence & Exclusion':'Evidence obtained in breach of the law or of constitutional rights can be excluded. Get the legal basis right first time and preserve what you find.',
+  'Identification':'Identification evidence needs special care: record the conditions of every sighting, and use formal procedures where identity is in issue.',
+  'Disclosure & Fair Trial':'The prosecution must disclose relevant material, and gardaí must seek out and preserve evidence that could bear on guilt or innocence.',
+  'Bail':'Bail is the rule and refusal the exception: an objection must rest on evidence of a recognised ground.',
+  'Street & Public Order':'Street powers (stop, search, direct, disperse) must be used for their purpose and within their limits, with tolerance for lawful protest.',
+  'Road Traffic':'Road traffic prosecutions turn on procedure: the right requirement, in the right words, on the right form, in the right order.',
+  'Sexual & DV':'Sexual and domestic abuse cases call for careful evidence-gathering, early protection of the victim and close attention to the statutory rules.',
+  'Sentencing':'How the courts approach sentence, and what your evidence (previous convictions, the impact on the victim, cooperation) contributes.',
+  'Constitutional & Rights':'The constitutional and Convention rights that frame every policing decision.',
+  'Immigration & Asylum':'Immigration powers, and the rights of people seeking protection.',
+  'General':'Offences, defences and general principles that come up across all kinds of work.'};
+const CL_COURT=[[/^Supreme Court of the United States/i,'US Sup Ct'],[/^Supreme Court of Canada/i,'Sup Ct Can'],[/^UK Supreme Court/i,'UKSC'],[/^Supreme Court/i,'SC'],
+  [/^Court of Criminal Appeal \(England/i,'CCA, E&W'],[/^Court of Criminal Appeal/i,'CCA'],[/^Court of Appeal \(England/i,'CA, E&W'],[/^Court of Appeal/i,'CA'],[/^High Court/i,'HC'],
+  [/^Special Criminal Court/i,'SCC'],[/^Central Criminal Court/i,'CCC'],[/^Circuit/i,'Circuit Ct'],[/^District Court/i,'DC'],[/^European Court of Human Rights \(Grand Chamber\)/i,'ECtHR, GC'],
+  [/^European Court of Human Rights/i,'ECtHR'],[/^Court of Justice/i,'CJEU'],[/^House of Lords/i,'HL'],[/^Privy Council/i,'PC'],[/^Divisional Court/i,'Div Ct']];
+function clAb(c){
+  if(c.court)return c.court.split(/;\s*/).map(p=>{ const m=CL_COURT.find(r=>r[0].test(p.trim())); return m?m[1]:''; }).filter((v,i,a)=>v&&a.indexOf(v)===i).join('/');
+  const m=String(c.d||'').match(/\((SC|CCA|CA|HC|HL|PC|UKSC|ECtHR|CJEU|SCC|CCC)\)/); if(m)return m[1];
+  const t=(c.c||[]).join(' ');
+  return /IESC/.test(t)?'SC':/IECCA/.test(t)?'CCA':/IECA/.test(t)?'CA':/IEHC/.test(t)?'HC':/UKHL/.test(t)?'HL':/UKSC/.test(t)?'UKSC':/EWCA/.test(t)?'CA, E&W':/ECHR|Application no/.test(t)?'ECtHR':''; }
+function clCites(c){ return (c.c||[]).map(s=>String(s||'').trim()).filter(s=>s&&/[\d)]$/.test(s)).slice(0,c.chk?2:1); }
+function clYear(c){ if(c.y)return c.y; const m=(c.c||[]).join(' ').match(/[[(]((?:18|19|20)\d\d)[\])]/); return m?m[1]:''; }
+function clHeld(c){ return String(c.f&&c.f.held||'').replace(/^Held:?\s*/i,''); }
+// a not-yet-checked case: split the manual's own note into its labelled parts (FACTS / PRINCIPLE / PRACTICAL APPLICATION …)
+const CL_MLB=/\b(FACTS|PRINCIPLE|PRACTICAL APPLICATION|CROSS-REFERENCES|RATIO|TEST|HELD|Holding|Held|Why It Matters|Why it matters|Facts|Principle)\s*:/g;
+function clManualParts(c){
+  const src=c.f&&c.f.facts?'FACTS: '+c.f.facts+(c.f.held?' HELD: '+c.f.held:''):String(c.d||'');
+  const parts=[]; let last=0, lab='', m; CL_MLB.lastIndex=0;
+  while((m=CL_MLB.exec(src))){ parts.push([lab,src.slice(last,m.index).trim()]); lab=m[1].toUpperCase(); last=CL_MLB.lastIndex; }
+  parts.push([lab,src.slice(last).trim()]);
+  const mid=[], prac=[];
+  parts.forEach(([l,t],i)=>{ if(!t)return;
+    if(!l&&i===0&&t.length<110&&/[[(]\d{4}[\])]/.test(t))return;   // just the case name and citation again
+    if(l==='PRACTICAL APPLICATION'||l==='WHY IT MATTERS')prac.push(t);
+    else mid.push([l==='HOLDING'?'HELD':l==='CROSS-REFERENCES'?'SEE ALSO':l,t]); });
+  if(!prac.length&&c.why)prac.push(c.why);
+  return {mid,prac}; }
+const clLb=s=>'<span class="cl-lb">'+s+'</span>';
+const clP=(lb,t)=>t?'<p>'+clLb(lb)+' '+esc(t)+'</p>':'';
+function clAuth(c,o){
+  const cites=clCites(c), ab=clAb(c), dp=deepOf(c.n), cit=(cites.join(' · ')+(ab?' ('+ab+')':'')).trim();
+  return '<td class="cl-a">'+(o.link?'<button type="button" class="cl-n cl-go" data-n="'+esc(c.n)+'">'+esc(c.n)+'</button>':'<b class="cl-n">'+esc(c.n)+'</b>')
+    +(cit?'<span class="cl-cit">'+esc(cit)+'</span>':'')+'<span class="cl-m">'+esc([clYear(c),c.cat||'General'].filter(Boolean).join(' · '))+'</span>'
+    +'<span class="cl-pills">'+(c.star?'<i class="ess">★ Essential</i>':'')+(dp?'<i class="deep">📖 In depth</i>':'')+(c.chk?'<i class="ok">✓ Checked</i>':'<i class="un">⚠ Not yet checked</i>')+'</span>'
+    +(o.link&&dp?'<button type="button" class="cl-more cl-go" data-n="'+esc(c.n)+'">Open in depth ›</button>':'')+'</td>'; }
+function clRow(c,o){ o=o||{};
+  const w=o.warn&&c.warn?'<p class="cl-w">⚠ '+esc(c.warn)+'</p>':'';
+  if(c.chk)return '<tr class="cl-r">'+clAuth(c,o)
+    +'<td class="cl-f">'+w+clP('FACTS:',c.f&&c.f.facts)+clP('HELD:',clHeld(c))+clP('RATIO:',c.d)+clP('TEST:',c.t)+clP('STILL THE LAW?',c.st)+'</td>'
+    +'<td class="cl-pa">'+(c.why?'<p>'+esc(c.why)+'</p>':'')+'</td></tr>';
+  const m=clManualParts(c);
+  return '<tr class="cl-r un">'+clAuth(c,o)
+    +'<td class="cl-f"><p class="cl-un">Not yet checked — your manual’s note:</p>'+w+(m.mid.map(([l,t])=>l?clP(l+':',t):'<p>'+esc(t)+'</p>').join('')||'<p>'+esc(c.d||'')+'</p>')+'</td>'
+    +'<td class="cl-pa">'+(m.prac.length?'<p class="cl-un">From your manual:</p>'+m.prac.map(t=>'<p>'+esc(t)+'</p>').join(''):'')+'<p class="cl-nb">Not yet checked against the judgment. Read it before relying on this.</p></td></tr>'; }
+function clDeepRows(d){
+  const P=a=>(Array.isArray(a)?a:[a]).filter(Boolean).map(x=>'<p>'+esc(x)+'</p>').join(''), U=a=>'<ul class="cl-ul">'+(a||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>', H=s=>'<p class="cl-h">'+clLb(s)+'</p>';
+  let mid='';
+  if(d.bg&&d.bg.length)mid+=H('FACTS IN FULL')+P(d.bg);
+  if(d.dec&&d.dec.length)mid+=H('THE COURT’S REASONING')+P(d.dec);
+  if(d.keys&&d.keys.length)mid+=H('KEY LINES')+d.keys.map(k=>'<p class="cl-kq">“'+esc(k.q)+'”'+(k.w?' <span>— '+esc(k.w)+'</span>':'')+'</p>').join('');
+  if(d.later&&d.later.length)mid+=H('LATER CASES')+U(d.later);
+  if(d.law)mid+=H('STILL THE LAW?')+P(d.law);
+  return '<div class="cl-dh" id="csDeep">'+(window.GRI?GRI('book-open'):'📖 ')+'<span>In depth — the full facts, the court’s reasoning and later cases'+(d.upd?' · written up '+esc(d.upd):'')+'</span></div>'
+    +clTable('<tr class="cl-r cl-deep"><td class="cl-a">'+(d.q?H('THE QUESTION')+P(d.q):'')+'</td><td class="cl-f">'+mid+'</td><td class="cl-pa">'+(d.job&&d.job.length?H('ON THE JOB')+U(d.job):'')+'</td></tr>',true); }
+function clTable(rows,cont){ return '<div class="cl-tw'+(cont?' cl-tw2':'')+'"><table class="cl-t"><colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>'+(cont?'':'<thead><tr>'+CL_HEAD.map(h=>'<th scope="col">'+esc(h)+'</th>').join('')+'</tr></thead>')+'<tbody>'+rows+'</tbody></table></div>'; }
+// group by topic, numbered as in the printed reference; checked cases first within each topic
+function clSections(items){
+  const by=new Map(); for(const c of items){ const k=c.cat||'General'; if(!by.has(k))by.set(k,[]); by.get(k).push(c); }
+  return [...CL_CATS,...[...by.keys()].filter(k=>!CL_CATS.includes(k))].filter(k=>by.has(k)).map(k=>[k,by.get(k).slice().sort((a,b)=>(b.chk?1:0)-(a.chk?1:0))]); }
+const clSecName=k=>{ const n=CL_CATS.indexOf(k)+1; return (n?n+'. ':'')+k; };
+/* the same layout as a Word file: navy header row, labelled paragraphs, long rows allowed to run on to the next page */
+function clDocT(rows){ return {cols:[21,43,36],head:CL_HEAD,rows,headFill:'1F3864',headColor:'FFFFFF',split:true,sz:8.5,line:'7F7F7F',pad:60}; }
+function clDocCells(c,o){ o=o||{};
+  const L=(lb,t)=>t?[[lb+' ','b'],[String(t),'']]:null, cites=clCites(c), ab=clAb(c);
+  const a={ps:[[[c.n,'b']],(cites.join(' · ')+(ab?' ('+ab+')':'')).trim(),[clYear(c),c.cat||'General'].filter(Boolean).join(' · '),
+    (c.star?'★ Essential · ':'')+(deepOf(c.n)?'In depth · ':'')+(c.chk?'✓ Checked':'⚠ Not yet checked')].filter(Boolean)};
+  const w=o.warn&&c.warn?[['⚠ '+c.warn,'i']]:null;
+  if(c.chk)return [a,{ps:[w,L('FACTS:',c.f&&c.f.facts),L('HELD:',clHeld(c)),L('RATIO:',c.d),L('TEST:',c.t),L('STILL THE LAW?',c.st)].filter(Boolean)},{ps:c.why?[c.why]:[]}];
+  const m=clManualParts(c);
+  return [a,{ps:[[['Not yet checked — your manual’s note:','b']],w].concat(m.mid.map(([l,t])=>l?L(l+':',t):t)).filter(Boolean)},
+    {ps:(m.prac.length?[[['From your manual:','b']]].concat(m.prac):[]).concat([[['Not yet checked against the judgment. Read it before relying on this.','i']]])}]; }
+function clDocDeep(d){ const B=t=>[[t,'b']];
+  return [{span:'In depth — the full facts, the court’s reasoning and later cases'+(d.upd?' · written up '+d.upd:''),fill:'DCE3EE'},
+    [{ps:d.q?[B('THE QUESTION'),d.q]:[]},
+     {ps:[].concat(d.bg&&d.bg.length?[B('FACTS IN FULL')].concat(d.bg):[],d.dec&&d.dec.length?[B('THE COURT’S REASONING')].concat(d.dec):[],
+       d.keys&&d.keys.length?[B('KEY LINES')].concat(d.keys.map(k=>[['“'+k.q+'”','i'],[k.w?' — '+k.w:'','']])):[],
+       d.later&&d.later.length?[B('LATER CASES')].concat(d.later.map(x=>'•  '+x)):[],d.law?[B('STILL THE LAW?'),d.law]:[])},
+     {ps:d.job&&d.job.length?[B('ON THE JOB')].concat(d.job.map(x=>'•  '+x)):[]}]]; }
+function clDocCase(c,dp){
+  const b=[{table:clDocT([clDocCells(c,{warn:true})].concat(dp?clDocDeep(dp):[]))}];
+  if((c.src||[]).length)b.push({note:'Summary checked against: '+c.src.map(x=>x.t+' — '+x.u).join(' · ')});
+  if(dp&&(dp.src||[]).length)b.push({note:'In depth written up '+(dp.upd||'')+' in our own words from: '+dp.src.map(x=>x.t+' — '+x.u).join(' · ')+'. Read the judgment before relying on it in court.'});
+  if((c.p||[]).length)b.push({note:'In your manual: '+c.p.map(pageLabel).join(' · ')});
+  return b; }
+function clDocTable(secs){ const b=[];
+  secs.forEach(([k,cs])=>{ b.push({h1:clSecName(k)}); if(CL_INTRO[k])b.push({p:[[CL_INTRO[k],'i']],small:true}); b.push({table:clDocT(cs.map(c=>clDocCells(c,{warn:true})))}); });
+  b.push({note:'Working reference — check the judgment before relying on it in court. Cases marked “not yet checked” show your manual’s note as it stands.'});
+  return b; }
+/* a topic, a filter or the whole library as one table */
+let clLast=null;
+function openCaseTable(items,title,keep){
+  if(!items||!items.length)return;
+  if(!DEEP){ loadDeep().then(()=>openCaseTable(items,title,keep)); return; }
+  clLast={items,title,top:0,page:0};
+  reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
+  $('#rdTitle').textContent=title.charAt(0).toUpperCase()+title.slice(1); $('#rdPage').textContent='Case law · '+items.length+(items.length===1?' case':' cases')+' · tap a name to open it';
+  $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
+  $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
+  const secs=clSections(items);
+  rdBody.innerHTML='<p class="cl-0" hidden></p>'+secs.map(([k,cs])=>'<h2 class="cl-sec">'+esc(clSecName(k))+'</h2>'+(CL_INTRO[k]?'<p class="cl-intro">'+esc(CL_INTRO[k])+'</p>':'')+clTable(cs.map(c=>clRow(c,{link:true,warn:true})).join(''))).join('')
+    +'<p class="cl-foot">Working reference — check the judgment before relying on it in court. Cases marked “not yet checked” show your manual’s note as it stands.</p>';
+  curDoc={title:'Case law — '+title,blocks:clDocTable(secs),text:''}; updateDlBtn();
+  rdBody.querySelectorAll('.cl-go').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); clLast.top=rdBody.scrollTop; clLast.page=book.page; openCase(b.dataset.n,true); }));
+  rdBody.scrollTop=0;
+  if(keep)setTimeout(()=>{ if(book.on)bookLayout(keep.page||0); else rdBody.scrollTop=keep.top||0; },90); }
+function deepText(d){ return ['IN DEPTH',d.bg&&d.bg.length?'The facts in full:\n'+d.bg.join('\n\n'):'',d.q?'What the court had to decide:\n'+d.q:'',d.dec&&d.dec.length?'The court’s reasoning:\n'+d.dec.join('\n\n'):'',
+  d.keys&&d.keys.length?'Key lines:\n'+d.keys.map(k=>'“'+k.q+'”'+(k.w?' — '+k.w:'')).join('\n'):'',d.later&&d.later.length?'How later cases have treated it:\n- '+d.later.join('\n- '):'',
+  d.job&&d.job.length?'On the job:\n- '+d.job.join('\n- '):'',d.law?'Still the law?\n'+d.law:''].filter(Boolean).join('\n\n'); }
+function openCase(name,fromTable){
   const c=CASES.find(x=>x.n===name); if(!c)return;
+  if(!DEEP)loadDeep().then(()=>{ if(deepOf(name)&&!reader.classList.contains('hidden')&&$('#rdTitle').textContent===name){ const st=rdBody.scrollTop; openCase(name); rdBody.scrollTop=st; } });
+  const dp=deepOf(c.n);
   reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
   $('#rdTitle').textContent=c.n; $('#rdPage').textContent=[c.cat||'General',c.court?(c.court+(c.y?' '+c.y:'')):'',c.c.filter(Boolean).join(' · ')].filter(Boolean).join(' · ');
   $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
-  let h='';
+  let h=fromTable&&clLast?'<button type="button" class="chip cl-back">‹ Back to the table</button>':'';
   const wbox=c.warn?'<div class="cs-warn">'+(window.GRI?GRI('triangle-alert'):'⚠')+'<span>'+esc(c.warn)+'</span></div>':'';
   if(!c.chk)h+=wbox;   // unchecked: the warning comes first; checked: the ✓ first, then the note about the manual
   if(c.chk)h+='<div class="cs-chk'+(c.conf==='low'?' low':'')+'">'+(window.GRI?GRI(c.conf==='low'?'info':'check'):'✓')+'<span>'+(c.conf==='high'?'Checked against the judgment or a reliable case note — sources below.':c.conf==='low'?'Only partly checked — the free report doesn’t show the ruling. Read the judgment before relying on it.':'Checked against one source only — read the judgment before relying on it in court.')+'</span></div>';
   if(c.chk)h+=wbox;
-  if(c.why)h+='<div class="rbox note"><b>'+(c.chk?'On the job:':'Why it matters:')+'</b> '+esc(c.why)+'</div>';
-  else if(c.d)h+='<div class="rbox note">'+esc(c.d)+'</div>';
-  if(c.f){if(c.f.facts)h+='<div class="rsub">Facts</div><p>'+esc(c.f.facts)+'</p>';
-    if(c.f.held)h+='<div class="rbox held"><b>Held:</b> '+esc(c.f.held)+'</div>';}
-  if(c.st)h+='<div class="rsub">Still the law?</div><p>'+esc(c.st)+'</p>';
+  if(dp)h+='<button type="button" class="cs-djump">'+(window.GRI?GRI('book-open'):'')+'In depth — the full facts, reasoning and later cases ↓</button>';
+  h+='<p class="cl-0" hidden></p>'+clTable(clRow(c))+(dp?clDeepRows(dp):'');
+  if(dp&&dp.src&&dp.src.length)h+='<p class="cs-dsrc">In depth written up '+esc(dp.upd||'')+' in our own words from: '+dp.src.map(x=>'<span class="extj" data-href="'+esc(x.u)+'">'+esc(x.t)+'</span>').join(' · ')+'. Read the judgment before relying on it in court.</p>';
   if(c.src&&c.src.length)h+='<div class="rsub">Where it was checked (needs signal)</div><p>'+c.src.map(x=>'<span class="extj" data-href="'+esc(x.u)+'">'+esc(x.t||x.u.replace(/^https?:\/\/(www\.)?/,'').split('/')[0])+'</span>').join(' · ')+'</p>';
   if((c.s||[]).length||c.p.length){
     h+='<div class="rsub">In your manual</div>'+(c.chk?'<p class="cs-man">Your manual’s notes on this case haven’t been re-checked — where they differ, go by the checked summary above.</p>':'');
@@ -752,7 +887,12 @@ function openCase(name){
     h+='<div class="rsub">Full judgment (needs signal)</div><p>'+(nc?'<span class="extj" data-u="cite">BAILII — '+esc(nc.s)+'</span> · ':'')
       +'<span class="extj" data-u="bailii">'+(nc?'Search BAILII by name':jur==='echr'?'BAILII — Human Rights Court':jur==='all'?'BAILII — all courts':'BAILII')+'</span>'
       +(jur==='ie'?' · <span class="extj" data-u="courts">Courts.ie</span>':'')+' · <span class="extj" data-u="westlaw">Westlaw (your login)</span></p>'; }
-  rdBody.innerHTML=h; curDoc={title:c.n,text:[c.c.filter(Boolean).join(' · '),c.court?(c.court+(c.y?' '+c.y:'')):'',c.why?'On the job: '+c.why:(c.d||''),c.f?('Facts: '+(c.f.facts||'')+'\nHeld: '+(c.f.held||'')):'',c.st?'Still the law? '+c.st:'',(c.src||[]).length?'Checked against: '+c.src.map(x=>x.t+' — '+x.u).join('\n'):'',(c.s||[]).map(x=>pageLabel(x.a)+' — '+x.t).join('\n\n')].filter(Boolean).join('\n\n')}; updateDlBtn();
+  rdBody.innerHTML=h; curDoc={title:c.n,blocks:clDocCase(c,dp),text:[c.c.filter(Boolean).join(' · '),c.court?(c.court+(c.y?' '+c.y:'')):'',c.why?'On the job: '+c.why:(c.d||''),c.f?('Facts: '+(c.f.facts||'')+'\nHeld: '+(c.f.held||'')):'',c.t?'Test: '+c.t:'',c.st?'Still the law? '+c.st:'',(c.src||[]).length?'Checked against: '+c.src.map(x=>x.t+' — '+x.u).join('\n'):'',dp?deepText(dp):'',(c.s||[]).map(x=>pageLabel(x.a)+' — '+x.t).join('\n\n')].filter(Boolean).join('\n\n')}; updateDlBtn();
+  { const bk=rdBody.querySelector('.cl-back'); if(bk)bk.onclick=()=>openCaseTable(clLast.items,clLast.title,{top:clLast.top,page:clLast.page}); }
+  { const j=rdBody.querySelector('.cs-djump'); if(j)j.onclick=()=>{ const t=rdBody.querySelector('#csDeep'); if(!t)return;
+      if(book.on){ const st=bookStride(), x=rdBody.scrollLeft+(t.getBoundingClientRect().left-rdBody.getBoundingClientRect().left);
+        book.page=Math.max(0,Math.min(book.pages-1,Math.floor((x+2)/st))); rdBody.scrollTo({left:book.page*st,behavior:'smooth'}); bookPaint(); }
+      else t.scrollIntoView({block:'start',behavior:'smooth'}); }; }
   rdBody.querySelectorAll('.xref').forEach(x=>x.addEventListener('click',()=>openPage(+x.dataset.a)));
   rdBody.querySelectorAll('.extj').forEach(x=>x.addEventListener('click',()=>{
     if(x.dataset.href){ window.open(x.dataset.href,'_blank','noopener'); return; }
@@ -982,7 +1122,9 @@ function caseSurname(n){
 function renderCases(){
   const rail=$('#rail'), list=$('#ixlist');
   list.insertAdjacentHTML('beforebegin',`<div class="searchbox" style="top:auto"><input id="cq" type="search" placeholder="Filter ${CASES.length} cases — name, citation, topic…" value="${esc(caseQ)}"></div>
-  <div class="chips catchips">${['All','⚠ Check first',...new Set(CASES.map(c=>c.cat))].map(c=>`<button class="chip ${c===(window.caseCat||'All')?'on':''}${c==='⚠ Check first'?' warnchip':''}" data-cc="${c}">${c}${c==='⚠ Check first'?' ('+CASES.filter(x=>x.warn).length+')':''}</button>`).join('')}</div>`);
+  <div class="chips catchips">${['All',...(DEEP&&Object.keys(DEEP).length?['📖 In depth']:[]),'⚠ Check first',...new Set(CASES.map(c=>c.cat))].map(c=>`<button class="chip ${c===(window.caseCat||'All')?'on':''}${c==='⚠ Check first'?' warnchip':''}${c==='📖 In depth'?' deepchip':''}" data-cc="${c}">${c}${c==='⚠ Check first'?' ('+CASES.filter(x=>x.warn).length+')':c==='📖 In depth'?' ('+CASES.filter(x=>deepOf(x.n)).length+')':''}</button>`).join('')}</div><button type="button" class="csall cl-open" id="clOpen" hidden></button>`);
+  $('#clOpen').addEventListener('click',()=>openCaseTable(window._clItems||[],window._clTitle||'library'));
+  if(!DEEP)loadDeep().then(()=>{ if(Object.keys(DEEP).length&&$('#cq'))renderIndex(); });
   $$('.catchips .chip').forEach(ch=>ch.addEventListener('click',()=>{window.caseCat=ch.dataset.cc;renderIndex();}));
   const draw=()=>{
     const q=caseQ.trim().toLowerCase();
@@ -990,18 +1132,22 @@ function renderCases(){
     if(!q&&(!window.caseCat||window.caseCat==='All')){
       const nn=n=>n.toLowerCase().replace(/^the\s+/,'').replace(/^people \((dpp|ag)\)/,'$1');
       const seenE=new Set(); const ess=CASES.map(c=>{const k=Object.keys(ESSENTIALS).find(k=>nn(c.n).includes(k));if(!k||seenE.has(k))return null;seenE.add(k);return {c,why:ESSENTIALS[k]};}).filter(Boolean);
-      if(ess.length)essHtml='<h2 class="sec">★ The essentials — know these cold</h2>'+ess.map(e=>`<button class="hit ixhit esshit" data-n="${esc(e.c.n)}"><div class="h-title"><i>${esc(e.c.n)}</i> ${e.c.c[0]?'· '+esc(e.c.c[0]):''}</div><div class="h-snip">${esc(e.why)}</div></button>`).join('')+'<h2 class="sec">Full library</h2>';
+      if(ess.length)essHtml='<h2 class="sec">★ The essentials — know these cold</h2>'+ess.map(e=>`<button class="hit ixhit esshit" data-n="${esc(e.c.n)}"><div class="h-title"><i>${esc(e.c.n)}</i> ${e.c.c[0]?'· '+esc(e.c.c[0]):''}${deepOf(e.c.n)?' <span class="deeppill">📖 in depth</span>':''}</div><div class="h-snip">${esc(e.why)}</div></button>`).join('')+'<h2 class="sec">Full library</h2>';
     }
     let items=CASES.filter(c=>!q||c.n.toLowerCase().includes(q)||c.c.join(' ').toLowerCase().includes(q)||(c.d||'').toLowerCase().includes(q)||((c.topic||'')+' '+(c.why||'')).toLowerCase().includes(q))
       .slice().sort((a,b)=>caseSurname(a.n).localeCompare(caseSurname(b.n),'en',{sensitivity:'base'}));
-    if(window.caseCat==='⚠ Check first'){ items=items.filter(c=>c.warn); essHtml='<p class="warnintro">Cases where your manual is wrong, or that couldn’t be confirmed. Open one to see what’s wrong and the pages it appears on — worth correcting in your volumes.</p>'; }
+    if(window.caseCat==='📖 In depth'){ items=items.filter(c=>deepOf(c.n)); essHtml='<p class="warnintro deepintro">Cases written up in depth — the facts in full, the court’s reasoning, key lines, how later cases treated them and what they mean on the job.</p>'; }
+    else if(window.caseCat==='⚠ Check first'){ items=items.filter(c=>c.warn); essHtml='<p class="warnintro">Cases where your manual is wrong, or that couldn’t be confirmed. Open one to see what’s wrong and the pages it appears on — worth correcting in your volumes.</p>'; }
     else if(window.caseCat&&window.caseCat!=='All')items=items.filter(c=>c.cat===window.caseCat);
+    { const ob=$('#clOpen'), cat=window.caseCat||'All', n=items.length; window._clItems=items;
+      window._clTitle=q?'“'+caseQ.trim()+'”':cat==='All'?'the whole library':cat==='📖 In depth'?'in depth':cat==='⚠ Check first'?'check first':cat;
+      if(ob){ ob.hidden=!n; ob.innerHTML=(window.GRI?GRI('table-3'):'▦ ')+'<span>'+esc(q?'Read these '+n+' as a table':cat==='All'?'Read the whole library as a table, by topic ('+n+')':'Read '+(cat==='📖 In depth'?'the in-depth cases':cat==='⚠ Check first'?'the “check first” cases':'“'+cat+'”')+' as a table ('+n+')')+'</span>'; } }
     let html='', cur='', letters=new Set();
     for(const c of items){
       const L=(caseSurname(c.n)[0]||'#').toUpperCase().replace(/[^A-Z]/,'#');
       if(L!==cur&&!q){cur=L;letters.add(L);html+=`<div class="letterhead" id="L${L}">${L}</div>`;}
       html+=`<div class="cslot"><button class="ixrow case cshead"><span class="term">${esc(c.n)}</span>
-        <div class="refs">${c.chk?'<span class="chkpill" title="Checked summary">✓ checked</span>':c.warn?'<span class="warnpill" title="Couldn’t be confirmed — check before citing">⚠ check first</span>':''}<span class="catpill">${esc(c.cat||'General')}</span> ${c.c.filter(Boolean).length?esc(c.c.filter(Boolean).slice(0,2).join(' · ')):'cited in text'} · ${c.p.length?c.p.length+'pp':esc(c.court||'')+(c.y?' '+c.y:'')} ▾</div>
+        <div class="refs">${deepOf(c.n)?'<span class="deeppill" title="Written up in depth">📖 in depth</span>':''}${c.chk?'<span class="chkpill" title="Checked summary">✓ checked</span>':c.warn?'<span class="warnpill" title="Couldn’t be confirmed — check before citing">⚠ check first</span>':''}<span class="catpill">${esc(c.cat||'General')}</span> ${c.c.filter(Boolean).length?esc(c.c.filter(Boolean).slice(0,2).join(' · ')):'cited in text'} · ${c.p.length?c.p.length+'pp':esc(c.court||'')+(c.y?' '+c.y:'')} ▾</div>
         <div class="csdesc">${esc((c.d||'').slice(0,150))}</div></button>
         <div class="csbody hidden">
           ${!c.chk&&c.warn?'<div class="cs-warn">'+(window.GRI?GRI('triangle-alert'):'⚠')+'<span>'+esc(c.warn)+'</span></div>':''}
@@ -1131,7 +1277,7 @@ const TOOLS_MENU=[
   ['checks','list-checks','Checklists','Scene · arrest · warrant · exhibits · interview · ID']]],
  ['Law & guides',[
   ['guides2','book-open','Deep guides','Searches · weapons · RTC · précis · missing person'],
-  ['searches','search','Searches','Powers & what to say'],
+  ['searchp','user-search','Search of the person','Guided: power · grounds · what to say · what to record'],
   ['weapons','swords','Weapons & knives','Offences · search · seizure'],
   ['rtc','car-front','Traffic collision','Investigation guide'],
   ['escooter','route','E-scooters','Status · charges · collisions'],
@@ -1165,6 +1311,7 @@ function renderTools(){
     if(v==='gaol'){ if(window.openGaol) openGaol(); return; }
     if(v==='social'){ if(window.openSocial) openSocial(); return; }
     if(v==='wanted'){ renderWanted(); return; }
+    if(v==='searchp'){ if(window.renderSearchPerson) window.renderSearchPerson(); return; }
     if(v==='firstaid'){ if(window.openFirstAid) openFirstAid(); return; }
     if(v==='tasks'){ if(window.openTasks) openTasks(); return; }
     if(v==='roster'){ if(window.openRoster) openRoster(); return; }
@@ -1893,6 +2040,7 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
       if(vis(p)){ if(!clk('#osPanel #ospClose'))p.classList.add('hidden'); return true; }
       if(window.closeOSINT){ closeOSINT(); return true; } }
     if(!reader.classList.contains('hidden')){ closeReader(); return true; }
+    if(window.GRSP&&GRSP.back&&GRSP.back())return true;                      // search of the person: back through the questions
     if(window.GRSearch&&GRSearch.back&&GRSearch.back())return true;          // search: key sheet → AI thread
     if(vcur){                                                               // sub-view → the screen before it → the tab
       if(vstack.length){ const p=vstack.pop(); vcur=null; const fn=window[p.f]; if(typeof fn==='function'){ fn.apply(null,p.a); view.scrollTop=p.y||0; } return true; }
