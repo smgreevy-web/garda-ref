@@ -426,7 +426,8 @@ function renderClock(c){
      +(R.exc.length?'<button type="button" class="da" data-a="exc">⏸ Excluded period</button>':'')
      +'<button type="button" class="da" data-a="desk">🖥 Desk mode</button>'
      +'<button type="button" class="da da-stop" data-a="stop">■ Stop clock</button>'
-     +'<button type="button" class="da" data-a="copy">⧉ Copy summary</button></div>';
+     +'<button type="button" class="da" data-a="copy">⧉ Copy summary</button>'
+     +'<button type="button" class="da" data-a="nb">📓 Notebook timeline</button></div>';
   }
   // stages
   h+='<h3 class="det-sec">Stages — '+esc(R.name)+'</h3>'+(openPause(s)?'<p class="det-note pzn">⏸ The clock is paused, so these times move later for as long as the pause lasts.</p>':'')+'<div class="det-stages">';
@@ -454,7 +455,7 @@ function renderClock(c){
       :'<p class="det-note">None recorded. '+(c.ended?'':'Use “Excluded period” for rest, hospital, court or a doctor’s certificate.')+'</p>';
   } else h+='<h3 class="det-sec">Excluded periods</h3><p class="det-note">'+esc(R.law[R.law.length-1])+'</p>';
   // record + law
-  if(c.ended)h+='<div class="det-row2"><button type="button" class="det-sec-btn" data-a="copy">⧉ Copy summary</button><span></span></div>';
+  if(c.ended)h+='<div class="det-row2"><button type="button" class="det-sec-btn" data-a="copy">⧉ Copy summary</button><button type="button" class="det-sec-btn" data-a="nb">📓 Notebook timeline</button></div>';
   h+='<details class="det-law"><summary>The law — '+esc(R.name)+'</summary><ul>'+R.law.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><p class="det-note">Checked against the revised Acts (Law Reform Commission). Verify before relying on it.</p></details>';
   if(!alertsOn()||!permOK())h+=alertCard();
   h+='<div class="det-links">'+(c.ended?'':'<button type="button" class="det-link" data-a="edit">✎ Edit details</button>')+'<button type="button" class="det-link del" data-a="delete">Delete this clock</button></div>';
@@ -463,6 +464,7 @@ function renderClock(c){
   main.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click',()=>{const a=b.dataset.a;
     if(a==='ext')sheetExt(c); else if(a==='exc')sheetExc(c); else if(a==='desk')openDesk(c.id); else if(a==='stop')sheetStop(c);
     else if(a==='undo')sheetUndo(c); else if(a==='copy')copySummary(c); else if(a==='edit'){view='edit';render();main.scrollTop=0;} else if(a==='delete')sheetDelete(c);
+    else if(a==='nb'&&W.renderNB){ const id=c.id; closeDetention(); W.renderNB('custody',{clock:id}); }
   }));
   main.querySelectorAll('[data-end]').forEach(b=>b.onclick=()=>{const e=(c.exc||[]).find(x=>x.id===b.dataset.end);if(!e)return;
     let to=Date.now(); if(e.type==='cert'&&to-e.from>6*H)to=e.from+6*H; e.to=to; save(); render(); toast('Excluded period ended — the clock is running again');});

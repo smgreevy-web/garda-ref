@@ -1723,9 +1723,18 @@ function recent(n){
       cur.continue(); };
   }).catch(()=>[]);
 }
+/* a new note from another screen (e.g. a notebook-entry draft): saved at once, then opened in the editor */
+function compose(title,text){
+  return load().then(()=>{
+    const rec=newRec(), now=Date.now();
+    const html=sanitize(String(text||'').split('\n').map(l=>'<div>'+(l.trim()?esc(l):'<br>')+'</div>').join(''));
+    Object.assign(rec,{title:String(title||'').replace(/\s+/g,' ').trim().slice(0,160),html,text:htmlText(html),folder:null,pinned:false,created:now,updated:now});
+    return putNote(rec).then(()=>{ openNote(rec.id); return rec.id; });
+  });
+}
 W.openNotes=openNotes;
 W.openNote=id=>openNote(id==null?undefined:id);
 W.closeNotes=closeNotes;
 W.ntsBack=ntsBack;
-W.GRNotes=Object.freeze({recent,open:openNotes,openNote:id=>openNote(id==null?undefined:id)});
+W.GRNotes=Object.freeze({recent,open:openNotes,openNote:id=>openNote(id==null?undefined:id),compose});
 })();

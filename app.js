@@ -1,4 +1,4 @@
-window.GRAPP='188';
+window.GRAPP='189';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -212,7 +212,7 @@ function subView(){ view.innerHTML='<div id="results"></div>'; view.scrollTop=0;
 const vstack=[]; let vcur=null;
 const SUBVIEWS=['renderPTP','renderGuides','renderMajor','renderEssentials','renderOffences','renderOffence','renderStencils','renderLive','renderClock',
   'renderCourtDay','renderCaution','renderKBtopic','renderLatin','renderAcronyms','renderCCTV','renderCautions','renderTemplates','openTemplate','renderExhibits',
-  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings','renderWanted','renderSearchPerson'];
+  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings','renderWanted','renderSearchPerson','renderNB','renderNBLib','renderRS'];
 function sameArgs(a,b){ return JSON.stringify(a||[])===JSON.stringify(b||[]); }
 function wrapSubviews(){
   for(const name of SUBVIEWS){ const orig=window[name]; if(typeof orig!=='function'||orig._sv)continue;
@@ -260,6 +260,8 @@ const HOME=[
  {h:'On the job',c:[
   ['qbOff','shield','Offences','elements · arrest · statement'],
   ['hSearchP','user-search','Search of the person','guided · power · grounds · what to say · record'],
+  ['hNB','notebook-pen','Notebook entries','every offence · search · incident · complaint-proof'],
+  ['hRS','brain','Reasonable suspicion','think it through · grounds for your notebook'],
   ['hPatrol','walk','Proactive patrol','GPS route · stops · times · patrol log'],
   ['hRoute','route','Emergency route','straight to a call · any road · ignores one-way'],
   ['hClock','timer','Detention clock','deadlines · extensions · alerts'],
@@ -447,6 +449,8 @@ function homeQuick(box){
   go('hSentence',()=>openGuide3('sentencing'));
   go('hDiscretion',()=>openGuide3('discretion'));
   go('hIplan',()=>openGuide3('iplan'));
+  go('hNB',()=>{ if(window.renderNBLib)renderNBLib(); });
+  go('hRS',()=>{ if(window.renderRS)renderRS(); });
   go('hAmend',()=>openGuide3('amendments'));
   go('hJudg',()=>renderJudgments());
   go('hCourtLists',()=>renderCourtLists());
@@ -566,8 +570,12 @@ function openGuide3(id){
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
   if(g.blocks){ curDoc={title:g.t,text:g.b,blocks:g.blocks}; rdBody.innerHTML=renderBlocks(g.blocks,{sections:true,link:true}); wireBlocks(rdBody); }
   else { curDoc={title:g.t,text:g.b}; rdBody.innerHTML=formatPage(g.b); }
+  if(NBG[id]&&window.GRNB){ rdBody.insertAdjacentHTML('afterbegin',GRNB.links(NBG[id])); GRNB.wire(rdBody); }
   applyRdScale(); rdBody.scrollTop=0; updateDlBtn();
 }
+const NBG={po:['po6','po8','publicorder','difficult'],affray:['publicorder','assault3'],drugs:['drugs3','drugs15','sperson','svehicle','warrant'],assault_inv:['assault2','assault3','harm4'],robbery_inv:['robbery14'],burglary_inv:['burglary12','entry'],theft_inv:['theft4','handling17'],clamping:['svehicle','seizure'],discretion:['difficult'],precis2:['cctv','recognition'],iplan:['admissions','custody'],indecency:['arrestentry','difficult']};
+const NBK={searches:['sperson','svehicle','consent','warrant','entry'],weapons:['sperson','svehicle','seizure'],rtc:['rtc','drinkroadside','drinkstation','dangerous53'],escooter:['escooter','rtc'],seizure:['seizure','cctv'],missing:['missing'],exhibitsHelp:['seizure','cctv'],precis:['cctv','recognition']};
+function nbBar(ids,box){ if(!window.GRNB||!ids||!box)return; box.insertAdjacentHTML('beforeend',GRNB.links(ids)); GRNB.wire(box); }
 /* synonym groups for full-text search — a word that isn't on the page is tried as its synonyms */
 const SYN=[
  ['garda','gardai','gardaí','member','police'],
@@ -677,11 +685,13 @@ function renderPTP(){
     <div class="csbody hidden"><ul class="rlist" style="color:var(--ink)">${p.e.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>
     <div class="ddefk"><b>Arrest/notes:</b> ${esc(p.a)}</div>
     <button class="csall gbtn" data-g="${p.g}">📝 Statement guide for this offence</button>
+    <button class="csall" data-nb="ptp:${pi}">📓 Notebook entry for this offence</button>
     <button class="csall" data-q="${esc(p.o.split('—')[0].trim())}">⌕ Open in manual</button></div></div>`;
   });
   $('#results').innerHTML=html;
   $$('.cshead').forEach(h=>h.addEventListener('click',()=>h.nextElementSibling.classList.toggle('hidden')));
   $$('#results .csall').forEach(b=>b.addEventListener('click',()=>{
+    if(b.dataset.nb){ if(window.renderNB)renderNB(b.dataset.nb); return; }
     if(b.dataset.g){renderGuides(b.dataset.g);return;}
     searchFor(b.dataset.q);}));
   view.scrollTop=0;
@@ -716,6 +726,7 @@ function renderMajor(){
   html+=`<button class="csall" data-a="${M.src}">Open homicide chapter (2007 manual)</button><button class="csall" data-a="1168">Open general investigation chapter</button>
   <div class="toolnote">Ticks are session-only — nothing stored. This guide supplements, never replaces, direction from your member i/c and SIO.</div>`;
   view.innerHTML=html;
+  nbBar(['major','publicorder','suddendeath','missing'],view);
   $$('.ck').forEach(c=>c.addEventListener('click',()=>{const k=c.dataset.k;toolState[k]=!toolState[k];c.classList.toggle('done',toolState[k]);c.querySelector('.box').textContent=toolState[k]?'✓':'';}));
   $$('#view .csall').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.a)));
   view.scrollTop=0;
@@ -918,12 +929,14 @@ function renderOffence(i){
     <button class="qbtn" id="oPlay">Playbook<small>5-part approach</small></button>
     <button class="qbtn" id="oSearch">⌕ In the manual<small>every mention</small></button>
     <button class="qbtn" id="oCases">⚖ Related case law<small>from the library</small></button>
+    <button class="qbtn" id="oNB">📓 Notebook entry<small>detailed draft · why each part matters</small></button>
   </div>`;
   $('#backO').addEventListener('click',renderOffences);
   $('#oGuide').addEventListener('click',()=>renderGuides(p.g));
   $('#oPlay').addEventListener('click',()=>openPage(986));
   $('#oSearch').addEventListener('click',()=>searchFor(short));
   $('#oCases').addEventListener('click',()=>{window.caseCat='All';ixKind='case';caseQ=short.split(' ')[0];setTab('index');render();});
+  $('#oNB').addEventListener('click',()=>{ if(window.renderNB)renderNB('ptp:'+i); });
   view.scrollTop=0;
 }
 function renderStencils(){
@@ -1256,6 +1269,8 @@ const TOOLS_MENU=[
   ['gaol','users','Gaoler · cell checks','Cell board · buzz 2 min before each check · check log'],
   ['patrol','walk','Proactive patrol','Where you walked and when — stops, street names, patrol log'],
   ['firstaid','heart-pulse','Medical emergency','112/999 · CPR metronome · 22 conditions · incident log','red'],
+  ['nb','notebook-pen','Notebook entries','Every offence, search and incident · complaint-proof entry'],
+  ['rs','brain','Reasonable suspicion','Think it through · numbered grounds for your notebook'],
   ['ptp','shield','Points to prove','20 offence cards — elements & arrest power'],
   ['major','siren','Major incident','First response · golden hour'],
   ['cautions','triangle-alert','Cautions & declarations','Caution wording · pre-caution questioning · declarations'],
@@ -1312,6 +1327,8 @@ function renderTools(){
     if(v==='social'){ if(window.openSocial) openSocial(); return; }
     if(v==='wanted'){ renderWanted(); return; }
     if(v==='searchp'){ if(window.renderSearchPerson) window.renderSearchPerson(); return; }
+    if(v==='nb'){ if(window.renderNBLib) renderNBLib(); return; }
+    if(v==='rs'){ if(window.renderRS) renderRS(); return; }
     if(v==='firstaid'){ if(window.openFirstAid) openFirstAid(); return; }
     if(v==='tasks'){ if(window.openTasks) openTasks(); return; }
     if(v==='roster'){ if(window.openRoster) openRoster(); return; }
@@ -1376,6 +1393,7 @@ function renderKBtopic(v){
   if(K.sections)h+=K.sections.map(sec=>`<div class="tool"><h3>${esc(sec.h)}</h3><ul class="rlist" style="color:var(--ink)">${sec.items.map(i=>'<li>'+esc(i)+'</li>').join('')}</ul></div>`).join('');
   if(K.items)h+='<div class="tool">'+K.items.map(([a,b])=>`<div style="padding:8px 0;border-bottom:1px solid var(--navy3)"><b style="color:var(--gold)">${esc(a)}</b><div style="font-size:13.5px">${esc(b)}</div></div>`).join('')+'</div>';
   view.innerHTML=h;wireBack();view.scrollTop=0;
+  nbBar(NBK[v],view);
 }
 function renderLatin(){
   const K=KB.latin;let h=kbHead('📜 '+K.t)+`<div class="searchbox" style="position:static"><input id="lxq" type="search" placeholder="Filter terms…"></div><div id="lxl"></div>`;
@@ -1545,6 +1563,7 @@ function renderDeep(g){
   const V=OPS2[g];
   view.innerHTML=`<button class="chip" id="backD">‹ Deep guides</button><h2 class="sec">${esc(V.title)}</h2>${blocksHTML(V.blocks)}`;
   $('#backD').addEventListener('click',()=>renderDeep());
+  nbBar(NBK[g],view);
   view.scrollTop=0;
 }
 let rdScale=parseFloat(localStorage.getItem('gr_rdscale')||'1');
