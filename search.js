@@ -43,7 +43,7 @@ const APP_HELP=[
  ['cctvreq','CCTV preservation request','CCTV preservation request: fills in a preservation letter for a business, plus the s.41B Data Protection Act reminder.'],
  ['wanted','Most wanted — Interpol, FBI, Europe, UK','Most wanted: Tools → Most wanted. Live from the official lists: Interpol Red Notices wanted by Ireland, Interpol notices for Irish nationals, all Interpol Red Notices, and the FBI list; Europe’s Most Wanted and the UK lists (National Crime Agency, Crimestoppers) open on their own sites. Nothing is saved on the phone. A notice alone is not grounds for arrest — confirm on PULSE and through the Garda international liaison / Interpol office.'],
  ['fakecall','Fake call and Pomodoro timer','Fake call: Toolbox → Fake call. Pick a caller name and when it should ring (5 seconds to 5 minutes); the phone shows a real-looking incoming call screen, rings and vibrates, and you can answer and act out the call to get out of a situation. Keep Assisting open until it rings. Pomodoro: Toolbox → Pomodoro — focus for 25 minutes, then a 5-minute break, with a long break every fourth time (or 45/15, 50/10).'],
- ['news','News, radio, TV and social media','Live news (Sky News, RTÉ), Irish radio stations, need-to-know Garda and crime news ranked for urgency, a Dublin inner city news strip (Dublin 1, 2, 3, 7 and 8 — local papers such as DublinLive, Dublin People and Dublin Inquirer plus national stories that name the area, newest first), and official Garda social media accounts, read-only in the app. Each strip shows the top stories — tap View all for the full list. Follow-up stories about the same event are grouped under one story, so the same news is not repeated. Needs signal.']
+ ['news','News, radio and TV','Live news (Sky News, RTÉ), Irish radio stations, need-to-know Garda and crime news ranked for urgency, a Dublin inner city news strip (Dublin 1, 2, 3, 7 and 8 — local papers such as DublinLive, Dublin People and Dublin Inquirer plus national stories that name the area, newest first). Each strip shows the top stories — tap View all for the full list. Follow-up stories about the same event are grouped under one story, so the same news is not repeated. Needs signal.']
 ];
 const TOOLBOX=[['torch','Torch','Torch, flashlight, SOS strobe'],['level','Spirit level','Level, flat surface'],['angle','Inclinometer','Angle, slope'],['compass','Compass','Bearing, direction, north'],
  ['ruler','Ruler','Measure small objects on screen'],['measure','Measure','Measure distance with the camera, evidence photo'],['speed','Speedometer','GPS speed'],['location','Location','Coordinates, address, grid reference'],
@@ -84,7 +84,7 @@ function call(msg){ return new Promise((res,rej)=>{ const w=worker(); if(!w){rej
 /* ---------- state ---------- */
 const FILTERS=[['all','All'],['manual','Manual'],['cases','Case law'],['guides','Guides'],['offences','Offences'],['forms','Forms'],['app','App & first aid']];
 const TYPE={page:['book-open','Manual'],az:['list','Index'],case:['scale','Case law'],guide:['book-marked','Guide'],off:['shield','Offence card'],sg:['file-text','Statement guide'],
-  tpl:['mail','Template'],sten:['layout-template','Stencil'],kb:['book-text','Quick reference'],ops2:['book-text','Quick reference'],major:['siren','Checklist'],
+  tpl:['mail','Template'],nb:['notebook-pen','Notebook entry'],sten:['layout-template','Stencil'],kb:['book-text','Quick reference'],ops2:['book-text','Quick reference'],major:['siren','Checklist'],
   fa:['heart-pulse','First aid'],tool:['wrench','Toolbox'],app:['smartphone','App']};
 const S={q:'',filter:'all',res:null,shown:20,seq:0,keyAsk:null,ai:null};
 try{ const t=JSON.parse(sessionStorage.getItem(TKEY)||'null'); if(t&&t.turns)S.ai=t; }catch(_){}
@@ -153,7 +153,7 @@ function paintEmpty(box){
   </div>
   ${rec.length?`<h2 class="sec">Recent searches<span class="sec-r"><button type="button" class="sx-clr">Clear</button></span></h2><div class="lgrp">${rec.map(x=>`<button type="button" class="lrow sx-rec" data-q="${e(x)}">${I('history')}<span class="lt"><b>${e(x)}</b></span>${I('chevron-right','chev')}</button>`).join('')}</div>`:''}
   <h2 class="sec">What's searched</h2>
-  <div class="sx-what">${[['book-open',(n.page||1478).toLocaleString('en-IE')+' manual pages'],['scale',(n.case||397)+' cases'],['book-marked',((n.guide||15)+(n.ops2||11)+(n.kb||8))+' guides & quick references'],['shield',((n.off||20)+(n.sg||11))+' offence cards & statement guides'],['mail',((n.tpl||8)+(n.sten||12))+' templates & stencils'],['heart-pulse',(n.fa||22)+' first-aid conditions · '+((n.app||0)+(n.tool||0))+' app tools']].map(([i,t])=>`<div>${I(i)}<span>${e(t)}</span></div>`).join('')}</div>
+  <div class="sx-what">${[['book-open',(n.page||992).toLocaleString('en-IE')+' manual pages'],['scale',(n.case||397)+' cases'],['book-marked',((n.guide||15)+(n.ops2||11)+(n.kb||8))+' guides & quick references'],['shield',((n.off||20)+(n.sg||11))+' offence cards & statement guides'],['mail',((n.tpl||8)+(n.sten||12))+' templates & stencils'],['heart-pulse',(n.fa||22)+' first-aid conditions · '+((n.app||0)+(n.tool||0))+' app tools']].map(([i,t])=>`<div>${I(i)}<span>${e(t)}</span></div>`).join('')}</div>
   <div class="sx-priv">${I('lock')}<span>Your notes, tasks, patrols, recordings and roster are never searched by AI or sent anywhere.</span></div>`;
   box.querySelectorAll('.sx-exq').forEach(b=>b.addEventListener('click',()=>{ S.q=b.textContent; S.filter='all'; V.querySelectorAll('.sx-f .chip').forEach(x=>x.classList.toggle('on',x.dataset.f==='all')); const q=V.querySelector('#q'); if(q)q.value=S.q; V.querySelector('.sx-clear').hidden=false; remember(S.q); run(); ask(S.q,'ask'); }));
   box.querySelectorAll('.sx-rec').forEach(b=>b.addEventListener('click',()=>{ S.q=b.dataset.q; const q=V.querySelector('#q'); if(q)q.value=S.q; V.querySelector('.sx-clear').hidden=false; run(); }));
@@ -171,6 +171,7 @@ function paintRes(box){
   const r=S.res; paintCounts(r.counts);
   let h=aiCard(S.q.trim());
   if(!r.items.length){ h+=`<div class="empty">Nothing in the app matches “${e(S.q)}”${S.filter!=='all'?' in this filter':''}. Try fewer or different words${S.filter!=='all'?', or the All filter':''} — or ask AI.</div>`+blRow(); box.innerHTML=h; wireAICard(box); wireBl(box); return; }
+  if(S.filter==='all'&&W.GRAsk)h+=GRAsk.block(r.items,S.q.trim());
   h+=`<h2 class="sec">${S.filter==='all'?'Best matches':e(FILTERS.find(f=>f[0]===S.filter)[1])}<span class="sec-r">${r.total} result${r.total===1?'':'s'}</span></h2><div class="lgrp">`;
   r.items.slice(0,S.shown).forEach((it,i)=>{ const T=TYPE[it.k]||['circle-dot',''];
     h+=`<button type="button" class="lrow sr" data-i="${i}">${I(T[0])}<span class="lt"><b>${e(it.t)}</b><small class="sr-l"><span class="sr-k">${e(T[1])}</span>${it.l?' · '+e(it.l):''}${it.dated?' · <span class="sr-old">verify — 2007</span>':''}</small>${it.snip&&it.k!=='az'?`<span class="sr-snip">${hl(it.snip,r.terms)}</span>`:''}</span></button>`; });
@@ -180,6 +181,8 @@ function paintRes(box){
   box.innerHTML=h; wireAICard(box); wireBl(box);
   box.querySelectorAll('.sr').forEach(b=>b.addEventListener('click',()=>{ remember(S.q); openItem(r.items[+b.dataset.i].o); }));
   const m=box.querySelector('.sx-more'); if(m)m.addEventListener('click',()=>{ S.shown+=30; paintRes(box); });
+  box.querySelectorAll('.as-go').forEach(b=>b.addEventListener('click',()=>{ remember(S.q); openItem(r.items[+b.dataset.i].o); }));
+  box.querySelectorAll('.as-next button').forEach(b=>b.addEventListener('click',()=>{ S.q=b.textContent; S.shown=20; const q=V.querySelector('#q'); if(q)q.value=S.q; try{ lastQuery=S.q; }catch(_){} V.querySelector('.sx-clear').hidden=false; V.querySelector('.sx-top').classList.remove('noq'); remember(S.q); run(); V.scrollTop=0; }));
 }
 
 /* ---------- open anything ---------- */
@@ -190,6 +193,7 @@ function openItem(o){
       case 'page': openPage(o.a); break;
       case 'case': openCase(o.n); break;
       case 'guide': openGuide3(o.id); break;
+      case 'nb': if(W.renderNB)W.renderNB(o.id); break;
       case 'off': renderOffence(o.i); break;
       case 'sg': renderGuides(o.g); break;
       case 'tpl': openTemplate(o.i); break;
@@ -205,8 +209,9 @@ function openItem(o){
 }
 function openApp(v){
   const f={patrol:'openPatrol',gaol:'openGaol',det:'openDetention',tasks:'openTasks',roster:'openRoster',notes:'openNotes',rec:'openRecorder',scan:'openScanner',
-    pres:'openPresent',map:'openOSINT',firstaid:'openFirstAid',toolbox:'openToolbox',news:'openSocial',route:'openRoute',sync:'openSync'}[v];
+    pres:'openPresent',map:'openOSINT',firstaid:'openFirstAid',toolbox:'openToolbox',route:'openRoute',sync:'openSync'}[v];
   if(f&&typeof W[f]==='function'){ W[f](); return; }
+  if(v==='news'&&W.GRMedia){ GRMedia.openTV('sky'); return; }
   if(v==='cams'&&W.openCamReel){ openCamReel(0,null,true); return; }
   if(v==='exhibits'){ renderExhibits(); return; }
   if(v==='cctvreq'){ renderCCTV(); return; }
@@ -233,7 +238,6 @@ Rules for the answer:
 - Lead with the direct answer in one or two sentences, then the key points (powers, conditions, time limits, what to say or record). Short paragraphs and "- " bullets; **bold** only for key terms. Usually 80–250 words.
 - Base every legal point on the sources and cite them inline like [4] or [2][7]. Never cite a source that doesn't support the point.
 - Never invent section numbers, time limits, penalties, case names or quotations. If the sources don't cover something, say so plainly ("Not covered in your app"); you may add general knowledge only if it is labelled "General knowledge — verify".
-- Sources marked 2007 manual may be out of date; say so when you rely on one.
 - If the right answer depends on facts you don't have (e.g. the person's age, where it happened, which offence, time already in custody, consent, whether there's a warrant), still give the best general answer AND ask up to 3 short clarifying questions, each with 2–5 tap-able answer options. Only ask questions whose answers would change the advice.
 - When the officer answers your questions, give the specific answer for those facts.
 - For questions about using the app, name the feature to open and say how.

@@ -1246,7 +1246,7 @@ function wireEdit(){
     const cr=()=>{ readDraft(); r.querySelector('.tk-help-r').innerHTML=cctvRes(t.cctv,Date.now()); const b=r.querySelector('.f-cdl'); b.disabled=!t.cctv.inc;
       b.textContent='Set deadline '+(cctvOverwrite(t.cctv)?'a day before':'for 24 h after the incident'); };
     dtWire(r,'inc',cr);
-    r.querySelectorAll('[data-keep]').forEach(b=>b.onclick=()=>{ t.cctv.keep=+b.dataset.keep||0; r.querySelectorAll('[data-keep]').forEach(x=>x.classList.toggle('on',x===b)); cr(); });
+    r.querySelectorAll('[data-keep]').forEach(b=>b.onclick=()=>{ t.cctv=t.cctv||{}; t.cctv.keep=+b.dataset.keep||0; r.querySelectorAll('[data-keep]').forEach(x=>x.classList.toggle('on',x===b)); cr(); });
     const cd=r.querySelector('.f-cdl'); if(cd)cd.onclick=()=>{ readDraft(); const c=t.cctv; if(!c.inc)return; const ow=cctvOverwrite(c);
       let due=ow?ow-DAY:c.inc+DAY; if(due<Date.now()+30*MIN)due=Math.ceil((Date.now()+60*MIN)/MIN)*MIN; t.rem=[0,60]; t.urgent=true; t.tour=null;
       dtSet(r,'due',due); const ti=r.querySelector('.f-title'); if(!ti.value.trim())ti.value='Collect CCTV';

@@ -282,6 +282,7 @@ function resultHtml(){
   if(p&&!(pl.stop&&!pl.tags.has('cavity')))h+=det('The power in full — and its pitfalls',powerBody(pl.power)+pl.also.map(x=>'<p class="sp-l">If they’re in or with a vehicle</p>'+powerBody(x)).join(''));
   if(pl.tags.has('grounds')&&(A.grounds||[]).length)h+=det('Your grounds',(A.grounds||[]).map(k=>{ const g=GROUNDS.find(x=>x[0]===k); return g?'<div class="sp-g '+g[1]+'"><b>'+(g[1]==='ok'?'Specific':g[1]==='maybe'?'Possibly':'Not on its own')+'</b> — '+withCases(g[2])+(GTIP[k]?'<span>'+withCases(GTIP[k])+'</span>':'')+'</div>':''; }).join('')
     +'<p class="sp-dim">Not reasonable cause on their own: area reputation (Farrell), nervousness, an anonymous call with no detail, clothing, age, ethnicity or group, being out late or with a known person, previous convictions, stale intelligence. The test is objective: would a reasonable garda, knowing what you knew then, have suspected?</p>');
+  if(live)h+='<div class="nb-links"><b>'+ic('brain')+'Before you search</b><div class="nb-lk"><button type="button" class="nb-lkb rs" data-rs="1">'+ic('brain')+'Reasonable suspicion — think it through</button><button type="button" class="nb-lkb" data-nb="difficult">'+ic('shield-check')+'Difficult interaction — complaint-proof entry</button><button type="button" class="nb-lkb" data-nb="sperson">'+ic('notebook-pen')+'Full notebook entry</button></div></div>';
   if(live)h+=det('Notebook draft — copy into your notes','<p class="sp-dim">Fill the brackets with what actually happened, at the time. Never add grounds after the fact.</p><textarea class="sp-nb" readonly rows="9">'+esc(notebook(pl))+'</textarea><button type="button" class="sp-btn sp-copy">'+ic('clipboard-list')+'Copy the draft</button>'
     +'<p class="sp-l">Body-worn camera</p><p>Activate it before the search, say the power and the reason out loud, and check the Code of Practice before recording during a strip search.</p>');
   const sc=SCEN.map(s=>[s,s[4].split(' ').filter(t=>pl.tags.has(t)).length]).filter(x=>x[1]).sort((a,b)=>b[1]-a[1]||a[0][0]-b[0][0]).slice(0,6).map(x=>x[0]);
@@ -393,6 +394,7 @@ function wire(main){
     const fb=()=>{ ta.removeAttribute('readonly'); ta.select(); try{ document.execCommand('copy'); }catch(e){} ta.setAttribute('readonly',''); ok(); };
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,fb); else fb(); });
   main.querySelectorAll('[data-sf]').forEach(b=>b.addEventListener('click',()=>{ scenF=b.dataset.sf; draw(true); }));
+  if(window.GRNB)GRNB.wire(main);
 }
 function scrollTop(){ const v=document.getElementById('view'), m=root&&root.querySelector('#spMain'); if(v&&m){ const y=m.getBoundingClientRect().top-v.getBoundingClientRect().top+v.scrollTop-10; v.scrollTop=Math.max(0,y); } }
 function back(){ if(mode!=='guide'){ mode='guide'; draw(); return true; } if(step>0){ step--; draw(); scrollTop(); return true; } return false; }

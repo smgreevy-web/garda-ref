@@ -11,7 +11,7 @@ function toast(m){ if(window.grToast)return window.grToast(m); console.log(m); }
 
 /* ================= LIVE TV (in-app YouTube) ================= */
 const TV={
-  sky:{t:'Sky News',s:'24/7 live',src:'https://www.youtube.com/embed/PP0xlL6Wo7c?autoplay=1&playsinline=1&rel=0&modestbranding=1',
+  sky:{t:'Sky News',s:'24/7 live',src:'https://www.youtube.com/embed/live_stream?channel=UCoMdktPbSTixAyNGwb-UYkQ&autoplay=1&playsinline=1&rel=0&modestbranding=1',
        alt:'https://www.youtube.com/embed/videoseries?list=UUoMdktPbSTixAyNGwb-UYkQ&playsinline=1&rel=0', altT:'Sky News · latest videos'},
   rte:{t:'RTÉ News',s:'latest reports',src:'https://www.youtube.com/embed/videoseries?list=UU8urSFTmQDxaPDEIZ2Fd63Q&autoplay=1&playsinline=1&rel=0&modestbranding=1'}
 };

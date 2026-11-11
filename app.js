@@ -1,4 +1,4 @@
-window.GRAPP='189';
+window.GRAPP='202';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -7,7 +7,7 @@ const view=$('#view'), reader=$('#reader'), rdBody=$('#rdBody');
 let META=null, AZ=null, CASES=null, OPS=null, OPS2=null, TPL=null, G3=null, STEN=null, KB=null;
 const CHUNKS={};            // file -> {start,end,pages}
 let chunksReady=false, chunksLoading=false;
-let curPage=1, tab='search', lastQuery='', lastFilter='all';
+let curPage=1, tab='today', lastQuery='', lastFilter='all';
 let toolState={};           // session-only checklist state
 const FAVKEY='gr_favs_v1';
 let favs=JSON.parse(localStorage.getItem(FAVKEY)||'[]'); // [{a,title,label}] — section IDs only
@@ -16,7 +16,7 @@ let favs=JSON.parse(localStorage.getItem(FAVKEY)||'[]'); // [{a,title,label}] �
 (async function boot(){
   if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
   const [m,a,cs,op,sn,kb,o2,tpl,g3]=await Promise.all(['meta','az','cases','ops','stencils','kb','ops2','templates','guides3'].map(f=>fetch('data/'+f+'.json').then(r=>r.json())));
-  META=m; AZ=a; CASES=cs; OPS=op; OPS2=o2; TPL=tpl; G3=g3; STEN=sn; KB=kb;
+  META=m; AZ=a; CASES=cs; window.CASES_N=cs.length; OPS=op; OPS2=o2; TPL=tpl; G3=g3; STEN=sn; KB=kb;
   window.GRVER='v'+(window.GRAPP||'')+' · content '+META.built+' · '+META.pages+' pp'; { const vi=$('#verinfo'); if(vi)vi.textContent=GRVER; }
   wrapSubviews(); bindUI(); render();
   loadAllChunks(); // background; SW caches for offline
@@ -71,13 +71,15 @@ function titleFor(abs){
   while(lo<=hi){const mid=(lo+hi)>>1; if(t[mid][0]<=abs){ans=t[mid][1];lo=mid+1;}else hi=mid-1;}
   return ans;
 }
-function isDated(abs){ return abs>=993; } // 2007 manual
+function isDated(abs){ return false; } // the 2007 manual pages were removed
 
 /* ---------- tabs ---------- */
 function applyFS(){document.documentElement.dataset.fs=localStorage.getItem('gr_fs')||'m';}
 /* ---------- display: theme + text size (the Aa button) ---------- */
 /* [key, name, note, page, card, text, accent, tone] — keep in step with the head script in index.html and the tokens in theme.css */
 const THEMES=[
+  ['pro','Pro','Clean and bright · light by day','#F2F4F8','#FFFFFF','#101828','#2F6FB0','light'],
+  ['pronight','Pro night','Deep navy · for night tours','#0A101B','#131D2E','#E7EDF5','#7FB2F0','dark'],
   ['ivory','Ivory','Warm paper · best in daylight','#f3f0e9','#fbf9f4','#1d2733','#1f4e79','light'],
   ['daylight','Daylight','Maximum contrast · bright sun','#f2f3f5','#ffffff','#000000','#0047b3','light'],
   ['sepia','Sepia','Soft and warm · long reads','#eee4d1','#f6eedd','#2e2316','#8a4513','light'],
@@ -87,7 +89,9 @@ const THEMES=[
   ['navy','Navy & brass','Classic','#0c1320','#121b2a','#e6eaf0','#c9a96e','dark'],
   ['forest','Forest & sage','Deep green · calm','#0f1411','#151c18','#e2e9e4','#9cc58f','dark'],
   ['midnight','Midnight & amber','True black · gentle at night','#000000','#0d0d0e','#ece9e4','#e0a650','dark']];
+const proAuto=()=>{ try{ return localStorage.getItem('gr_pro_auto')!=='0'; }catch(e){ return true; } };
 function applyTheme(t){
+  if((t==='pro'||t==='pronight')&&proAuto())t=sunUp(Date.now())?'pro':'pronight';   // light by day, dark at night
   let th=THEMES.find(x=>x[0]===t); if(!th)th=THEMES[0];
   const d=document.documentElement; d.dataset.theme=th[0]; d.dataset.tone=th[7]; try{localStorage.setItem('gr_theme',th[0]);}catch(e){}
   const m=document.querySelector('meta[name="theme-color"]'); if(m)m.setAttribute('content',th[3]);
@@ -121,18 +125,19 @@ function applyLook(k,mode){
   let L=LOOKS.find(x=>x[0]===k)||LOOKS[0]; const d=document.documentElement;
   try{ localStorage.setItem('gr_look',L[0]); if(mode)localStorage.setItem('gr_look_mode',mode); }catch(e){}
   if(nightRed()&&!sunUp(Date.now()))L=LOOKS.find(x=>x[0]==='redlight');   // after dark: red light, until sunrise
-  if(L[0]==='classic'){ d.removeAttribute('data-look'); applyTheme(d.dataset.theme||'ivory'); }
+  if(L[0]==='classic'){ d.removeAttribute('data-look'); applyTheme(d.dataset.theme||'pro'); }
   else { mode=mode||lookMode(); const tone=L[3]==='d'?'dark':L[3]==='l'?'light':(mode==='light'||mode==='dark')?mode:(darkPref()?'dark':'light');
     d.dataset.look=L[0]; d.dataset.tone=tone; const m=document.querySelector('meta[name="theme-color"]'); if(m)m.setAttribute('content',tone==='dark'&&L[4][1]?L[4][1]:L[4][0]);
     try{ window.dispatchEvent(new CustomEvent('gr:theme',{detail:L[0]})); }catch(e){} }
   paintToday(); }
 try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ const k=lookOf(); if(k!=='classic'&&lookMode()==='auto')applyLook(k); }); }catch(e){}
+setInterval(()=>{ const th=document.documentElement.dataset.theme; if(lookOf()==='classic'&&(th==='pro'||th==='pronight')&&proAuto()){ const want=sunUp(Date.now())?'pro':'pronight'; if(want!==th)applyTheme(want); } },60000);
 setInterval(()=>{ if(!nightRed())return; const want=sunUp(Date.now())?lookOf():'redlight', now=document.documentElement.dataset.look||'classic'; if(want!==now)applyLook(lookOf()); },60000);
 const lookMini=k=>'<span class="lk-mini lk-'+k+'" aria-hidden="true"><i class="m1"></i><i class="m2"></i><i class="m3"></i><i class="m4"><b></b><b></b><b></b><b></b></i><i class="m5"></i></span>';
 function displaySheet(){
   let o=document.getElementById('dsp');
   if(!o){ o=document.createElement('div'); o.id='dsp'; o.className='dsp hidden'; document.body.appendChild(o); }
-  const cur=document.documentElement.dataset.theme||'ivory', fs=localStorage.getItem('gr_fs')||'m', lk=lookOf(), LK=LOOKS.find(x=>x[0]===lk), md=lookMode();
+  const cur=document.documentElement.dataset.theme||'pro', fs=localStorage.getItem('gr_fs')||'m', lk=lookOf(), LK=LOOKS.find(x=>x[0]===lk), md=lookMode();
   const tile=([k,n,d,pg,cd,tx,ac])=>'<button type="button" class="dsp-t'+(k===cur?' on':'')+'" data-th="'+k+'" aria-pressed="'+(k===cur)+'">'
     +'<span class="sw" style="background:'+pg+'" aria-hidden="true"><span class="sw-c" style="background:'+cd+'"><i style="background:'+tx+'"></i><i style="background:'+tx+'"></i><em style="background:'+ac+'"></em></span></span>'
     +'<span class="lt"><b>'+esc(n)+'</b><small>'+esc(d)+'</small></span>'+(window.GRI?GRI('check','ok'):'')+'</button>';
@@ -141,6 +146,7 @@ function displaySheet(){
     +(LK&&LK[3]==='ld'?'<div class="dsp-mode" role="group" aria-label="Light or dark">'+[['light','Light'],['dark','Dark'],['auto','Match phone']].map(([k,l])=>'<button type="button" data-mode="'+k+'" class="'+(md===k?'on':'')+'" aria-pressed="'+(md===k)+'">'+l+'</button>').join('')+'</div>':'')
     +'<label class="dsp-night"><input type="checkbox"'+(nightRed()?' checked':'')+'><span><b>Red light after dark</b><small>From sunset to sunrise the app turns dim red, to keep your night vision — your look comes back by day</small></span></label>'
     +(lk==='glass'?'<label class="dsp-name">Your first name, for the greeting <small>optional · saved on this phone</small><input type="text" maxlength="24" autocomplete="given-name" value="'+esc(localStorage.getItem('gr_name')||'')+'" placeholder="e.g. Sean"></label>':'')
+    +(lk==='classic'?'<label class="dsp-night dsp-auto"><input type="checkbox"'+(proAuto()&&/^pro/.test(cur)?' checked':'')+'><span><b>Light by day, dark at night</b><small>The Pro look switches by itself at sunset and sunrise</small></span></label>':'')
     +(lk==='classic'?'<div class="dsp-l">Light themes</div><div class="dsp-th">'+THEMES.filter(x=>x[7]==='light').map(tile).join('')+'</div>'
       +'<div class="dsp-l">Dark themes</div><div class="dsp-th">'+THEMES.filter(x=>x[7]==='dark').map(tile).join('')+'</div>'
       :'<p class="dsp-n">The nine colour themes go with the Classic look — tap Classic to pick one.</p>')
@@ -149,11 +155,12 @@ function displaySheet(){
     +'<button type="button" class="dsp-done">Done</button></div>';
   const close=()=>o.classList.add('hidden');
   o.querySelector('.dsp-shade').onclick=close; o.querySelector('.dsp-done').onclick=close;
-  o.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{ applyTheme(b.dataset.th); o.querySelectorAll('[data-th]').forEach(x=>{ x.classList.toggle('on',x===b); x.setAttribute('aria-pressed',String(x===b)); }); });
+  o.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{ try{ localStorage.setItem('gr_pro_auto','0'); }catch(e){} { const pa=o.querySelector('.dsp-auto input'); if(pa)pa.checked=false; } applyTheme(b.dataset.th); o.querySelectorAll('[data-th]').forEach(x=>{ x.classList.toggle('on',x===b); x.setAttribute('aria-pressed',String(x===b)); }); });
   o.querySelectorAll('[data-look]').forEach(b=>b.onclick=()=>{ if(b.dataset.look===lookOf())return; const y=o.querySelector('.dsp-sheet').scrollTop; applyLook(b.dataset.look); displaySheet(); const sh2=o.querySelector('.dsp-sheet'); if(sh2)sh2.scrollTop=y; });
   o.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ applyLook(lookOf(),b.dataset.mode); o.querySelectorAll('[data-mode]').forEach(x=>{ x.classList.toggle('on',x===b); x.setAttribute('aria-pressed',String(x===b)); }); });
   { const ni=o.querySelector('.dsp-name input'); if(ni)ni.oninput=()=>{ try{ localStorage.setItem('gr_name',ni.value.trim().slice(0,24)); }catch(e){} paintToday(); }; }
-  { const nc=o.querySelector('.dsp-night input'); if(nc)nc.onchange=()=>{ try{ localStorage.setItem('gr_look_night',nc.checked?'1':'0'); }catch(e){} applyLook(lookOf()); if(window.grToast)grToast(nc.checked?(sunUp(Date.now())?'Red light will come on at sunset':'Red light on until sunrise'):'Red light after dark is off'); }; }
+  { const pa=o.querySelector('.dsp-auto input'); if(pa)pa.onchange=()=>{ try{ localStorage.setItem('gr_pro_auto',pa.checked?'1':'0'); }catch(e){} if(pa.checked){ applyTheme('pro'); displaySheet(); } }; }
+  { const nc=o.querySelector('.dsp-night:not(.dsp-auto) input'); if(nc)nc.onchange=()=>{ try{ localStorage.setItem('gr_look_night',nc.checked?'1':'0'); }catch(e){} applyLook(lookOf()); if(window.grToast)grToast(nc.checked?(sunUp(Date.now())?'Red light will come on at sunset':'Red light on until sunrise'):'Red light after dark is off'); }; }
   o.querySelectorAll('[data-fs]').forEach(b=>b.onclick=()=>{ localStorage.setItem('gr_fs',b.dataset.fs); applyFS(); o.querySelectorAll('[data-fs]').forEach(x=>x.classList.toggle('on',x===b)); if(typeof bookRelayout==='function')setTimeout(bookRelayout,60); });
   o.classList.remove('hidden');
 }
@@ -194,17 +201,20 @@ function bindUI(){
   document.addEventListener('keydown',e=>{ if(!reader.classList.contains('hidden')){ if(e.key==='ArrowLeft')openPage(Math.max(1,curPage-1)); if(e.key==='ArrowRight')openPage(Math.min(META.pages,curPage+1)); if(e.key==='Escape')closeReader(); }});
 }
 
+const OLD_TABS=['browse','index','tools','saved'];   // the earlier tab pages — now reached from the folders
 function render(){
-  if(tab==='home')tab='search';
-  setTab(tab); vstack.length=0; vcur=null; view.dataset.root=tab; document.body.classList.remove('subview');
-  if(tab==='search')renderSearch();
+  if(tab==='home')tab='today';
+  setTab(tab); vstack.length=0; vcur=null; view.dataset.root=tab; document.body.classList.toggle('subview',OLD_TABS.includes(tab));
+  if(tab==='today'){ if(window.GRPro)GRPro.today(view); else renderSearch(); }
+  else if(tab==='folders'){ if(window.GRPro)GRPro.browse(view); else renderTools(); }
+  else if(tab==='search')renderSearch();
   else if(tab==='browse')renderBrowse();
   else if(tab==='index')renderIndex();
   else if(tab==='tools')renderTools();
   else renderSaved();
 }
-function setTab(t){ tab=t; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t)); }
-function goHome(){ lastQuery=''; setTab('search'); closeReader(); render(); view.scrollTop=0; }
+function setTab(t){ tab=t; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t||(x.dataset.tab==='folders'&&OLD_TABS.includes(t)))); }
+function goHome(){ lastQuery=''; setTab('today'); closeReader(); render(); view.scrollTop=0; }
 function searchFor(q,opt){ lastQuery=q||''; lastFilter='all'; setTab('search'); closeReader(); render(); view.scrollTop=0;
   if(opt&&opt.focus){ const i=$('#q'); if(i)i.focus(); } }
 function subView(){ view.innerHTML='<div id="results"></div>'; view.scrollTop=0; return $('#results'); }
@@ -212,7 +222,7 @@ function subView(){ view.innerHTML='<div id="results"></div>'; view.scrollTop=0;
 const vstack=[]; let vcur=null;
 const SUBVIEWS=['renderPTP','renderGuides','renderMajor','renderEssentials','renderOffences','renderOffence','renderStencils','renderLive','renderClock',
   'renderCourtDay','renderCaution','renderKBtopic','renderLatin','renderAcronyms','renderCCTV','renderCautions','renderTemplates','openTemplate','renderExhibits',
-  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings','renderWanted','renderSearchPerson','renderNB','renderNBLib','renderRS'];
+  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings','renderWanted','renderSearchPerson','renderNB','renderNBLib','renderRS','renderFolder','renderSettings','renderProofs','renderRights'];
 function sameArgs(a,b){ return JSON.stringify(a||[])===JSON.stringify(b||[]); }
 function wrapSubviews(){
   for(const name of SUBVIEWS){ const orig=window[name]; if(typeof orig!=='function'||orig._sv)continue;
@@ -227,10 +237,10 @@ function wrapSubviews(){
 }
 
 /* ---------- SEARCH (search.js draws the Search tab; this is only the fallback) ---------- */
-const FILTERS=[['all','Everything'],['vols','Vols 1–11'],['v12','Vol 12'],['st','Statements'],['pb','Playbooks'],['man','2007 Manual']];
-const FRANGE={vols:[15,937],v12:[938,968],st:[969,992],pb:[986,992],man:[993,1478]};
+const FILTERS=[['all','Everything'],['vols','Vols 1–11'],['v12','Vol 12'],['st','Statements'],['pb','Playbooks']];
+const FRANGE={vols:[15,937],v12:[938,968],st:[969,992],pb:[986,992]};
 function renderSearch(){
-  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery,home:homeQuick}); return; }
+  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery}); return; }
   view.innerHTML=`<div class="tabroot" data-tab="search" hidden></div>
   <div class="searchbox sb-mag"><input id="q" type="search" placeholder="Search — topic, case, statute, offence…" value="${esc(lastQuery)}" autocomplete="off" enterkeyhint="search"></div>
   <div id="results"></div>`;
@@ -255,8 +265,7 @@ const HOME=[
   ['hDccList','list-video','DCC City CCTV list','241 Dublin City Council cameras · search a street → pinpoint it on the map · locations only, no live feed','wide']]},
  {h:'Live TV & radio',c:[
   ['hLiveNews','tv','Live news','Sky News live · RTÉ News latest · in the app'],
-  ['hRadio','radio','Irish radio','favourites · RTÉ · Newstalk · 98 · FM104 · all'],
-  ['hSocial','message-circle','Social media','official Garda accounts · Garda Info · Garda Traffic · DMR Facebook · TikTok · read-only','wide']]},
+  ['hRadio','radio','Irish radio','favourites · RTÉ · Newstalk · 98 · FM104 · all']]},
  {h:'On the job',c:[
   ['qbOff','shield','Offences','elements · arrest · statement'],
   ['hSearchP','user-search','Search of the person','guided · power · grounds · what to say · record'],
@@ -338,7 +347,7 @@ function homeLayout(){
   return {order,boxes,hidden:(sv.hidden||[]).filter(id=>known.has(id)||BOXES[id])}; }
 function homeSave(L){ try{ localStorage.setItem('gr_home',JSON.stringify({v:1,order:L.order,boxes:L.boxes,hidden:L.hidden})); }catch(e){} }
 let homeEdit=false;
-function homeEditOpen(){ homeEdit=true; if(tab!=='search'||lastQuery){ lastQuery=''; setTab('search'); } closeReader(); render(); view.scrollTop=0; }
+function homeEditOpen(){ if(window.grToast)grToast('Edit your favourites from Today'); }
 function homeEditDone(){ homeEdit=false; const r=$('#results'); if(r&&r.querySelector('.homeq'))homeQuick(r); }
 window.homeEditOpen=homeEditOpen;
 function homeQuick(box){
@@ -378,7 +387,7 @@ function homeQuick(box){
   <div id="homeDet"></div>
   ${L.order.map(blockHtml).join('')}
   ${ed?'':`<button type="button" class="home-edit" id="homeEditBtn">${GRI('sliders-horizontal')}Customise Home</button>`}
-  <div class="empty">Or type anything above — all 1,478 pages are searchable.</div>
+  <div class="empty">Or type anything above — all ${(META.pages||0).toLocaleString('en-IE')} pages are searchable.</div>
   </div>`;
   if(ed){ homeEditWire(box,L); return; }
   { const eb=box.querySelector('#homeEditBtn'); if(eb)eb.addEventListener('click',homeEditOpen);
@@ -408,7 +417,6 @@ function homeQuick(box){
   go('hLiveNews',()=>{ if(window.GRMedia) GRMedia.openTV('sky'); });
   go('hSearchP',()=>{ if(window.renderSearchPerson) window.renderSearchPerson(); });
   go('hRadio',()=>{ if(window.GRMedia) GRMedia.openRadio(); });
-  go('hSocial',()=>{ if(window.openSocial) openSocial(); });
   { const top=view.querySelector('.sx-top'); if(top&&!view.querySelector('#homeHello'))top.insertAdjacentHTML('beforebegin','<div id="homeHello" aria-hidden="true"></div>'); }
   // iPhone in Safari: how to put it on the Home Screen (offline, and the only way an iPhone lets it send reminders)
   { const P=window.GRP||{}; let gone=false; try{ gone=localStorage.getItem('gr_ios_hint')==='x'; }catch(e){}
@@ -703,13 +711,14 @@ function renderGuides(openG){
     const open=g.g===openG;
     html+=`<div class="cslot"><button class="ixrow cshead"><span class="term" style="font-style:normal;font-weight:700">${esc(g.t)}</span><div class="refs">${g.must.length} points ▾</div></button>
     <div class="csbody ${open?'':'hidden'}"><ul class="rlist" style="color:var(--ink)">${g.must.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>
+    ${(pi=>pi>=0?`<button class="csall" data-pf="${pi}" data-pfk="wit">Check a statement against the proofs</button>`:'')(OPS.ptp.findIndex(p=>p.g===g.g))}
     <button class="csall" data-a="969">Open statement-taking chapter</button>
     <button class="csall" data-a="144">Open worked example (assault SG)</button></div></div>`;
   }
   html+='<div class="toolnote">Structure every statement on the 5-part model (ST:6). These lists are the offence-specific layer on top.</div>';
   $('#results').innerHTML=html;
   $$('.cshead').forEach(h=>h.addEventListener('click',()=>h.nextElementSibling.classList.toggle('hidden')));
-  $$('#results .csall').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.a)));
+  $$('#results .csall[data-a]').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.a)));
   view.scrollTop=0;
 }
 function renderMajor(){
@@ -723,8 +732,7 @@ function renderMajor(){
     });
     html+='</div>';
   });
-  html+=`<button class="csall" data-a="${M.src}">Open homicide chapter (2007 manual)</button><button class="csall" data-a="1168">Open general investigation chapter</button>
-  <div class="toolnote">Ticks are session-only — nothing stored. This guide supplements, never replaces, direction from your member i/c and SIO.</div>`;
+  html+=`<div class="toolnote">Ticks are session-only — nothing stored. This guide supplements, never replaces, direction from your member i/c and SIO.</div>`;
   view.innerHTML=html;
   nbBar(['major','publicorder','suddendeath','missing'],view);
   $$('.ck').forEach(c=>c.addEventListener('click',()=>{const k=c.dataset.k;toolState[k]=!toolState[k];c.classList.toggle('done',toolState[k]);c.querySelector('.box').textContent=toolState[k]?'✓':'';}));
@@ -860,12 +868,15 @@ function openCaseTable(items,title,keep){
   if(!DEEP){ loadDeep().then(()=>openCaseTable(items,title,keep)); return; }
   clLast={items,title,top:0,page:0};
   reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
-  $('#rdTitle').textContent=title.charAt(0).toUpperCase()+title.slice(1); $('#rdPage').textContent='Case law · '+items.length+(items.length===1?' case':' cases')+' · tap a name to open it';
+  $('#rdTitle').textContent=title.charAt(0).toUpperCase()+title.slice(1); $('#rdPage').textContent='Case law · '+items.length+(items.length===1?' case':' cases');
   $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
   const secs=clSections(items);
-  rdBody.innerHTML='<p class="cl-0" hidden></p>'+secs.map(([k,cs])=>'<h2 class="cl-sec">'+esc(clSecName(k))+'</h2>'+(CL_INTRO[k]?'<p class="cl-intro">'+esc(CL_INTRO[k])+'</p>':'')+clTable(cs.map(c=>clRow(c,{link:true,warn:true})).join(''))).join('')
-    +'<p class="cl-foot">Working reference — check the judgment before relying on it in court. Cases marked “not yet checked” show your manual’s note as it stands.</p>';
+  const card=c=>{ const dp=deepOf(c.n), st=csStill(c), ab=clAb(c), line=c.chk?(c.d||clHeld(c)||c.why||''):(c.why||c.d||'');
+    return '<button type="button" class="cc cl-go" data-n="'+esc(c.n)+'"><span class="cc-ct">'+esc(ab||'—')+'</span><span class="cc-tx"><b>'+esc(c.n)+(clYear(c)&&!/\(\d{4}\)\s*$/.test(c.n)?' ('+esc(clYear(c))+')':'')+'</b><small>'+esc(line.length>150?line.slice(0,147).replace(/\s+\S*$/,'')+'…':line)+'</small>'
+      +'<span class="cc-pl">'+(c.star?'<i class="pu">★ Essential</i>':'')+(dp?'<i class="bl">In depth</i>':'')+(c.chk?'<i class="ok">✓ Checked</i>':'<i class="warn">Not yet verified</i>')+(st&&st[1]!=='ok'?'<i class="'+st[1]+'">'+st[0]+'</i>':'')+'</span></span></button>'; };
+  rdBody.innerHTML='<div class="cs-pg"><p class="cl-0" hidden></p>'+secs.map(([k,cs])=>'<h2 class="cl-sec">'+esc(clSecName(k))+'</h2>'+(CL_INTRO[k]?'<p class="cl-intro">'+esc(CL_INTRO[k])+'</p>':'')+'<div class="cc-list">'+cs.map(card).join('')+'</div>').join('')
+    +'<p class="cl-foot">Working reference — check the judgment before relying on it in court. Cases marked “Not yet verified” show your manual’s note as it stands.</p></div>';
   curDoc={title:'Case law — '+title,blocks:clDocTable(secs),text:''}; updateDlBtn();
   rdBody.querySelectorAll('.cl-go').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); clLast.top=rdBody.scrollTop; clLast.page=book.page; openCase(b.dataset.n,true); }));
   rdBody.scrollTop=0;
@@ -873,43 +884,61 @@ function openCaseTable(items,title,keep){
 function deepText(d){ return ['IN DEPTH',d.bg&&d.bg.length?'The facts in full:\n'+d.bg.join('\n\n'):'',d.q?'What the court had to decide:\n'+d.q:'',d.dec&&d.dec.length?'The court’s reasoning:\n'+d.dec.join('\n\n'):'',
   d.keys&&d.keys.length?'Key lines:\n'+d.keys.map(k=>'“'+k.q+'”'+(k.w?' — '+k.w:'')).join('\n'):'',d.later&&d.later.length?'How later cases have treated it:\n- '+d.later.join('\n- '):'',
   d.job&&d.job.length?'On the job:\n- '+d.job.join('\n- '):'',d.law?'Still the law?\n'+d.law:''].filter(Boolean).join('\n\n'); }
+/* ---------- the case page: one column, the point first ("case at a glance") ----------
+   Case / Authority → The question → Facts → Held → Ratio and test → Reasoning → Practical application → Key lines → Later cases
+   → Facts in full → sources. Everything from the old three-column table and the in-depth write-up is here; nothing was dropped. */
+const csI=(code)=>window.GRPro?GRPro.icon(code,30):'';
+function csSec(code,title,body,cls){ return body?'<section class="cs-sc'+(cls?' '+cls:'')+'"><div class="cs-sh">'+csI(code)+'<b>'+esc(title)+'</b></div>'+body+'</section>':''; }
+function csStill(c){ const t=String(c.st||''); return /^\s*yes\b/i.test(t)?['Still the law','ok']:/^\s*no\b|overruled|no longer/i.test(t)?['No longer the law','bad']:/^\s*(partly|in part|qualified|modified)/i.test(t)?['Law has moved on in part','warn']:null; }
+function reportMistake(what){ const txt='Assisting '+(window.GRVER||'')+'\nMistake in: '+what+'\nWhat is wrong:\n';
+  if(navigator.share){ navigator.share({title:'Assisting — report a mistake',text:txt}).catch(()=>{}); return; }
+  (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>{ if(window.grToast)grToast('Copied — paste it into a message or email and add what’s wrong'); }).catch(()=>{ if(window.grToast)grToast('Note the case name and what’s wrong, and send it on'); }); }
+window.reportMistake=reportMistake;
 function openCase(name,fromTable){
   const c=CASES.find(x=>x.n===name); if(!c)return;
-  if(!DEEP)loadDeep().then(()=>{ if(deepOf(name)&&!reader.classList.contains('hidden')&&$('#rdTitle').textContent===name){ const st=rdBody.scrollTop; openCase(name); rdBody.scrollTop=st; } });
-  const dp=deepOf(c.n);
+  if(!DEEP)loadDeep().then(()=>{ if(deepOf(name)&&!reader.classList.contains('hidden')&&$('#rdTitle').textContent===name){ const st=rdBody.scrollTop; openCase(name,fromTable); rdBody.scrollTop=st; } });
+  const dp=deepOf(c.n), P=a=>(Array.isArray(a)?a:[a]).filter(Boolean).map(x=>'<p>'+esc(x)+'</p>').join(''), U=(a,tk)=>'<ul class="'+(tk?'cs-tk':'cs-ul')+'">'+(a||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
   reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
-  $('#rdTitle').textContent=c.n; $('#rdPage').textContent=[c.cat||'General',c.court?(c.court+(c.y?' '+c.y:'')):'',c.c.filter(Boolean).join(' · ')].filter(Boolean).join(' · ');
+  $('#rdTitle').textContent=c.n; $('#rdPage').textContent=c.cat||'Case law';
   $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
   $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
-  let h=fromTable&&clLast?'<button type="button" class="chip cl-back">‹ Back to the table</button>':'';
-  const wbox=c.warn?'<div class="cs-warn">'+(window.GRI?GRI('triangle-alert'):'⚠')+'<span>'+esc(c.warn)+'</span></div>':'';
-  if(!c.chk)h+=wbox;   // unchecked: the warning comes first; checked: the ✓ first, then the note about the manual
-  if(c.chk)h+='<div class="cs-chk'+(c.conf==='low'?' low':'')+'">'+(window.GRI?GRI(c.conf==='low'?'info':'check'):'✓')+'<span>'+(c.conf==='high'?'Checked against the judgment or a reliable case note — sources below.':c.conf==='low'?'Only partly checked — the free report doesn’t show the ruling. Read the judgment before relying on it.':'Checked against one source only — read the judgment before relying on it in court.')+'</span></div>';
-  if(c.chk)h+=wbox;
-  if(dp)h+='<button type="button" class="cs-djump">'+(window.GRI?GRI('book-open'):'')+'In depth — the full facts, reasoning and later cases ↓</button>';
-  h+='<p class="cl-0" hidden></p>'+clTable(clRow(c))+(dp?clDeepRows(dp):'');
-  if(dp&&dp.src&&dp.src.length)h+='<p class="cs-dsrc">In depth written up '+esc(dp.upd||'')+' in our own words from: '+dp.src.map(x=>'<span class="extj" data-href="'+esc(x.u)+'">'+esc(x.t)+'</span>').join(' · ')+'. Read the judgment before relying on it in court.</p>';
-  if(c.src&&c.src.length)h+='<div class="rsub">Where it was checked (needs signal)</div><p>'+c.src.map(x=>'<span class="extj" data-href="'+esc(x.u)+'">'+esc(x.t||x.u.replace(/^https?:\/\/(www\.)?/,'').split('/')[0])+'</span>').join(' · ')+'</p>';
-  if((c.s||[]).length||c.p.length){
-    h+='<div class="rsub">In your manual</div>'+(c.chk?'<p class="cs-man">Your manual’s notes on this case haven’t been re-checked — where they differ, go by the checked summary above.</p>':'');
-    h+=(c.s||[]).map(sn=>'<p><span class="xref" data-a="'+sn.a+'">'+esc(pageLabel(sn.a))+'</span> — '+esc(sn.t)+'</p>').join('')||'<p>Open the pages below for full context.</p>';
-    h+='<div class="rsub">Every page it appears on</div><p>'+c.p.map(p=>'<span class="xref" data-a="'+p+'">'+esc(pageLabel(p))+'</span>').join(' · ')+'</p>'; }
-  { const nc=caseNeutral(c), jur=caseJur(c);
-    h+='<div class="rsub">Full judgment (needs signal)</div><p>'+(nc?'<span class="extj" data-u="cite">BAILII — '+esc(nc.s)+'</span> · ':'')
-      +'<span class="extj" data-u="bailii">'+(nc?'Search BAILII by name':jur==='echr'?'BAILII — Human Rights Court':jur==='all'?'BAILII — all courts':'BAILII')+'</span>'
-      +(jur==='ie'?' · <span class="extj" data-u="courts">Courts.ie</span>':'')+' · <span class="extj" data-u="westlaw">Westlaw (your login)</span></p>'; }
+  const still=csStill(c), yr=clYear(c), cites=(c.c||[]).map(x=>String(x||'').trim()).filter(Boolean), m=c.chk?null:clManualParts(c);
+  const chkTxt=c.chk?(c.conf==='high'?'Checked against the judgment or a reliable case note':c.conf==='low'?'Only partly checked — the free report doesn’t show the ruling':'Checked against one source only'):'Not yet verified';
+  let h='<div class="cs-pg">'+(fromTable&&clLast?'<button type="button" class="chip cl-back">‹ Back to the list</button>':'');
+  h+='<div class="cs-pills">'+(c.court?'<i class="bl">'+esc(c.court.split(/;\s*/)[0])+'</i>':'')+(c.chk?(still?'<i class="'+still[1]+'">'+(still[1]==='ok'?'✓ ':'')+still[0]+'</i>':'')+(c.conf==='low'?'<i class="warn">Partly checked</i>':''):'<i class="warn">Not yet verified</i>')+(c.star?'<i class="pu">★ Essential</i>':'')+'<i class="pu">'+esc(c.cat||'General')+'</i></div>';
+  h+='<h1 class="cs-h1">'+esc(c.n)+(yr&&!/\(\d{4}\)\s*$/.test(c.n)?' ('+esc(yr)+')':'')+'</h1>';
+  if(c.warn)h+='<div class="cs-warn">'+(window.GRI?GRI('triangle-alert'):'⚠')+'<span>'+esc(c.warn)+'</span></div>';
+  const kv=(k,v)=>v?'<div><i>'+k+'</i>'+v+'</div>':'';
+  h+=csSec('2696-fe0f','Case / Authority','<div class="cs-kv">'+kv('Citation',cites.map(esc).join('<br>'))+kv('Court'+(yr?' · year':''),esc([c.court,yr].filter(Boolean).join(' · ')))+kv('Still the law?',esc(c.st||''))
+    +kv('Checked',esc(chkTxt)+((c.src||[]).length?'<br><small>'+c.src.map(x=>esc(x.t||'')).filter(Boolean).join(' · ')+'</small>':''))+kv('Topic',esc(c.topic||c.cat||''))+(dp&&dp.upd?kv('In depth',esc('Written up '+dp.upd)):'')+'</div>');
+  if(dp&&dp.q)h+=csSec('2753','The question','<p class="cs-q">'+esc(dp.q)+'</p>');
+  if(c.chk){
+    h+=csSec('1f4cb','Facts',P(c.f&&c.f.facts));
+    h+=csSec('1f3db-fe0f','Held',P(clHeld(c)));
+    if(c.d||c.t)h+='<section class="cs-ratio"><span class="cs-rl">RATIO</span>'+(c.d?'<p>'+esc(c.d)+'</p>':'')+(c.t?'<div class="cs-test"><b>Test:</b> '+esc(c.t)+'</div>':'')+'</section>';
+  } else {
+    h+=csSec('1f4cb','From your manual — not yet verified','<p class="cs-un">This case has not been checked against the judgment yet. This is your manual’s note as it stands — read the judgment before relying on it.</p>'+(m.mid.map(([l,t])=>'<p>'+(l?'<span class="cl-lb">'+esc(l)+':</span> ':'')+esc(t)+'</p>').join('')||P(c.d)));
+  }
+  if(dp&&dp.dec&&dp.dec.length)h+=csSec('1f9e0','Reasoning',P(dp.dec[0])+(dp.dec.length>1?'<details class="cs-more"><summary>The court’s reasoning in full</summary>'+P(dp.dec.slice(1))+'</details>':''));
+  { const pa=(c.chk?(c.why?'<p>'+esc(c.why)+'</p>':''):m.prac.map(t=>'<p>'+esc(t)+'</p>').join(''))+(dp&&dp.job&&dp.job.length?U(dp.job,true):''); h+=csSec('1f6e1-fe0f','Practical application',pa); }
+  if(dp&&dp.keys&&dp.keys.length)h+=csSec('1f4ac','Key lines',dp.keys.map(k=>'<p class="cs-kl">“'+esc(k.q)+'”'+(k.w?' <span>— '+esc(k.w)+'</span>':'')+'</p>').join(''));
+  if(dp&&((dp.later&&dp.later.length)||dp.law))h+=csSec('1f517','Later cases',(dp.later&&dp.later.length?U(dp.later):'')+(dp.law?'<p><span class="cl-lb">STILL THE LAW?</span> '+esc(dp.law)+'</p>':''));
+  if(dp&&dp.bg&&dp.bg.length)h+='<section class="cs-sc" id="csDeep"><details class="cs-fold"><summary>'+csI('1f4d6')+'<b>Facts in full</b><span>Open</span></summary>'+P(dp.bg)+'</details></section>';
+  if((c.s||[]).length||c.p.length)h+='<section class="cs-sc"><details class="cs-fold"><summary>'+csI('1f4da')+'<b>In your manual</b><span>Open</span></summary>'+(c.chk?'<p class="cs-un">Your manual’s notes on this case haven’t been re-checked — where they differ, go by the checked summary above.</p>':'')
+    +(c.s||[]).map(sn=>'<p><span class="xref" data-a="'+sn.a+'">'+esc(pageLabel(sn.a))+'</span> — '+esc(sn.t)+'</p>').join('')+(c.p.length?'<p class="cs-pp">Every page it appears on: '+c.p.map(p=>'<span class="xref" data-a="'+p+'">'+esc(pageLabel(p))+'</span>').join(' · ')+'</p>':'')+'</details></section>';
+  { const nc=caseNeutral(c), jur=caseJur(c), srcs=[...(dp&&dp.src||[]),...(c.src||[])].filter((x,i,a)=>x&&x.u&&a.findIndex(y=>y.u===x.u)===i);
+    h+='<div class="cs-src">'+(srcs.length?'<p>Written in our own words'+(dp&&dp.upd?' ('+esc(dp.upd)+')':'')+' from: '+srcs.map(x=>'<span class="extj" data-href="'+esc(x.u)+'">'+esc(x.t||x.u.replace(/^https?:\/\/(www\.)?/,'').split('/')[0])+'</span>').join(' · ')+'.</p>':'')
+      +'<p>Read the judgment before relying on it in court'+(' — '+(nc?'<span class="extj" data-u="cite">BAILII '+esc(nc.s)+'</span> · ':'')+'<span class="extj" data-u="bailii">'+(nc?'search BAILII by name':jur==='echr'?'BAILII, Human Rights Court':'BAILII')+'</span>')+' (needs signal).</p>'
+      +'<p><button type="button" class="cs-rep">Report a mistake</button></p></div>'; }
+  h+='</div>';
   rdBody.innerHTML=h; curDoc={title:c.n,blocks:clDocCase(c,dp),text:[c.c.filter(Boolean).join(' · '),c.court?(c.court+(c.y?' '+c.y:'')):'',c.why?'On the job: '+c.why:(c.d||''),c.f?('Facts: '+(c.f.facts||'')+'\nHeld: '+(c.f.held||'')):'',c.t?'Test: '+c.t:'',c.st?'Still the law? '+c.st:'',(c.src||[]).length?'Checked against: '+c.src.map(x=>x.t+' — '+x.u).join('\n'):'',dp?deepText(dp):'',(c.s||[]).map(x=>pageLabel(x.a)+' — '+x.t).join('\n\n')].filter(Boolean).join('\n\n')}; updateDlBtn();
   { const bk=rdBody.querySelector('.cl-back'); if(bk)bk.onclick=()=>openCaseTable(clLast.items,clLast.title,{top:clLast.top,page:clLast.page}); }
-  { const j=rdBody.querySelector('.cs-djump'); if(j)j.onclick=()=>{ const t=rdBody.querySelector('#csDeep'); if(!t)return;
-      if(book.on){ const st=bookStride(), x=rdBody.scrollLeft+(t.getBoundingClientRect().left-rdBody.getBoundingClientRect().left);
-        book.page=Math.max(0,Math.min(book.pages-1,Math.floor((x+2)/st))); rdBody.scrollTo({left:book.page*st,behavior:'smooth'}); bookPaint(); }
-      else t.scrollIntoView({block:'start',behavior:'smooth'}); }; }
+  { const r=rdBody.querySelector('.cs-rep'); if(r)r.onclick=()=>reportMistake('Case — '+c.n); }
   rdBody.querySelectorAll('.xref').forEach(x=>x.addEventListener('click',()=>openPage(+x.dataset.a)));
   rdBody.querySelectorAll('.extj').forEach(x=>x.addEventListener('click',()=>{
     if(x.dataset.href){ window.open(x.dataset.href,'_blank','noopener'); return; }
-    const nm=c.n.replace(/\s*\((19|20)\d\d\)$/,''), q=encodeURIComponent(nm), nc=caseNeutral(c), jur=caseJur(c);
-    window.open({cite:nc?bailiiCiteURL(nc):'',bailii:bailiiURL(bailiiName(nm),{ie:'ie/cases',echr:'eu/cases/ECHR',all:''}[jur],'rank'),
-      courts:'https://www.courts.ie/judgments?search_api_fulltext='+q,westlaw:'https://www.westlaw.ie'}[x.dataset.u],'_blank','noopener');}));
+    const nm=c.n.replace(/\s*\((19|20)\d\d\)$/,''), nc=caseNeutral(c), jur=caseJur(c);
+    window.open({cite:nc?bailiiCiteURL(nc):'',bailii:bailiiURL(bailiiName(nm),{ie:'ie/cases',echr:'eu/cases/ECHR',all:''}[jur],'rank')}[x.dataset.u],'_blank','noopener');}));
   rdBody.scrollTop=0;
 }
 function renderOffences(){
@@ -930,6 +959,7 @@ function renderOffence(i){
     <button class="qbtn" id="oSearch">⌕ In the manual<small>every mention</small></button>
     <button class="qbtn" id="oCases">⚖ Related case law<small>from the library</small></button>
     <button class="qbtn" id="oNB">📓 Notebook entry<small>detailed draft · why each part matters</small></button>
+    <button class="qbtn" data-pf="${i}" data-pfk="wit">✅ Statement check<small>does it meet the proofs?</small></button>
   </div>`;
   $('#backO').addEventListener('click',renderOffences);
   $('#oGuide').addEventListener('click',()=>renderGuides(p.g));
@@ -1165,7 +1195,7 @@ function renderCases(){
         <div class="csbody hidden">
           ${!c.chk&&c.warn?'<div class="cs-warn">'+(window.GRI?GRI('triangle-alert'):'⚠')+'<span>'+esc(c.warn)+'</span></div>':''}
           ${c.chk?`<button class="cssum" data-n="${esc(c.n)}"><b>Held</b> — ${esc((c.f&&c.f.held)||c.d||'')}${c.why?`<span><b>On the job</b> — ${esc(c.why)}</span>`:''}<em>Open the full summary ›</em></button>`:''}
-          ${c.s.map(sn=>`<button class="cssnip" data-a="${sn.a}"><b>${esc(pageLabel(sn.a))}${sn.a>=993?' · 2007':''}</b> — ${esc(sn.t)}</button>`).join('')}
+          ${c.s.map(sn=>`<button class="cssnip" data-a="${sn.a}"><b>${esc(pageLabel(sn.a))}</b> — ${esc(sn.t)}</button>`).join('')}
           <div class="cspages">${c.p.map(p=>`<button class="cspg" data-a="${p}">${esc(pageLabel(p))}</button>`).join('')}</div>
           <button class="csall" data-n="${esc(c.n)}">⌕ Every mention in full text</button>
         </div></div>`;
@@ -1227,7 +1257,7 @@ TOOLS.push(
   'Replies after caution recorded',
   'Force used: minimum, proportionate, recorded',
   'Custody record commenced on arrival']},
- {id:'scene',title:'First at scene — preserve it',src:1168,items:[
+ {id:'scene',title:'First at scene — preserve it',items:[
   'Scene safe — casualties first, then preservation',
   'Cordon set wider than you think you need',
   'Single entry/exit route established',
@@ -1303,14 +1333,12 @@ const TOOLS_MENU=[
  ['Live',[
   ['judg','gavel','Judgments search','BAILII Ireland — Supreme · Appeal · High Court'],
   ['courtlists','calendar-clock',"Court lists — who's on",'CCJ & all Dublin courts — official Legal Diary'],
-  ['social','message-circle','Social media','Official accounts — read-only, in the app'],
   ['wanted','user-search','Most wanted','Interpol · FBI · Europe · UK · wanted by Ireland — live']]],
  ['Utilities',[
   ['toolbox','toolbox','Toolbox','Ruler · measure · evidence camera · level · compass · torch · timers · QR']]],
  ['Settings',[
   ['display','palette','Look, theme & text size','Eleven looks · nine colour themes · light and dark · text size'],
   ['sync','cloud','Sync across devices','Tasks · My roster · Saved — encrypted, in your own Google Drive'],
-  ['homelayout','sliders-horizontal','Home screen','Move, hide or bring back boxes'],
   ['applock','lock','App lock','Username and password to open Assisting'],
   ['aikey','sparkles','AI search','Your Anthropic key · what is sent · cost'],
   ['about','info','About Assisting','Version · disclaimer · what stays on this phone']]]
@@ -1324,7 +1352,6 @@ function renderTools(){
     if(v==='patrol'){ if(window.openPatrol) openPatrol(); return; }
     if(v==='cctvst'){ if(window.GRForms) GRForms.open('cctv'); return; }
     if(v==='gaol'){ if(window.openGaol) openGaol(); return; }
-    if(v==='social'){ if(window.openSocial) openSocial(); return; }
     if(v==='wanted'){ renderWanted(); return; }
     if(v==='searchp'){ if(window.renderSearchPerson) window.renderSearchPerson(); return; }
     if(v==='nb'){ if(window.renderNBLib) renderNBLib(); return; }
@@ -1594,7 +1621,7 @@ function renderChecklists(){
         <div class="refs">${done?done+'/'+t.items.length+' · ':''}${t.items.length} steps ▾</div></button><div class="csbody ${q?'':'hidden'}">`;
         t.items.forEach((it,i)=>{const on=toolState[t.id+i];
           out+=`<div class="ck ${on?'done':''}" data-t="${t.id}" data-i="${i}"><div class="box">${on?'✓':''}</div><div class="lb">${esc(it)}</div></div>`;});
-        out+=`<button class="csall srcbtn" data-a="${t.src}">Open source pages (${esc(pageLabel(t.src))})</button>
+        out+=`${t.src?`<button class="csall srcbtn" data-a="${t.src}">Open source pages (${esc(pageLabel(t.src))})</button>`:''}
         <button class="toolreset" data-t="${t.id}" data-n="${t.items.length}">Reset</button></div></div>`;
       }
     }
@@ -1703,7 +1730,7 @@ function renderWanted(){
   view.querySelectorAll('.wl-c .chip').forEach(b=>b.addEventListener('click',()=>{ cur=b.dataset.k; try{localStorage.setItem('gr_wanted_tab',cur);}catch(e){}
     view.querySelectorAll('.wl-c .chip').forEach(x=>x.classList.toggle('on',x===b)); draw(); }));
   const links=k=>'<div class="wl-links">'+WL_LINKS[k].map(([t,u])=>`<button type="button" class="wl-link" data-u="${esc(u)}">${GRI('external-link')}<span>${esc(t)}</span></button>`).join('')+'</div>';
-  const wire=()=>{ $('#wlBody').querySelectorAll('[data-u]').forEach(b=>b.addEventListener('click',()=>window.open(b.dataset.u,'_blank','noopener'))); };
+  const wire=()=>{ const wb=$('#wlBody'); if(!wb)return; wb.querySelectorAll('[data-u]').forEach(b=>b.addEventListener('click',()=>window.open(b.dataset.u,'_blank','noopener'))); };
   const age=d=>{ const m=String(d||'').match(/^(\d{4})(?:\/(\d\d)\/(\d\d))?/); if(!m)return ''; const b=new Date(+m[1],(+m[2]||1)-1,+m[3]||1); return Math.floor((Date.now()-b)/31557600000)+' yrs'; };
   const tc=s=>String(s||'').toLowerCase().replace(/(^|[\s'-])\p{L}/gu,x=>x.toUpperCase());
   async function getJSON(u){ const ac=new AbortController(); const t=setTimeout(()=>ac.abort(),12000);
@@ -1795,7 +1822,7 @@ function ttsPaint(){ const b=$('#rdListen'); if(b){ b.classList.toggle('on',TTS.
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden'&&TTS.on&&!TTS.paused){ /* keep going — Android may carry on with the screen off */ } });
 
 /* ---------- READER ---------- */
-function openPage(abs){ if(TTS.on)ttsStop(); if(!window._pz){window._pz=1;setTimeout(pinchZoom,0);} 
+function openPage(abs){ if(!(abs>=1&&abs<=META.pages)){ if(window.grToast)grToast('That page is no longer in the app'); try{ if(+localStorage.getItem('gr_lastpage')>META.pages)localStorage.removeItem('gr_lastpage'); }catch(e){} return; } if(TTS.on)ttsStop(); if(!window._pz){window._pz=1;setTimeout(pinchZoom,0);} 
   try{localStorage.setItem('gr_lastpage',String(abs));}catch(e){}
   try{pushRecent({k:'page',id:abs,t:titleFor(abs).split(' › ').pop(),s:pageLabel(abs)});}catch(e){}
   $('#rdPrev').style.visibility='';$('#rdNext').style.visibility='';$('#rdJump').style.visibility='';
@@ -1829,7 +1856,7 @@ function pinchZoom(){
    the next tap carries on into the next page. On by default for long reading; the book button switches it. */
 const book={on:false,page:0,pages:1,goEnd:false,raf:0};
 function bookPref(){ try{ return localStorage.getItem('gr_book'); }catch(e){ return null; } }
-function bookWanted(){ return bookPref()!=='0'; }        // on unless switched off — short texts are simply one page
+function bookWanted(){ return bookPref()==='1'; }        // on unless switched off — short texts are simply one page
 function bookToggle(){ const on=!book.on; try{ localStorage.setItem('gr_book',on?'1':'0'); }catch(e){} bookApply(); if(typeof toast==='function')toast(on?'Book reading on — swipe or tap the edges to turn pages':'Book reading off — scroll as normal'); }
 function bookStride(){ return rdBody.clientWidth; }
 function bookApply(){
@@ -2047,7 +2074,6 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
     if(window.tskBack&&window.tskBack())return true;                      // tasks: sheet → editor → list → closed
     if(window.rstBack&&window.rstBack())return true;                      // roster: sheet → wizard step → main → closed
     if(window.ntsBack&&window.ntsBack())return true;
-    if(window.socBack&&window.socBack())return true;                      // social media → closed                      // notes: sheet → sketch → editor → list → closed
     if(window.tbxBack&&window.tbxBack())return true;                      // toolbox: tool → grid → closed
     const reel=document.getElementById('osReel');
     if(vis(reel)){ const gv=document.getElementById('reelGridView');
@@ -2058,14 +2084,18 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
       const p=document.getElementById('osPanel');
       if(vis(p)){ if(!clk('#osPanel #ospClose'))p.classList.add('hidden'); return true; }
       if(window.closeOSINT){ closeOSINT(); return true; } }
+    if(window.tourBack&&window.tourBack())return true;
+    if(window.rtBack&&window.rtBack())return true;
+    if(window.proSheetBack&&window.proSheetBack())return true;
     if(!reader.classList.contains('hidden')){ closeReader(); return true; }
     if(window.GRSP&&GRSP.back&&GRSP.back())return true;                      // search of the person: back through the questions
     if(window.GRSearch&&GRSearch.back&&GRSearch.back())return true;          // search: key sheet → AI thread
     if(vcur){                                                               // sub-view → the screen before it → the tab
       if(vstack.length){ const p=vstack.pop(); vcur=null; const fn=window[p.f]; if(typeof fn==='function'){ fn.apply(null,p.a); view.scrollTop=p.y||0; } return true; }
       vcur=null; render(); return true; }
-    if(tab!=='search'){ goHome(); return true; }
-    if(lastQuery){ lastQuery=''; render(); view.scrollTop=0; return true; }
+    if(OLD_TABS.includes(tab)){ setTab('folders'); render(); view.scrollTop=0; return true; }
+    if(tab==='search'&&lastQuery){ lastQuery=''; render(); view.scrollTop=0; return true; }
+    if(tab!=='today'){ goHome(); return true; }
     if(view.scrollTop>40){ view.scrollTo({top:0,behavior:'smooth'}); return true; }
     return false;
   }

@@ -118,6 +118,7 @@ function renderNB(id,opt){
   const have=new Set(secs.map(s=>s.k)), add=(e.add||[]).filter(k=>!have.has(k)&&NB.blocks[k]);
   if(add.length)h+='<div class="nb-addrow"><span class="nb-l">Add a part</span>'+add.map(k=>'<button type="button" class="nb-add" data-add="'+esc(k)+'">+ '+esc(NB.blocks[k].h)+'</button>').join('')+'</div>';
   h+='<div class="nb-acts bot"><button type="button" class="nb-btn pri" data-act="copy">'+ic('clipboard-list')+'Copy the whole entry</button>'
+    +(ptp?'<button type="button" class="nb-btn" data-pf="'+e.ptp+'" data-pfk="own">'+ic('list-checks')+'Check against the proofs</button>':'')
     +'<button type="button" class="nb-btn" data-act="notes">'+ic('notebook-pen')+'Save to Notes</button>'
     +'<button type="button" class="nb-btn" data-act="reset">Start again</button></div>';
   if(e.id!=='difficult')h+=checklistHtml(false);

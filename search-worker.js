@@ -31,8 +31,8 @@ const SYNG=[
 ];
 const K1=1.2, B=0.75;
 const TABLEY=/Tables|Master Index|Statutory Anchors|Consolidated Evidence Reference|Back Matter/i;
-const PRIOR={page:1,case:1,guide:1.1,off:1.25,sg:1.1,tpl:1,sten:1,kb:1.1,ops2:1.05,major:1,az:1.1,fa:1.2,tool:1.1,app:1.15};
-const FILTER={all:null,manual:['page','az'],cases:['case'],guides:['guide','ops2','kb','major'],offences:['off','sg'],forms:['tpl','sten'],app:['fa','tool','app']};
+const PRIOR={page:1,case:1,guide:1.1,off:1.25,sg:1.1,tpl:1,sten:1,kb:1.1,ops2:1.05,major:1,az:1.1,fa:1.2,tool:1.1,app:1.15,nb:1.15};
+const FILTER={all:null,manual:['page','az'],cases:['case'],guides:['guide','ops2','kb','major'],offences:['off','sg'],forms:['tpl','sten','nb'],app:['fa','tool','app']};
 
 function fold(s){ return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 function norm(s){ return fold(s).replace(/[’‘`]/g,"'")
@@ -107,7 +107,7 @@ async function getJSON(u){ const r=await fetch(u); if(!r.ok)throw new Error(u+' 
 async function build(extra){
   const prog=(d,n)=>postMessage({t:'prog',d,n});
   META=await getJSON('data/meta.json');
-  const names=['az','cases','ops','stencils','kb','ops2','templates','guides3','cases_deep'];
+  const names=['az','cases','ops','stencils','kb','ops2','templates','guides3','cases_deep','notebook'];
   const got={}; const missing=[];
   await Promise.all(names.map(async n=>{ try{ got[n]=await getJSON('data/'+n+'.json'); }catch(e){ missing.push(n); } }));
   const total=META.chunks.length+names.length; let done=0;
@@ -134,6 +134,9 @@ async function build(extra){
   }); prog(++done,total);
   /* investigation / deep guides */
   (got.guides3||[]).forEach(g=>{ passages(g.b,950).forEach(P=>addDoc('guide','g:'+g.id,g.t,P.h?P.h:'Guide',P.x,{k:'guide',id:g.id},2)); });
+  /* notebook entries — the drafts' headings and prompts */
+  { const N=got.notebook; if(N&&N.entries)N.entries.forEach(e=>{ const sec=e.sec.map(s=>typeof s==='string'?N.blocks[s.slice(1)]:s).filter(Boolean);
+      addDoc('nb','nb:'+e.id,'Notebook entry — '+e.t,'Notebook entry · '+e.grp,('notebook entry draft record '+sec.map(s=>s.h+':\n'+s.l.join('\n')).join('\n\n')).slice(0,3500),{k:'nb',id:e.id},3); }); }
   prog(++done,total);
   /* offence cards + statement guides + major incident */
   const O=got.ops||{};

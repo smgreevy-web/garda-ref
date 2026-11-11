@@ -5,8 +5,8 @@
  "start_url": "./index.html",
  "scope": "./",
  "display": "standalone",
- "background_color": "#070e18",
- "theme_color": "#070e18",
+ "background_color": "#0A101B",
+ "theme_color": "#0A101B",
  "icons": [
   {
    "src": "icons/icon-192.png",
@@ -62,5 +62,51 @@
     }
    ]
   }
- }
+ },
+ "shortcuts": [
+  {
+   "name": "Roster",
+   "short_name": "Roster",
+   "url": "./index.html?open=roster",
+   "icons": [
+    {
+     "src": "icons/icon-192.png",
+     "sizes": "192x192"
+    }
+   ]
+  },
+  {
+   "name": "Notebook entries",
+   "short_name": "Notebook",
+   "url": "./index.html?open=notebook",
+   "icons": [
+    {
+     "src": "icons/icon-192.png",
+     "sizes": "192x192"
+    }
+   ]
+  },
+  {
+   "name": "Search and ask",
+   "short_name": "Search",
+   "url": "./index.html?open=search",
+   "icons": [
+    {
+     "src": "icons/icon-192.png",
+     "sizes": "192x192"
+    }
+   ]
+  },
+  {
+   "name": "Tasks",
+   "short_name": "Tasks",
+   "url": "./index.html?open=tasks",
+   "icons": [
+    {
+     "src": "icons/icon-192.png",
+     "sizes": "192x192"
+    }
+   ]
+  }
+ ]
 }
