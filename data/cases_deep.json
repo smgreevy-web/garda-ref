@@ -15290,5 +15290,2157 @@
 "u": "https://ie.vlex.com/vid/dpp-v-feghiu-844799767"
 }
 ]
+},
+"DPP v Rattigan (2018)": {
+"upd": "November 2026",
+"bg": [
+"Gardaí received confidential information that a large quantity of drugs at a house in south Dublin was going to be moved quickly. A s.26 warrant was issued by a Peace Commissioner — on a form headed 'The District Court' — and the house was searched on 21 May 2008.",
+"In a shed they found about 4.97kg of heroin, a Nokia phone on charge, scales and about €36,000 in cash. Texts on the Nokia had come from a number linked to the accused, who was then a prisoner in Portlaoise.",
+"Gardaí searched his cell the next day under a separate warrant. He threw a phone onto the landing, which CCTV caught; its SIM carried the number that had texted the Nokia. A third warrant was used to search a second house.",
+"The Special Criminal Court convicted him in February 2013 of possession under s.15A (worth €13,000 or more), s.15 and s.3, and acquitted him of two counts of having a phone in prison. He got 17 years, concurrent, from June 2008.",
+"He appealed on eight grounds, including the lawfulness of all three warrants, the expert evidence on drug dealing, purity and value, and whether possession was proved."
+],
+"q": "Did defects in the warrant paperwork, gaps in the valuation evidence or the phone evidence make the conviction unsafe?",
+"dec": [
+"Court of Appeal, 10 October 2018 ([2018] IECA 315; Edwards J, with Hedigan and McGovern JJ). All eight grounds failed.",
+"House warrant: the trial court's ruling on the deficiencies in its form was open to it. The court examined the use of a District Court-headed form by a Peace Commissioner but found no error in the trial court's approach.",
+"Cell warrant: not open to criticism.",
+"Third warrant: the issuing judge's name was illegible, but the claimed prejudice was fanciful — a simple enquiry to the District Court office would have shown who signed it.",
+"The expert drug-profiling evidence was properly admitted.",
+"Value: at about €200 a gram, 4,973.6g came to €994,720. Street value depends on weight, not purity, so the purity point didn't help when the value was so far over €13,000.",
+"The trial was satisfactory and the conviction safe; appeal dismissed."
+],
+"keys": [
+{
+"q": "fanciful",
+"w": "Court of Appeal, on prejudice from an illegible issuer's name (as reported)"
+},
+{
+"q": "simple enquiry to the District Court office",
+"w": "Court of Appeal, as reported"
+},
+{
+"q": "the buyer is blind",
+"w": "on why street value turns on weight, not purity"
+}
+],
+"later": [
+"See People (DPP) v Connolly (drug value, 2011), in this app: where the value is close to €13,000 and depends on an assumed purity, the result can be the opposite.",
+"On warrant form errors see DPP v McCarthy (warrant, 2010) and DPP v Collins (warrant, 2014), in this app."
+],
+"job": [
+"Use the correct form for the person issuing the warrant; never a District Court template for a Peace Commissioner.",
+"Delete every irrelevant recital from the information and the warrant.",
+"Give the issuer enough detail — source type, recency, corroboration — to explain their satisfaction on oath.",
+"Make sure the issuer's name is legible and the original is filed; keep copies identical.",
+"For phones, prove each link: handset, SIM, number, who held it and when.",
+"Weigh accurately and record it — weight drives street value."
+],
+"law": "Yes — Court of Appeal authority (2018).",
+"src": [
+{
+"t": "vLex Ireland — DPP v Rattigan [2018] IECA 315",
+"u": "https://ie.vlex.com/vid/dpp-v-rattigan-792602041"
+},
+{
+"t": "Irish Examiner — report of the Court of Appeal ruling (October 2018)",
+"u": "https://www.irishexaminer.com/breakingnews/ireland/man-convicted-in-connection-to-1m-drug-deal-shakes-hands-with-detectives-after-losing-appeal-874942.html"
+},
+{
+"t": "legalblog.ie — Drug Powers & Penalties (judgment extracts)",
+"u": "https://legalblog.ie/1161-2/3"
+}
+]
+},
+"DPP v Samuilis (2018)": {
+"upd": "November 2026",
+"bg": [
+"Searches of rented houses uncovered a cannabis cultivation operation. One house held 103 mature plants and 150 saplings; a second held 180 mature plants with a street value of €144,000. The total was put at about €210,000, counting the saplings.",
+"Garda evidence was that the accused was an organiser: he arranged the premises and the leases and rental agreements.",
+"He pleaded guilty to two counts under s.15A of the Misuse of Drugs Act 1977, with six more taken into consideration. He gave gardaí his phone passcodes but made no comment in interview.",
+"In October 2017 he received two concurrent five-year terms, backdated, with the last two years suspended on condition of Probation Service supervision.",
+"The DPP sought a review under s.2 of the Criminal Justice Act 1993 on the ground that the sentence was unduly lenient."
+],
+"q": "How should a court sentence a grow-house organiser under s.15A, and where does the 10-year presumptive minimum come in?",
+"dec": [
+"Court of Appeal, 11 October 2018 ([2018] IECA 316; Edwards J for the court).",
+"The sentencing judge failed to fix the correct headline sentence, so the sentence didn't achieve deterrence. The DPP's application succeeded and the accused was resentenced.",
+"As the drugs guide summarises the guidance: for s.15 and s.15A the effective range in most cases runs to about 15 years — low 0–5, mid 5–10, upper 10–15.",
+"Grow-house roles are graded: organisers and funders at the top, managers in the middle, and gardeners — often exploited or trafficked — at the bottom.",
+"Method: fix the headline on gravity without reference to the presumptive minimum; apply mitigation; only if the result is below 10 years, ask whether exceptional and specific circumstances make the minimum unjust."
+],
+"keys": [
+{
+"q": "sophisticated cannabis cultivation operation",
+"w": "Court of Appeal, describing the grow houses"
+},
+{
+"q": "an organiser",
+"w": "garda evidence of the accused's role"
+}
+],
+"later": [
+"Cited in later Court of Appeal sentencing appeals on s.15 and s.15A. See also DPP v Kilkenny (2016) and DPP v Sarsfield (2019), in this app."
+],
+"job": [
+"For each suspect, record their role: who leased, funded, wired, supplied and tended.",
+"Count and photograph every plant and growth stage; the valuation here included the saplings.",
+"Note any signs of exploitation in gardeners — locked in, no documents, debt, no pay — and refer them on.",
+"Seize and link lease and rental paperwork to the organiser."
+],
+"law": "Yes — leading Court of Appeal sentencing guidance (2018). The free text checked stopped before the court's analysis, so the ranges and method are as the drugs guide summarises them.",
+"src": [
+{
+"t": "vLex Ireland — DPP v Samuilis [2018] IECA 316",
+"u": "https://ie.vlex.com/vid/dpp-v-samuilis-792872245"
+}
+]
+},
+"DPP v Sarsfield (2019)": {
+"upd": "November 2026",
+"bg": [
+"Gardaí seized diamorphine and cannabis with a combined value of about €4.1m, including about 188kg of cannabis herb.",
+"The accused pleaded guilty under s.15A to possessing drugs worth €13,000 or more for sale or supply. Gardaí described him as a small but important part of a larger operation.",
+"In mitigation: no relevant previous convictions, the plea, depression and physical health problems, vulnerabilities others had exploited, testimonials and efforts to address addiction.",
+"The Circuit Court imposed seven years, also taking stun-gun offences into account. The DPP sought a review for undue leniency."
+],
+"q": "Can mitigation take a mid-level participant in a multi-million-euro operation below the 10-year presumptive minimum?",
+"dec": [
+"Court of Appeal, 15 October 2019 ([2019] IECA 260; judgment of the President, Birmingham P).",
+"Seven years was a substantial departure from the appropriate sentence and was unduly lenient.",
+"The sentence could not go below the presumptive minimum on these facts, and a higher sentence could be justified; the court saw no basis for finding the minimum unjust.",
+"Headline 15 years. After mitigation, 10 years substituted for seven.",
+"The drugs guide also draws on the court's survey of appellate s.15A sentences: very large commercial dealing attracts headlines of about 14–15 years or more, and a plea alone rarely justifies going below 10 at that level."
+],
+"keys": [
+{
+"q": "a small cog but undoubtedly important cog",
+"w": "garda evidence of the accused's role"
+},
+{
+"q": "could not see any basis",
+"w": "Court of Appeal, on whether the minimum would be unjust"
+}
+],
+"later": [
+"Applies the method in DPP v Samuilis (2018), in this app. Contrast DPP v Lawel (sentence, 2017), where Garda concessions and low role justified going below 10 years."
+],
+"job": [
+"Put the full scale before the court: weights, values and the operation around the accused.",
+"Describe the accused's role accurately — 'small cog' evidence doesn't by itself bring the sentence below 10 years.",
+"Record cooperation precisely; it's one of the factors that can justify a departure."
+],
+"law": "Yes — Court of Appeal authority (2019).",
+"src": [
+{
+"t": "vLex Ireland — DPP v Sarsfield [2019] IECA 260",
+"u": "https://ie.vlex.com/vid/dpp-v-sarsfield-839136691"
+},
+{
+"t": "Irish Legal News — sentence increased to 10 years over €4.1m seizure",
+"u": "https://www.irishlegal.com/articles/court-of-appeal-man-convicted-of-offences-related-to-4-1m-drugs-seizure-has-sentence-increased-to-10-years"
+}
+]
+},
+"DPP v Lawel (parcel interception, 2014)": {
+"upd": "November 2026",
+"bg": [
+"In May 2011 a parcel arrived that appeared to come from an embassy in Caracas, Venezuela. It was addressed to a fictional person.",
+"Customs officers examined it, relying on s.77 of the Customs Consolidation Act 1876, and analysis showed it contained cocaine. It was then delivered to the accused's home in a controlled delivery.",
+"He was returned for trial at Naas Circuit Criminal Court on charges including possession of cocaine worth €13,000 or more for sale or supply.",
+"In July 2012, on an application to dismiss under s.4E of the Criminal Procedure Act 1967, the Circuit judge held that the detention (s.7 of the Customs and Excise (Miscellaneous Provisions) Act 1988) and the seizure (s.202) were unlawful, that s.77 applied only to warehoused goods, and that the accused had property and privacy rights in the parcel. The evidence was ruled inadmissible and he was discharged. The DPP appealed."
+],
+"q": "Can a court rule out the evidence from an unlawfully opened parcel on a pre-trial application to dismiss — and did the accused have a constitutional privacy right in a parcel addressed to someone who didn't exist?",
+"dec": [
+"Court of Criminal Appeal, 29 October 2014 ([2014] IECCA 33; MacMenamin J, with Moriarty and Herbert JJ). Appeal allowed; order quashed; case to proceed to trial.",
+"Following Cruise v Judge O'Donnell [2008] 3 IR 230, the lawfulness of a search and the admissibility of what it produced can't properly be decided on a s.4E application. That needs a balancing exercise at trial.",
+"The customs officers' probing of the parcel amounted to tampering, and s.77 didn't authorise it, because it applies only to goods to be warehoused.",
+"But the accused couldn't rely on a constitutional right of privacy: the parcel was addressed to a fictitious person, and the right belongs only to an individual the courts can recognise. He couldn't assert someone else's right either.",
+"So the evidence was at most unlawfully, not unconstitutionally, obtained, and wasn't automatically inadmissible; its admission was for the trial judge's discretion."
+],
+"keys": [
+{
+"q": "tampering in the natural or ordinary meaning",
+"w": "CCA, on the probing of the parcel"
+},
+{
+"q": "cognisable by the courts",
+"w": "CCA, on who can hold a right of privacy"
+}
+],
+"later": [
+"Later cases cite it on the limits of s.4E. Admissibility of unlawfully obtained evidence is now governed by People (DPP) v JC (2015), in this app.",
+"The accused later pleaded guilty: see DPP v Lawel (sentence, 2017), in this app."
+],
+"job": [
+"Before opening, detaining or seizing a package, know and record the power relied on — customs or Garda.",
+"Keep a clear chain from interception through analysis to controlled delivery.",
+"Don't assume a fake addressee makes the interception safe: illegality still has to be justified at trial.",
+"Record who handled the parcel at each stage and what was done to it."
+],
+"law": "Yes, on s.4E and on privacy in a parcel. The free text checked was incomplete on the second issue.",
+"src": [
+{
+"t": "vLex Ireland — DPP v Lawel [2014] IECCA 33",
+"u": "https://ie.vlex.com/vid/dpp-v-lawel-793956617"
+}
+]
+},
+"DPP v Lawel (sentence, 2017)": {
+"upd": "November 2026",
+"bg": [
+"The case arose from the 2011 controlled delivery of a parcel containing cocaine worth about €1.4m. After the 2014 Court of Criminal Appeal ruling, the case went back for trial.",
+"On 6 October 2015 the accused pleaded guilty at Naas Circuit Criminal Court to a s.15A offence, on the basis that he had been reckless as to what the parcel contained.",
+"The prosecuting garda accepted that there was an imbalance of power, that he was at the lowest level of the operation, that he didn't know the contents and that he was unlikely to reoffend. He had cooperated with the investigation.",
+"On 14 March 2016 he was sentenced to 10 years, with the final three suspended on a bond. He appealed on seven grounds, including the weight given to aggravating and mitigating factors, the plea credit and the presumptive minimum."
+],
+"q": "Was the credit given for the plea and the other mitigation enough, and should the presumptive minimum have been disapplied?",
+"dec": [
+"Court of Appeal, 9 October 2017 ([2017] IECA 253; Hedigan J, with Birmingham and Edwards JJ). Appeal allowed.",
+"Suspending three years of 10 was in effect a 30% reduction.",
+"About 25% would have been justified by the guilty plea alone in most similar cases. That left only 5% for all the other mitigation, which was inadequate — an error in principle.",
+"Taking all the mitigating factors together, there were exceptional grounds to disapply the presumptive minimum.",
+"Resentenced to six years with the final 18 months suspended on the same conditions, with credit for almost nine months on remand."
+],
+"keys": [
+{
+"q": "a rough figure of 25% reduction would have been justified",
+"w": "Court of Appeal, on the plea alone"
+},
+{
+"q": "exceptional grounds present to justify disapplication of the mandatory sentence",
+"w": "Court of Appeal"
+}
+],
+"later": [
+"Compare DPP v Sarsfield (2019), in this app, where a mid-level role in a €4.1m operation did not justify going below 10 years."
+],
+"job": [
+"Give accurate, fair evidence of the accused's role, knowledge and cooperation — the court will act on it.",
+"If you accept that a courier was at the lowest level or under someone else's power, be able to say why.",
+"Record cooperation and admissions in detail; they feed directly into sentence."
+],
+"law": "Yes — Court of Appeal authority (2017).",
+"src": [
+{
+"t": "vLex Ireland — DPP v Lawel [2017] IECA 253",
+"u": "https://ie.vlex.com/vid/dpp-v-lawel-793872365"
+},
+{
+"t": "legalblog.ie — Drug Powers & Penalties (judgment extracts)",
+"u": "https://legalblog.ie/1161-2/3"
+}
+]
+},
+"Bederev v Ireland": {
+"upd": "November 2026",
+"bg": [
+"Methylethcathinone was legal in Ireland and sold in head shops until 2011, when the Government declared it a controlled drug by order under s.2(2) of the Misuse of Drugs Act 1977.",
+"In April 2012 the accused was charged in Blanchardstown District Court with possessing it, and possessing it for sale or supply.",
+"He challenged s.2(2) in the High Court, arguing that it let the Government make law, contrary to the separation of powers and Article 15.2.1 of the Constitution, which gives the Oireachtas sole law-making power. The High Court dismissed the challenge, finding enough principles in the Act to guide the Government.",
+"On 10 March 2015 the Court of Appeal ([2015] IECA 38) allowed his appeal. It held that s.2(2) left the Government to decide what was 'dangerous', 'harmful' or 'misuse' — policy choices for the Oireachtas alone.",
+"Substances controlled by orders under s.2(2), including some Class A drugs, were briefly uncontrolled. On 11 March 2015 the Oireachtas passed the Misuse of Drugs (Amendment) Act 2015 to re-control them and confirm the affected statutory instruments."
+],
+"q": "Does s.2(2) of the Misuse of Drugs Act 1977, letting the Government declare new controlled drugs, unconstitutionally delegate law-making power?",
+"dec": [
+"Supreme Court, 2016 ([2016] IESC 34). A seven-judge court, unanimous; judgment by Charleton J.",
+"The appeal was allowed and the High Court's order restored: s.2(2) is valid.",
+"Read as a whole — preamble, sections and schedule — the 1977 Act sets its own policy. Only drugs that are dangerous to human health and subject to abuse may be added.",
+"The scheduled substances and the Act's sections describe and limit the kind of drug that can be controlled, so the Government is applying the Oireachtas's policy, not making its own.",
+"The Oireachtas can scrutinise and annul any order, so the power doesn't abandon its democratic responsibility."
+],
+"keys": [
+{
+"q": "clear violation of Article 15.2.1",
+"w": "Court of Appeal (2015), later reversed"
+},
+{
+"q": "describe and delimit",
+"w": "Supreme Court, on the Act's schedule and sections"
+},
+{
+"q": "not an abrogation of the democratic responsibility of the Oireachtas",
+"w": "Supreme Court"
+}
+],
+"later": [
+"The ruling restored the validity of s.2(2) and orders made under it. The 2015 Act had already confirmed the affected instruments by statute."
+],
+"job": [
+"Check that the substance was controlled on the date of the offence.",
+"Cite the correct order, regulation or schedule in the charge and statement.",
+"For newer substances, confirm with the FSI exactly what the drug is."
+],
+"law": "Yes — Supreme Court authority (2016).",
+"src": [
+{
+"t": "Wikipedia — Bederev v Ireland",
+"u": "https://en.wikipedia.org/wiki/Bederev_v_Ireland"
+},
+{
+"t": "vLex Ireland — Bederev v Ireland [2016] IESC 34",
+"u": "https://ie.vlex.com/vid/bederev-v-ireland-792822213"
+},
+{
+"t": "Irish Statute Book — Misuse of Drugs (Amendment) Act 2015",
+"u": "https://www.irishstatutebook.ie/eli/2015/act/6/contents"
+}
+]
+},
+"DPP v Byrne, Healy and Kelleher (1998)": {
+"upd": "November 2026",
+"bg": [
+"The accused were found with bales wrapped in opaque material. Nobody could tell what was inside by looking at, smelling or touching them. They contained cannabis resin.",
+"The issue was what knowledge the prosecution had to prove to establish possession of a controlled drug under the Misuse of Drugs Act 1977, given that the accused might not have known what the bales held."
+],
+"q": "To prove possession of drugs in a sealed package, must the prosecution prove the accused knew the package contained drugs?",
+"dec": [
+"Court of Criminal Appeal, reported at [1998] 2 IR 417.",
+"The court adopted the approach in R v McNamara (1988) 87 Cr App R 246.",
+"The prosecution must prove that the accused had the package under their control, knew they had it, and knew it contained something — and that it did in fact contain the controlled drug alleged.",
+"It need not prove they knew the contents were a controlled drug.",
+"Once that is proved, the burden passes to the accused under s.29(2) of the 1977 Act to raise the defence that they didn't know and had no reasonable grounds to suspect it was a controlled drug."
+],
+"later": [
+"Explained in DPP v Power (2007) and DPP v Smyth (2010), both in this app: s.29 exists to protect people who innocently take custody of a package. On the standard the accused must meet, see Smyth, DPP v Tuma (2015) and DPP v Melenciuc (2015)."
+],
+"job": [
+"Prove knowing control of the package: where it was, who had it, what they did with it.",
+"Prove what it contained with FSI analysis.",
+"Then investigate the s.29 story: who handed it over, when, for what payment, and what the phones show.",
+"Record the suspect's first account word for word."
+],
+"law": "Yes — still applied (as explained in later Supreme Court and CCA judgments). The judgment itself wasn't among the free sources checked.",
+"src": [
+{
+"t": "legalblog.ie — Drug Powers & Penalties (extracts from Smyth and Power)",
+"u": "https://legalblog.ie/1161-2/3"
+}
+]
+},
+"DPP v Collins (warrant, 2014)": {
+"upd": "November 2026",
+"bg": [
+"A garda based in Dublin swore an information, and a District Court judge issued a search warrant under s.26 of the Misuse of Drugs Act 1977 for premises in Drogheda, Co Louth.",
+"The warrant was headed 'Dublin Metropolitan District'. The court assumed a standard template had been used. The premises were outside that district; the judge in fact had jurisdiction for the Louth area, but the warrant said otherwise.",
+"The premises were searched in July 2010. The accused made admissions after his arrest there and was taken to a Dublin Garda station. All seven charges depended on the warrant.",
+"In May 2012 a Circuit judge in Dundalk held the warrant invalid and dismissed the charges under s.4E of the Criminal Procedure Act 1967. The DPP appealed; the accused also sought to have the appeal dismissed for delay."
+],
+"q": "Is a search warrant valid if it states, on its face, a District Court district that the issuing judge had no jurisdiction for?",
+"dec": [
+"Court of Criminal Appeal, 31 July 2014 ([2014] IECCA 30; O'Donnell J, with Moriarty and Herbert JJ).",
+"The court accepted that it had jurisdiction to dismiss an appeal for want of prosecution.",
+"Measured against the established requirements (Simple Imports; Edgeworth), and closest on its facts to DPP v McCarthy (2010), the warrant stated a jurisdiction the judge did not have, so it couldn't justify the search.",
+"The Circuit judge was right to hold the warrant invalid and the evidence inadmissible.",
+"The DPP accepted that an invalid warrant made the arrest and detention unlawful. Bound by Kenny [1990] 2 IR 110, the court expressed no view on whether such errors should have those consequences, but said it could be useful for the Supreme Court to review the point and the link between validity and admissibility."
+],
+"keys": [
+{
+"q": "stated a jurisdiction which the District judge did not have",
+"w": "Court of Criminal Appeal"
+}
+],
+"later": [
+"The Supreme Court reviewed the exclusionary rule the next year in People (DPP) v JC (2015), in this app, replacing Kenny's automatic exclusion with a test based on whether the breach was deliberate and conscious or inadvertent."
+],
+"job": [
+"Read every warrant before you leave: district, court, issuer, premises, offence, date.",
+"Don't reuse a template from another district — check the heading.",
+"If you spot an error, get a fresh warrant before you search.",
+"Note the warrant's details in your notebook at the scene."
+],
+"law": "The invalidity point stands. Whether the evidence would now be excluded depends on People (DPP) v JC (2015). The judgment was read on vLex Ireland; the BAILII link gives the full text.",
+"src": [
+{
+"t": "vLex Ireland — DPP v McCarthy [2010] IECCA 89 (the closest earlier case)",
+"u": "https://ie.vlex.com/vid/dpp-v-mccarthy-792953593"
+}
+]
+},
+"DPP v McCarthy (warrant, 2010)": {
+"upd": "November 2026",
+"bg": [
+"In January 2008 a Peace Commissioner issued a search warrant under s.26 of the Misuse of Drugs Act 1977 for premises in Tallaght, Dublin.",
+"The warrant was on a District Court form: it was headed 'The District Court' and the words under the signature described the signatory as the judge of the District Court assigned to the district — although the signatory was a Peace Commissioner.",
+"The accused was charged with possessing cocaine and heroin, including possession for sale or supply.",
+"On an application under s.4E of the Criminal Procedure Act 1967, the Circuit Court dismissed the charges: the error was fundamental and couldn't be corrected by oral evidence. The DPP appealed."
+],
+"q": "Is a warrant valid when a Peace Commissioner signs it on a form that describes the signatory as a District Court judge?",
+"dec": [
+"Court of Criminal Appeal, 12 October 2010 ([2010] IECCA 89; Macken J for the court, with Budd and O'Keeffe JJ). The DPP's appeal was dismissed and the Circuit Court's order affirmed.",
+"A warrant authorises entry into a citizen's property, including a home, and the use of force if necessary, so it must be carefully prepared.",
+"Not every error invalidates a warrant. Where the substance is unobjectionable and only the form is defective, it doesn't necessarily fall.",
+"The court must ask whether the error is fundamental: whether it goes to jurisdiction, whether it is a mere misdescription, whether it is likely to mislead, and whether it undermines the apparent jurisdiction to issue the warrant.",
+"Errors outside the statutory requirements in the body of the warrant can't be ruled out as invalidating it. Here the error was fundamental. (Simple Imports and Balfe considered; Dunne distinguished.)"
+],
+"keys": [
+{
+"q": "Judge of the District Court assigned to the said District",
+"w": "the words under the Peace Commissioner's signature"
+}
+],
+"later": [
+"Applied in DPP v Collins (warrant, 2014). Compare DPP v Rattigan (2018), where a District Court heading on a Peace Commissioner's warrant survived — the signature block identified a Peace Commissioner. All in this app."
+],
+"job": [
+"Use the Peace Commissioner form for a Peace Commissioner and the District Court form for a judge.",
+"Check the signature block names the issuer's real office.",
+"Read the whole warrant before executing it; if it is wrong, get a new one.",
+"Keep the original and a copy with the file."
+],
+"law": "Yes on validity. Whether evidence would now be excluded depends on People (DPP) v JC (2015), in this app.",
+"src": [
+{
+"t": "vLex Ireland — DPP v McCarthy [2010] IECCA 89",
+"u": "https://ie.vlex.com/vid/dpp-v-mccarthy-792953593"
+}
+]
+},
+"DPP v Connolly (drug value, 2011)": {
+"upd": "November 2026",
+"bg": [
+"White powder was found at Kill, Co Kildare, in 2004, in ten bags. Five were tested and showed amphetamine, but the analysis didn't establish how much amphetamine was in them.",
+"The value relied on assumed a purity of at least 10%. The forensic scientist said purity was generally between 10% and 40%, and agreed that purity as low as 1% couldn't be ruled out — which would put the value below €13,000.",
+"The accused was convicted under s.15A of the Misuse of Drugs Act 1977 of possessing amphetamine worth €13,000 or more for sale or supply, which carried the presumptive 10-year minimum. He appealed to the Supreme Court."
+],
+"q": "Is value an element of the s.15A offence that must be proved beyond reasonable doubt — and can it be proved by an assumed purity?",
+"dec": [
+"Supreme Court, February 2011 ([2011] IESC 6; Fennelly J).",
+"The market value of €13,000 or more is an essential ingredient of the offence and must be proved beyond reasonable doubt.",
+"Showing that amphetamine was present was not enough to prove the value.",
+"The prosecution couldn't rely on a range said to apply 'generally' without explaining it; probability wasn't proof.",
+"The case should have been withdrawn from the jury. The conviction was set aside, and no retrial was ordered because there was no reason to think the scientist could give different evidence."
+],
+"keys": [
+{
+"q": "generally",
+"w": "the scientist's word for the purity range — which left lower purities open"
+}
+],
+"later": [
+"Compare DPP v Rattigan (2018), where purity had little bearing because the value was far above €13,000; and DPP v Power (2007): the accused needn't know the value. Both in this app."
+],
+"job": [
+"Where the valuation depends on purity, ask the FSI for quantitative analysis.",
+"Value conservatively and explain the method; have a qualified witness for it.",
+"Test, or account for, every package — not a sample — if the value is near the threshold.",
+"Charge s.15 and s.3 alongside s.15A."
+],
+"law": "Yes — Supreme Court authority (2011). Summary based on a news report of the judgment and the drugs guide.",
+"src": [
+{
+"t": "RTÉ News — Supreme Court quashes amphetamine conviction (February 2011)",
+"u": "https://www.rte.ie/news/2011/0215/297714-connollya"
+}
+]
+},
+"DPP v Carroll (2021)": {
+"upd": "November 2026",
+"bg": [
+"Gardaí stopped a car in which the accused was travelling with another man. He began to comply with a search, then ran off and escaped. Two gardaí said they saw him throw away a package containing cocaine.",
+"He was later arrested and interviewed. He stayed silent. The interview was said to be conducted under the inference provisions of the Criminal Justice Act 1984.",
+"At trial he said he panicked when his friend shouted to run, and denied having the drugs. In cross-examination he said he hadn't answered questions because he'd been advised of his right to silence.",
+"The defence objected to the interview evidence; the judge admitted it. The prosecution referred to it in closing, but the charge gave no direction on why it was admitted or how the jury could use his silence. Defence counsel didn't raise a requisition, and the point was first taken on appeal."
+],
+"q": "Where silence in an inference interview is put before the jury, must the judge direct them on how it can be used — even if no one asked for a direction?",
+"dec": [
+"Court of Appeal, October 2021 ([2021] IECA 261; Donnelly J).",
+"The right to silence is part of the fair-trial rights protected by Article 38.1 (Heaney v Ireland).",
+"DPP v M (2018) is a powerful statement of the court's duty to make sure no improper or unfair inference is drawn from silence when the statutory provisions are invoked; inferences require strict compliance with the 1984 Act (People (DPP) v A McD, 2016).",
+"A new point can be taken on appeal where there was an error of substance (DPP v Cronin (No. 2)) and the court will intervene to prevent a real risk of injustice. The failure to requisition was an error, not a tactical choice.",
+"Given the prosecution's reliance on his silence and his explanation for it, a direction was needed. Without one there was a real risk of injustice. Conviction quashed; the court invited submissions on a retrial."
+],
+"keys": [
+{
+"q": "very powerful statement",
+"w": "Court of Appeal, describing DPP v M (2018)"
+}
+],
+"later": [
+"See DPP v M (prepared statement, 2018), in this app, on silence after a prepared statement."
+],
+"job": [
+"Before an inference interview, have the provision, the fact and the caution ready in plain language.",
+"Tell the suspect, in ordinary words, what may follow from silence, and give them the chance to consult a solicitor.",
+"Make sure the interview is electronically recorded.",
+"Note exactly what was put and what was said, so the court can direct the jury properly."
+],
+"law": "Yes — Court of Appeal authority (2021). Summary based on a published report of the judgment.",
+"src": [
+{
+"t": "Irish Legal News — conviction quashed after jury not directed on inference evidence",
+"u": "https://irishlegal.com/articles/court-of-appeal-conviction-quashed-after-jury-was-not-directed-on-inference-evidence"
+}
+]
+},
+"DPP v Tuma (2015)": {
+"upd": "November 2026",
+"bg": [
+"In May 2008 gardaí stopped a car in the Dublin Mountains after it failed to stop for them. A large holdall on the back seat contained cannabis worth about €180,000.",
+"The accused's defence turned on s.29 of the Misuse of Drugs Act 1977: that he didn't know, and had no reasonable grounds to suspect, what was in the bag.",
+"In May 2011, after a six-day trial in the Circuit Criminal Court, a jury convicted him of possession under s.15A, s.15 and s.3. He was sentenced to seven years on the s.15A count.",
+"On appeal he was allowed to argue a new ground: that the judge had told the jury the defendant had to prove his lack of knowledge beyond reasonable doubt — said to have happened four times, twice in the charge and twice in answers to the jury's questions."
+],
+"q": "What burden and standard of proof does s.29(2) place on an accused, and what happens if the jury is misdirected on it?",
+"dec": [
+"Court of Appeal, 27 March 2015 ([2015] IECA 63; Edwards J for the court).",
+"The court allowed the new ground to be argued.",
+"The jury were misdirected in several material respects and given contradictory and confusing instructions on the burden and standard of proof for the s.29 defence.",
+"The court proceeded on the basis that DPP v Smyth (2010) was correctly decided and should be followed: the accused needs only to raise a reasonable doubt.",
+"The conviction was unsafe and the trial unsatisfactory. A retrial was ordered on all three counts."
+],
+"keys": [
+{
+"q": "contradictory and confusing instructions",
+"w": "Court of Appeal, on the jury directions"
+}
+],
+"later": [
+"Followed in DPP v Melenciuc (2015). See DPP v Smyth (2010). Both in this app."
+],
+"job": [
+"Expect the 'didn't know what was in the bag' defence — the accused only has to raise a doubt.",
+"Gather evidence on the circumstances: who gave the bag, when, for what payment, and what the phones show.",
+"Record the suspect's account at the roadside and their behaviour on being stopped.",
+"Note any failure to stop and how the bag was positioned in the car."
+],
+"law": "Yes — Court of Appeal authority (2015), consistent with DPP v Smyth (2010).",
+"src": [
+{
+"t": "vLex Ireland — DPP v Tuma [2015] IECA 63",
+"u": "https://ie.vlex.com/vid/the-people-director-of-793644729"
+},
+{
+"t": "The Irish Times — report of the appeal hearing",
+"u": "https://www.irishtimes.com/news/crime-and-law/man-jailed-over-suitcase-full-of-cannabis-to-hear-if-conviction-quashed-1.2115447"
+}
+]
+},
+"DPP v Finnegan and Morrison (2011)": {
+"upd": "November 2026",
+"bg": [
+"Acting on confidential information, gardaí watched a wooded area near a housing estate in Co Cork.",
+"According to the Garda evidence, one accused took a white bag from the undergrowth and removed a blue box from it. He passed the box to the other, who opened it, put his hand in, closed it and handed it back. The bag was then put back in the undergrowth.",
+"Gardaí recovered the bag. Inside the box was a package wrapped in duct tape containing heroin worth over €43,000. The watching garda couldn't see whether anything was put into or taken out of the box.",
+"The defence case was that the Garda account was fabricated and the accused never touched the bag. They criticised the lack of scene photographs and of fingerprint or DNA testing, including of plastic gloves found on one of them.",
+"Both were convicted of possession of heroin for sale or supply under s.15A and sentenced to 12 years."
+],
+"q": "Was there enough evidence of possession to go to the jury, and was the jury properly directed on the mental element of possession?",
+"dec": [
+"Court of Criminal Appeal, 28 July 2011 ([2011] IECCA 47; Macken J, with Herbert and O'Keeffe JJ). Leave to appeal against conviction was refused.",
+"The grounds were the refusal of a direction at the close of the prosecution case, the adequacy of the charge on possession — including whether the prosecution must prove an intention to possess — and, for one accused, the balance of the summing-up.",
+"The court approved DPP v Smyth (2010) and applied R v Galbraith on when a case should be withdrawn.",
+"The court's detailed reasoning wasn't in the free text checked. The drugs guide cites the case for the rule that physical handling alone isn't enough: the mental element must be proved and the jury directed on it."
+],
+"later": [
+"Later cases cite it on requisitions for a further recharge and on applying Galbraith to circumstantial evidence. See Minister for Posts and Telegraphs v Campbell (knowledge and control) and DPP v Gallagher (2006), in this app."
+],
+"job": [
+"Record exactly what you saw each suspect do, and what you couldn't see.",
+"Photograph the scene and the hiding place before recovery.",
+"Preserve gloves, bags and packaging for fingerprint and DNA testing.",
+"Build a separate link to the drugs for each suspect."
+],
+"law": "Yes — still cited. Conf low because the court's reasoning on possession wasn't in the free text checked.",
+"src": [
+{
+"t": "vLex Ireland — DPP v Finnegan & Morrison [2011] IECCA 47",
+"u": "https://ie.vlex.com/vid/dpp-v-finnegan-morrison-793587665"
+}
+]
+},
+"DPP v Gallagher (2006)": {
+"upd": "November 2026",
+"bg": [
+"Customs officers found about €1m of herbal cannabis hidden in hollowed-out wooden doors in a container at Dublin Port.",
+"The container was resealed and kept under surveillance. Gardaí followed it to a business park in the midlands, where four men, including the accused, were arrested while unloading it into a lorry.",
+"He was convicted in the Circuit Criminal Court in 2002 under s.15A of the Misuse of Drugs Act 1977 of possession for sale or supply.",
+"His defence was that the authorities had custody and control of the container throughout, so he wasn't in legal possession. He also said his interview statements were involuntary because he was in severe withdrawal, and that the Garda notes were selective."
+],
+"q": "Must a judge explain the legal meaning of 'possession' to a jury — and can people be in possession of drugs that customs and gardaí have been controlling and watching?",
+"dec": [
+"Court of Criminal Appeal, 28 July 2006 ([2006] IECCA 110; Murray CJ for the court, with O'Neill and Gilligan JJ). Leave to appeal refused.",
+"'Possession' is an ordinary English word, well known to the law. The Act didn't need to define it, and the jury needed no special direction here.",
+"Closer analysis may be needed in some contexts, such as constructive possession. This was actual possession: the men were exercising physical control over the container and its contents in a joint enterprise.",
+"Garda surveillance didn't change those facts or mean the men lacked possession.",
+"The trial judge's findings that the statements were voluntary were amply supported. The selectivity point failed because it wasn't raised at trial and the accused had accepted the notes were accurate."
+],
+"later": [
+"Compare DPP v Rattigan (2018), a constructive-possession case, and DPP v Finnegan and Morrison (2011), both in this app."
+],
+"job": [
+"In a controlled delivery, record who takes physical control of the goods and when.",
+"Keep a full surveillance log linking each suspect to the handling.",
+"Note the suspect's condition at interview, and consider a doctor if withdrawal is apparent.",
+"Make interview notes complete and get the suspect to read and sign them."
+],
+"law": "Yes — Court of Criminal Appeal authority (2006).",
+"src": [
+{
+"t": "The Irish Times — law report: no misdirection where judge didn't explain 'possession'",
+"u": "https://www.irishtimes.com/news/no-misdirection-in-drugs-trial-where-judge-failed-to-explain-meaning-of-possession-to-jury-1.1013046"
+}
+]
+},
+"DPP v Kilkenny (2016)": {
+"upd": "November 2026",
+"bg": [
+"Cannabis plants with a potential value of about €2.8m were found growing in premises.",
+"The central offender had leased the premises and sourced the machinery for the operation. He received 10 years with six suspended.",
+"Those who tended the plants received seven years with six suspended, on condition that they leave the jurisdiction.",
+"The DPP sought a review of the central offender's sentence as unduly lenient."
+],
+"q": "How should sentences differ between the organiser of a large grow house and those who tend the plants?",
+"dec": [
+"Court of Appeal, 2016 ([2016] IECA 348).",
+"On the DPP's review, the central offender's sentence was increased from 10 years with six suspended to 12 years with four suspended.",
+"As later described, the case illustrates that different roles in the same operation attract different sentences."
+],
+"later": [
+"Relied on in submissions in DPP v Lawel (sentence, 2017). The fuller guidance on grow-house roles is in DPP v Samuilis (2018). Both in this app."
+],
+"job": [
+"Identify who leased the premises, who bought and installed the equipment, and who paid the bills.",
+"Seize leases, receipts and phones that link the organiser to the site.",
+"Record each gardener's circumstances, including any signs of exploitation."
+],
+"law": "Still cited as a comparator. The judgment wasn't among the free sources checked; this summary relies on how it was described in DPP v Lawel (2017).",
+"src": [
+{
+"t": "legalblog.ie — Drug Powers & Penalties (Lawel 2017 extracts describing Kilkenny)",
+"u": "https://legalblog.ie/1161-2/3"
+}
+]
+},
+"DPP v Bogdan (2016)": {
+"upd": "November 2026",
+"bg": [
+"The accused knowingly imported cannabis herb worth about €1.5m. He was to be paid €5,000.",
+"He received six years and appealed against the severity of the sentence."
+],
+"q": "Was six years too severe for a paid courier who knowingly imported €1.5m of cannabis?",
+"dec": [
+"Court of Appeal, 2016 ([2016] IECA 70).",
+"The six-year sentence was not disturbed."
+],
+"later": [
+"Relied on as a comparator in DPP v Lawel (sentence, 2017), in this app."
+],
+"job": [
+"Prove what the courier knew about the load.",
+"Record the agreed payment and who arranged it — it goes to role and to sentence.",
+"Seize phones and travel records showing the courier's part in the importation."
+],
+"law": "Still a useful comparator. The judgment wasn't among the free sources checked; this summary relies on how it was described in DPP v Lawel (2017).",
+"src": [
+{
+"t": "legalblog.ie — Drug Powers & Penalties (Lawel 2017 extracts describing Bogdan)",
+"u": "https://legalblog.ie/1161-2/3"
+}
+]
+},
+"DPP v O'Mahony and Brennan (2014)": {
+"upd": "November 2026",
+"bg": [
+"Both accused pleaded guilty to offences under s.15A of the Misuse of Drugs Act 1977.",
+"The drugs were valued at about €3.5m: roughly €488,761 of cocaine and about €3.1m of heroin.",
+"One had no previous convictions and a work history, and there was substantial personal mitigation.",
+"Each was sentenced to 13 years, with the final three suspended on bonds to keep the peace for three years. They appealed, arguing the sentences were excessive and oppressive and that too little credit was given for mitigation."
+],
+"q": "Did the sentencing judge give enough weight to the pleas and the personal mitigation?",
+"dec": [
+"Court of Appeal, 24 November 2014 ([2014] IECA 57; ex tempore judgment by Sheehan J; the other judges agreed).",
+"The court was satisfied that the sentencing judge had taken due account of the mitigating factors and given them appropriate weight.",
+"The appeals were dismissed."
+],
+"later": [
+"Compare DPP v Sarsfield (2019) and DPP v Lawel (sentence, 2017), in this app."
+],
+"job": [
+"Put the full quantity and value of each drug before the court.",
+"Give accurate evidence of each accused's role and record."
+],
+"law": "Still a useful comparator for high-value s.15A pleas.",
+"src": [
+{
+"t": "vLex Ireland — DPP v O'Mahony and Brennan [2014] IECA 57",
+"u": "https://ie.vlex.com/vid/dpp-v-mahony-793408277"
+}
+]
+},
+"McManus v Minister for Justice (2021)": {
+"upd": "November 2026",
+"bg": [
+"The applicant pleaded guilty in Cork Circuit Criminal Court in April 2018 to a s.15A offence: possession of cocaine worth over €13,000.",
+"He had a 2009 s.15A conviction, for which he had received seven years with two suspended.",
+"The sentencing judge found that he had run a cocaine extraction laboratory in west Cork, with cocaine totalling €51,000, as the principal actor.",
+"Because it was a second s.15A offence, s.27(3F) of the Misuse of Drugs Act 1977 required a minimum of 10 years. He was sentenced to 15 years with the final three suspended, and brought proceedings challenging s.27(3F)."
+],
+"q": "Is the mandatory 10-year minimum for a second s.15A conviction (s.27(3F)) constitutional?",
+"dec": [
+"High Court, 10 June 2021 ([2021] IEHC 385; Twomey J).",
+"The court was bound by Ellis v Minister for Justice and Equality [2019] IESC 30, where the Supreme Court struck down a similar mandatory minimum in the Firearms Act.",
+"Under Ellis, the Oireachtas may legislate sentences that apply to everyone, but may not impose specified sentences on a limited class of people sharing a characteristic. Section 27(3F) was virtually identical, so it fell too.",
+"The State argued that the minimum hadn't affected the 15-year sentence and that he couldn't rely on others' rights. Both arguments failed: the court couldn't rule out that the judge was influenced by the minimum.",
+"Declaration that s.27(3F) is repugnant to the Constitution; sentence quashed and remitted to the Circuit Court; costs provisionally awarded.",
+"Following A v Governor of Arbour Hill Prison (2006), the declaration doesn't benefit prisoners who didn't appeal in time or whose appeals didn't raise the point."
+],
+"later": [
+"See Ellis v Minister for Justice and Equality (2019) and A v Governor of Arbour Hill Prison (2006), in this app."
+],
+"job": [
+"For sentence, prove any previous drug trafficking conviction properly: date, court, offence and sentence.",
+"Remember the presumptive 10-year minimum for s.15A still applies to everyone; only the automatic second-offence rule has gone."
+],
+"law": "Yes — High Court declaration (2021).",
+"src": [
+{
+"t": "Irish Legal News — s.27(3F) declared unconstitutional",
+"u": "https://www.irishlegal.com/articles/high-court-mandatory-minimum-sentencing-section-in-misuse-of-drugs-act-declared-to-be-unconstitutional"
+}
+]
+},
+"DPP v Melenciuc (2015)": {
+"upd": "November 2026",
+"bg": [
+"In August 2011 the accused was stopped at Rosslare Europort, Co Wexford, after getting off a ferry.",
+"Customs found cannabis resin worth €316,566 hidden in the vehicle's petrol tank.",
+"He said he had been asked to bring returned paint back to Ireland and didn't know the drugs were there.",
+"In December 2012, after a four-day trial in Wexford Circuit Criminal Court, he was convicted on five counts, including possession and importation. He received concurrent sentences of 10 years on two counts and five years on another.",
+"The judge told the jury that the defendant had to prove, beyond reasonable doubt, that he didn't know and had no reasonable grounds to suspect, under s.29(2) of the Misuse of Drugs Act 1977."
+],
+"q": "What must an accused do to make out the s.29(2) defence — and if the jury is misdirected, do convictions for importing the same drugs fall too?",
+"dec": [
+"Court of Appeal, 22 June 2015 ([2015] IECA 133; Mahon J for the court).",
+"Having considered DPP v Smyth (2010) and DPP v Tuma (2015), the court held the direction wrong. The accused only had to raise a doubt about whether he knew, or had reason to suspect, that the drugs were in his possession; he didn't have to prove anything.",
+"The rest of the charge was fair, reasonable and comprehensive, and the other two grounds of appeal failed.",
+"Section 29(2) strictly applied only to the possession counts. But all five counts related to the same consignment and were inextricably linked, so the importation convictions fell too.",
+"Appeal allowed; the convictions were quashed."
+],
+"keys": [
+{
+"q": "did not know and had no reasonable grounds for suspecting",
+"w": "Misuse of Drugs Act 1977, s.29(2)(a)"
+}
+],
+"later": [
+"See DPP v Smyth (2010), DPP v Tuma (2015) and DPP v Byrne, Healy and Kelleher (1998), in this app."
+],
+"job": [
+"Investigate the courier's story at once: who asked him, when, what he was paid, and who owns the vehicle.",
+"Photograph the concealment and record how it was found — a hidden tank compartment says something about knowledge.",
+"Seize and examine phones and travel bookings.",
+"Record his first account word for word."
+],
+"law": "Yes — Court of Appeal authority (2015).",
+"src": [
+{
+"t": "vLex Ireland — DPP v Melenciuc [2015] IECA 133",
+"u": "https://ie.vlex.com/vid/dpp-v-melenciuc-793352881"
+}
+]
+},
+"DPP v M (prepared statement, 2018)": {
+"upd": "November 2026",
+"bg": [
+"The accused faced a historical indecent assault charge.",
+"At his Garda interview he read out a prepared written statement denying the allegation. When asked further questions, he answered that he had nothing to say beyond what was in his statement.",
+"At his second trial the statement was admitted, and the prosecution then led evidence of the further questions and his answers. The defence objected under the Finnerty rules and asked for the jury to be discharged; the judge refused.",
+"He was convicted, and the Court of Appeal upheld the conviction."
+],
+"q": "If a suspect gives a prepared statement and then declines further questions, is that an exercise of the right to silence — and can those exchanges go before the jury?",
+"dec": [
+"Supreme Court, March 2018 ([2018] IESC 21; O'Malley J for a unanimous court of five). Appeal allowed; conviction quashed.",
+"His answers were an exercise of the right to silence, not a waiver of it. Giving a voluntary statement doesn't waive the right to refuse further questions, and a waiver can't be implied from ambiguous words.",
+"Putting those exchanges before the jury breached the right. The judge should have directed the jury on how to treat that evidence.",
+"Without a direction there was a real possibility that the jury drew an adverse inference about his credibility.",
+"The court adopted the Canadian principle (R v Chambers) that it would be a snare and a delusion to caution a suspect that he needn't answer and then use his silence against him."
+],
+"keys": [
+{
+"q": "nothing to say other than what's written in my statement",
+"w": "the accused's answer in interview (as reported)"
+},
+{
+"q": "a snare and a delusion",
+"w": "R v Chambers, adopted by the Supreme Court"
+}
+],
+"later": [
+"Described in DPP v Carroll (2021), in this app, as a powerful statement of the court's duty to prevent improper inferences from silence."
+],
+"job": [
+"Accept a prepared statement and record it in full.",
+"If the suspect then declines to answer, that is silence — don't treat it as evasion in your notes or evidence.",
+"Only seek inferences where a statutory provision applies and its steps are followed.",
+"Flag interview content that may need editing before trial."
+],
+"law": "Yes — Supreme Court authority (2018).",
+"src": [
+{
+"t": "Irish Legal News — Supreme Court quashes historical indecent assault conviction",
+"u": "https://www.irishlegal.com/articles/supreme-court-doctor-convicted-indecent-assault-conviction-quashed"
+},
+{
+"t": "Y. M. Daly (DCU) — Detained Suspects, Prepared Statements and the Right to Silence: DPP v M [2018] IESC 21",
+"u": "https://core.ac.uk/download/228161888.pdf"
+}
+]
+},
+"A v Governor of Arbour Hill Prison": {
+"upd": "November 2026",
+"bg": [
+"In June 2004 the applicant was convicted in the Dublin Circuit Court of a sexual offence against a child under s.1(1) of the Criminal Law (Amendment) Act 1935. In November 2004 he was sentenced to three years.",
+"In May 2006, in CC v Ireland, the Supreme Court declared s.1(1) inconsistent with the Constitution because it allowed no defence of reasonable mistake as to age.",
+"The applicant then challenged the legality of his detention. The High Court (Laffoy J) held that his conviction and sentence were a nullity and ordered his release.",
+"The State appealed to the Supreme Court."
+],
+"q": "When a criminal law is declared unconstitutional, are final convictions under it automatically void?",
+"dec": [
+"Supreme Court, 10 July 2006 ([2006] IESC 45; [2006] 4 IR 88; Murray CJ, Denham, McGuinness, Hardiman and Geoghegan JJ). The appeal was allowed and the release order set aside.",
+"A declaration of unconstitutionality doesn't automatically undo a final judicial decision. Retrospective effect is not unlimited: public policy requires limits.",
+"His claim was a collateral attack on a final decision. He could have raised the constitutional point in his own proceedings, and he wasn't seeking to appeal or reopen his case.",
+"Accepting his argument would undermine an ordered constitutional system, with decisions made over many years suddenly void.",
+"Only exceptional circumstances could justify an exception, and there were none. The court also applied the rule that a person challenging a law must show its effect on his own rights."
+],
+"later": [
+"Applied in McManus v Minister for Justice (2021), in this app: the s.27(3F) declaration didn't help prisoners whose cases were final."
+],
+"job": [
+"After a law is struck down, don't assume old convictions under it are void.",
+"For pending charges under a struck-down provision, take advice from the State Solicitor or DPP before proceeding.",
+"Check the current status of any provision you charge under."
+],
+"law": "Yes — Supreme Court authority (2006).",
+"src": [
+{
+"t": "Wikipedia — A v Governor of Arbour Hill Prison",
+"u": "https://en.wikipedia.org/wiki/A_v_Governor_of_Arbour_Hill_Prison"
+},
+{
+"t": "vLex Ireland — A v Governor of Arbour Hill Prison",
+"u": "https://ie.vlex.com/vid/v-governor-of-arbour-793287617"
+}
+]
+},
+"CRH plc v Competition and Consumer Protection Commission": {
+"upd": "November 2026",
+"bg": [
+"In May 2015 the Competition and Consumer Protection Commission (CCPC) searched the premises of Irish Cement, a CRH subsidiary, under the Competition and Consumer Protection Act 2014. It was investigating alleged abuse of dominance in the bagged cement market.",
+"The CCPC took a copy of a senior executive's entire company email account.",
+"The company said many of the emails fell outside the warrant. Its solicitors proposed that an independent lawyer review them for relevance. The CCPC refused and insisted on reviewing everything itself.",
+"Irish law had no statutory procedure for deciding the relevance of material seized in such a search.",
+"In April 2016 the High Court found that a significant part of the emails was outside the warrant and that a CCPC review of that material would breach privacy rights."
+],
+"q": "Can an investigator who has lawfully copied a whole email account review all of it, including private material outside the warrant?",
+"dec": [
+"Supreme Court, 2017 ([2017] IESC 34). The CCPC's appeal was dismissed in its entirety, in three separate judgments.",
+"The judgments focused on the right to privacy under the Constitution and Article 8 of the European Convention on Human Rights.",
+"Reviewing the out-of-scope material would be disproportionate. MacMenamin J called it an unnecessary, irrational incursion.",
+"The court recommended that the CCPC consider a code of practice for similar cases."
+],
+"keys": [
+{
+"q": "unnecessary, irrational, incursion",
+"w": "MacMenamin J, on the proposed review"
+}
+],
+"later": [
+"The principles on privacy and digital material apply by analogy to Garda searches of phones and computers."
+],
+"job": [
+"Know what your warrant covers before examining a seized device or account.",
+"Search digital material in a way you can explain: keywords, date ranges, categories.",
+"Record your search method and keep out-of-scope private material untouched.",
+"If the owner raises privacy or privilege, consider an agreed or independent review."
+],
+"law": "Yes — Supreme Court authority (2017). Summary based on a law-firm briefing on the judgment.",
+"src": [
+{
+"t": "William Fry — Supreme Court criticises CCPC dawn raid",
+"u": "https://www.williamfry.com/knowledge/supreme-court-criticizes-ccpc-dawn-raid/"
+}
+]
+},
+"Bowes v Devally": {
+"upd": "November 2026",
+"bg": [
+"On 25 February 1992 the applicant was convicted at Kilmainham District Court of possessing a small quantity of cannabis resin, contrary to s.3 of the Misuse of Drugs Act 1977.",
+"She was fined £75, and £890 found in the same room — with traces of cannabis on the notes — was ordered forfeited under s.30(1).",
+"The Circuit Court dismissed her appeal and affirmed the District Court's order.",
+"She was given leave to seek judicial review, and asked the High Court to quash the Circuit Court order."
+],
+"q": "Can money found with drugs be forfeited under s.30 on a conviction for simple possession?",
+"dec": [
+"High Court, 10 February 1995 (Geoghegan J; reported [1995] 2 ILRM 148 and [1995] 1 IR 315).",
+"Forfeiture is part of the penalty, so the statutory conditions for it must be strictly construed.",
+"The property must be connected to the particular offence of conviction. Nothing connected the money to simple possession, so there was no jurisdiction to forfeit it.",
+"The forfeiture couldn't be severed from the rest of the Circuit Court order (The State (Kiernan) v de Burca), so the whole order was quashed and the matter remitted for the forfeiture to be removed."
+],
+"later": [
+"Still cited on the limits of s.30. For cash suspected to be proceeds of crime, the routes are a supply charge with evidence linking the money, cash seizure under the Criminal Justice Act 1994, or CAB."
+],
+"job": [
+"On a simple possession case, don't seek s.30 forfeiture of cash unless you can link it to that offence.",
+"If you believe cash is proceeds of dealing, gather evidence for a supply charge — tick lists, phones, packaging.",
+"Consider cash seizure powers under the Criminal Justice Act 1994, or refer to CAB.",
+"Record where cash was found, the amount and denominations, and any traces on it."
+],
+"law": "Yes — High Court authority (1995).",
+"src": [
+{
+"t": "vLex Ireland — Bowes v Judge Devally",
+"u": "https://ie.vlex.com/vid/bowes-v-judge-devally-793517681"
+},
+{
+"t": "legalblog.ie — Drug Powers & Penalties (judgment extracts)",
+"u": "https://legalblog.ie/1161-2/3"
+}
+]
+},
+"DPP v Maher (DNA database, 2021)": {
+"upd": "November 2026",
+"bg": [
+"Blood was found in a bedroom of a house burgled in 2010, and a swab was taken.",
+"In 2013 the sample was sent to Forensic Science Ireland (FSI) and profiled. This was an informal arrangement made in anticipation of the DNA database to be set up under the Criminal Justice (Forensic Evidence and DNA Database System) Act 2014, so that FSI wouldn't be swamped once the Act came in. The profile was held on an 'intermediate database' and later on the statutory DNA database.",
+"In 2016 the accused was arrested for another offence. A sample was taken from him and profiled, and it matched the 2010 crime-scene profile. He was charged in the District Court with the 2010 burglary.",
+"The defence argued that no law allowed the profile to be created in 2013, that keeping it on a database was unlawful, and that the 2014 Act gave no power to match a pre-Act profile against a later sample. The DPP argued that if pre-Act material couldn't be used, the Act would have said so.",
+"The District Judge stated a case asking whether the pre-Act profiling and its later inclusion on the database were lawful, whether evidence of the match was admissible, and whether the court could admit it."
+],
+"q": "Could a crime-scene DNA profile made before the 2014 Act be lawfully kept and matched against a later sample, and is the match admissible?",
+"dec": [
+"High Court, 3 March 2020 ([2020] IEHC 231; Meenan J): there was no legal authority for establishing the intermediate database, and admissibility was a matter for the trial judge.",
+"Court of Appeal, 3 August 2021 ([2021] IECA 225; McCarthy J, with Birmingham P and Kennedy J): the DPP's appeal was allowed and all four questions were answered in the prosecution's favour.",
+"Before the 2014 Act, it was lawful to generate, retain and enter the profile on a database in the way that had been done; and after the Act it was lawful to include the crime-scene profile on the DNA database.",
+"Evidence of the match was admissible, and the District Judge was entitled to admit it. Whether the profile was made or placed on a database before or after the Act was irrelevant to admissibility; the database profile was used only to nominate the accused as a suspect.",
+"Supreme Court, 14 April 2022 ([2022] IESCDET 48): leave to appeal refused. As reported, the court found no evidence that FSI's practice before the Act was unauthorised."
+],
+"keys": [
+{
+"q": "is irrelevant to admissibility",
+"w": "Court of Appeal, on whether the profile pre-dated the Act"
+},
+{
+"q": "did not retroactively render prior DNA analyses unlawful",
+"w": "as reported of the Supreme Court's leave decision"
+}
+],
+"later": [
+"The leave refusal leaves the Court of Appeal's ruling as the governing authority on pre-2014 crime-scene profiles."
+],
+"job": [
+"Swab, label and seal crime-scene samples carefully, and record the chain of custody from scene to laboratory.",
+"Treat a database match as nominating a suspect, then build the evidential case around it.",
+"Ask FSI what confirmatory sampling and reporting the case needs.",
+"When taking a sample from a detained person, record the power, the authorisation and the times."
+],
+"law": "Yes — Court of Appeal authority (2021); Supreme Court leave refused (2022).",
+"src": [
+{
+"t": "CaseMine — commentary on DPP v Maher [2020] IEHC 231 (High Court)",
+"u": "https://www.casemine.com/commentary/uk/director-of-public-prosecutions-v.-maher:-legality-of-dna-database-entries-precedent-established/view"
+},
+{
+"t": "CaseMine — commentary on the Supreme Court's refusal of leave (2022)",
+"u": "https://www.casemine.com/commentary/uk/affirmation-of-forensic-science-ireland's-dna-handling-practices-in-dpp-v.-maher/view"
+},
+{
+"t": "The Irish Times — report of the High Court hearing (November 2019)",
+"u": "https://www.irishtimes.com/news/crime-and-law/courts/high-court/man-claims-dna-profile-cannot-be-used-for-burglary-prosecution-1.4069441"
+}
+]
+},
+"DPP v Bambrick": {
+"upd": "November 2026",
+"bg": [
+"The accused was charged with two murders. He pleaded not guilty to murder but guilty to manslaughter on both counts, and the DPP accepted those pleas.",
+"He had pleaded early and given a full confession; the details of the offences were known only from what he told gardaí.",
+"The prosecution asked for a life sentence. The judge was concerned about the accused's propensity to reoffend and the risk he posed to the public."
+],
+"q": "Where the DPP accepts pleas to manslaughter, can the court impose the maximum (life), or lengthen the sentence to protect the public from future offending?",
+"dec": [
+"Central Criminal Court, sentence imposed 26 July 1996 (Carney J).",
+"The maximum wasn't available, for two reasons: the early guilty plea and full confession were significant mitigation (DPP v G [1994] 1 IR 587), and because the DPP had accepted manslaughter pleas, he was entitled to a sentence lower than one for murder.",
+"The judge would have used a life sentence to manage the risk to the public, but held that binding authority prevented him: under People (AG) v O'Callaghan [1966] IR 501 and Ryan v DPP [1989] IR 399, preventative justice has no place, and a person can't be punished for something he hasn't been convicted of.",
+"He noted that a life sentence carries licence controls on release, while a determinate sentence with remission doesn't — a concern for the community, but not a basis for the sentence.",
+"He refused to impose a 30-year term as a substitute for life, and imposed 15 and 18 years concurrent, with the last year of each suspended for time already served, as severe and deterrent sentences within known parameters."
+],
+"keys": [
+{
+"q": "judicially dishonest and populist",
+"w": "Carney J, rejecting a 30-year term as a stand-in for life"
+},
+{
+"q": "preventative detention was not known to our judicial system",
+"w": "Court of Criminal Appeal in DPP v Jackson (1993), as cited"
+}
+],
+"later": [
+"The rule against sentencing to prevent future offences comes from People (AG) v O'Callaghan (1966), in this app. Sentencing practice has developed since, so check current authority before relying on the figures."
+],
+"job": [
+"Record a suspect's account in full and accurately — where it is the only evidence of how an offence happened, it decides both the charge and the sentence.",
+"Put the full antecedents before the court; risk of future offending can't lengthen a sentence, but the history still matters.",
+"Know that the DPP's acceptance of a lesser plea caps the sentence below what the greater offence would attract."
+],
+"law": "A first-instance sentencing ruling (1996). The bar on preventative sentencing remains; check current sentencing authority.",
+"src": [
+{
+"t": "The Irish Times — law report: life sentence not available where DPP accepts manslaughter plea",
+"u": "https://www.irishtimes.com/sport/life-sentence-not-available-where-manslaughter-plea-is-accepted-by-dpp-1.93236"
+}
+]
+},
+"DPP v Dunne": {
+"upd": "November 2026",
+"bg": [
+"Gardaí searched premises under a search warrant that had been incorrectly prepared.",
+"The question was whether the error invalidated the warrant — and with it the entry and search — or whether it could be overlooked."
+],
+"q": "Does an error in preparing a search warrant make it invalid?",
+"dec": [
+"High Court, 14 October 1994 ([1994] 2 IR 537; Carney J).",
+"The warrant was held invalid because it was incorrectly prepared. The judgment relied on Article 40.5: a dwelling is inviolable and may not be forcibly entered save in accordance with law.",
+"As the Court of Criminal Appeal later explained in DPP v Mallon (2011), Carney J's approach was not that any error invalidates a warrant: the error went to a statutory requirement, so that the warrant couldn't be read to make sense."
+],
+"keys": [
+{
+"q": "could not be read to make sense",
+"w": "CCA in DPP v Mallon (2011), describing the Dunne warrant"
+},
+{
+"q": "save in accordance with law",
+"w": "Article 40.5 of the Constitution"
+}
+],
+"later": [
+"Distinguished in DPP v McCarthy (warrant, 2010), in this app, and explained in DPP v Mallon (2011), where a mere misdescription that couldn't mislead didn't invalidate a warrant. See also DPP v Collins (warrant, 2014) and DPP v Rattigan (2018), in this app."
+],
+"job": [
+"Read the whole warrant before you use it: it must make sense on its face and show each statutory requirement.",
+"Strike out any alternatives on a printed form that don't apply.",
+"Check the issuer, the premises, the Act and section, and the dates.",
+"If anything is wrong, get a fresh warrant before entering."
+],
+"law": "Still cited on defective warrants. The exact defect isn't in the free sources checked; this write-up relies on how later judgments describe the case.",
+"src": [
+{
+"t": "vLex Ireland — DPP v Dunne [1994] 2 IR 537",
+"u": "https://ie.vlex.com/vid/dpp-v-dunne-793460105"
+},
+{
+"t": "vLex Ireland — DPP v Mallon [2011] IECCA 29 (explaining Dunne)",
+"u": "https://ie.vlex.com/vid/dpp-v-mallon-792958981"
+}
+]
+},
+"People (AG) v Dunleavy": {
+"upd": "November 2026",
+"bg": [
+"The accused was charged with manslaughter after a fatal collision at night on a wide main road in the Dublin suburbs.",
+"The prosecution case was that he drove a motor vehicle without lights, too close to the kerb and round a corner on the wrong side of the road, and struck a cyclist.",
+"The defence said his car wasn't the one involved and that, at most, he was guilty of dangerous driving, not manslaughter.",
+"He was convicted in the Circuit Criminal Court and sentenced to 18 months. Refused a certificate to appeal, he applied to the Court of Criminal Appeal on the ground that the jury hadn't been properly directed on manslaughter by negligent driving."
+],
+"q": "What degree of negligence makes a killing manslaughter, and how must the jury be directed?",
+"dec": [
+"Court of Criminal Appeal (Davitt J). The outcome was announced on 15 May 1947 and the reasons given on 31 July 1947; reported [1948] IR 95.",
+"Negligence means failing to follow the course of conduct experience shows is needed to avoid risk of injury to others — failing to act as a reasonable driver would.",
+"The accused's negligence must have caused the death.",
+"There are degrees of negligence. Ordinary carelessness, enough for civil damages or careless driving, falls well short of manslaughter; even the higher degree needed for dangerous driving isn't necessarily enough.",
+"Manslaughter is a very serious crime: the jury must be satisfied the negligence was of a very high degree and involved a high risk or likelihood of substantial personal injury to others. The court approved Lord Atkin's observations in Andrews v DPP [1937] AC 576.",
+"Conviction quashed; retrial ordered."
+],
+"keys": [
+{
+"q": "risk or likelihood of substantial personal injury",
+"w": "the Dunleavy threshold, as the Law Reform Commission summarises it"
+}
+],
+"later": [
+"Applied in People (DPP) v Cullagh (1999), in this app. The Law Reform Commission reviewed the test in its 2007 consultation paper on involuntary manslaughter."
+],
+"job": [
+"In any death caused by negligence, record exactly what was done or not done, and when.",
+"Gather evidence of the risk and how obvious it was: lighting, road layout, warnings, maintenance, training.",
+"Record what the person knew and what they said at the scene, word for word.",
+"For road deaths, consider dangerous driving causing death as well as manslaughter."
+],
+"law": "Yes — still the leading Irish test for gross negligence manslaughter.",
+"src": [
+{
+"t": "vLex Ireland — People (AG) v Dunleavy [1948] IR 95",
+"u": "https://ie.vlex.com/vid/people-attorney-general-v-805562569"
+},
+{
+"t": "Law Reform Commission — Consultation Paper on Involuntary Manslaughter (LRC CP 44-2007)",
+"u": "https://www.lawreform.ie/_fileupload/consultation%20papers/cp44.htm"
+}
+]
+},
+"People (AG) v Crosbie and Meehan": {
+"upd": "November 2026",
+"bg": [
+"A death followed a knife wound received during a fight at the docks.",
+"The evidence didn't clearly show how the wound was inflicted.",
+"The accused said he drew the knife in self-defence, and struck the deceased accidentally while waving it to scare off attackers."
+],
+"q": "For manslaughter by an unlawful act, is any unlawful act enough — and whose view decides whether it was dangerous?",
+"dec": [
+"Court of Criminal Appeal, reported at [1966] IR 490.",
+"The act must be both unlawful and dangerous. A merely unlawful act isn't enough, although the law as understood in the nineteenth century treated it as sufficient.",
+"Dangerousness is judged objectively, from the standpoint of a reasonable person, not by what the accused thought.",
+"Applied to the facts: brandishing the knife to frighten or intimidate, rather than in self-defence, would be a criminal and dangerous act."
+],
+"later": [
+"Still the leading Irish authority on unlawful and dangerous act manslaughter, as the Law Reform Commission described in its 2007 consultation paper."
+],
+"job": [
+"In a weapon death, establish who produced the weapon, when and why.",
+"Get every witness's account of how the weapon was held and moved, and what was said.",
+"Have the pathologist describe how the wound was caused — direction and force.",
+"Record any self-defence claim in full at the earliest opportunity."
+],
+"law": "Yes — still the leading authority. Summary based on the Law Reform Commission's account of the case.",
+"src": [
+{
+"t": "Law Reform Commission — Consultation Paper on Involuntary Manslaughter (LRC CP 44-2007)",
+"u": "https://www.lawreform.ie/_fileupload/consultation%20papers/cp44.htm"
+}
+]
+},
+"People (DPP) v Cullagh": {
+"upd": "November 2026",
+"bg": [
+"The accused owned and operated a chair-o-plane at a funfair.",
+"A seat came away from the metal arm holding it, and a passenger fell to her death.",
+"The ride was about 20 years old and had been left outdoors in a field for years before he bought it. He had spent considerable effort restoring it, but various parts were unsatisfactory.",
+"The fatal defect was internal rust in a support tube: rainwater collected inside because the tube was open at the top and closed at the bottom. It wasn't visible on normal inspection, and he didn't know of it.",
+"The judge told the jury the negligence had to be gross, not mere inadvertence of the kind that founds civil liability, and asked whether the prosecution had proved that he had little or no adequate regard for his duty of care — including by letting passengers on without satisfying himself that the ride was safe."
+],
+"q": "Where a death follows negligence the accused didn't know about, is it for the jury to decide whether the negligence was gross enough for manslaughter?",
+"dec": [
+"Court of Criminal Appeal, 15 March 1999 (ex tempore; Murphy, O'Higgins and Cyril Kelly JJ).",
+"Civil negligence wasn't in dispute. The question was whether he was guilty of the degree of negligence needed to sustain manslaughter.",
+"That was a matter of degree for the jury: whether, on all the facts, he had so failed in his duty to the deceased as to be criminally liable.",
+"Withdrawing the case from the jury would have been wholly inappropriate. Leave to appeal was refused and the conviction affirmed."
+],
+"keys": [
+{
+"q": "wholly inappropriate",
+"w": "CCA, on withdrawing the case from the jury"
+},
+{
+"q": "a matter of degree",
+"w": "CCA, on the negligence needed for manslaughter"
+}
+],
+"later": [
+"Applies the approach in People (AG) v Dunleavy (1948), in this app."
+],
+"job": [
+"Where equipment causes a death, seize it and have it examined by an independent engineer.",
+"Get the history: age, previous condition, repairs, parts used and by whom.",
+"Gather inspection, certification and maintenance records, and what checks were done before use.",
+"Record what the operator says about safety checks, word for word."
+],
+"law": "Yes — Court of Criminal Appeal authority (1999). Summary based on a published law report.",
+"src": [
+{
+"t": "The Irish Times — law report: jury must consider whether degree of negligence sustains manslaughter",
+"u": "https://www.irishtimes.com/sport/jury-must-consider-whether-degree-of-negligence-sustains-manslaughter-charge-1.190813"
+}
+]
+},
+"People (DPP) v Doohan": {
+"upd": "November 2026",
+"bg": [
+"The accused arranged an assault on the deceased as a reprisal.",
+"He said he wanted him hospitalised with broken limbs, not killed, and that he hadn't authorised the use of a shotgun.",
+"The deceased was shot at close range while he lay on the ground.",
+"The Special Criminal Court convicted the accused of murder and of causing serious harm under s.4 of the Non-Fatal Offences Against the Person Act 1997, and he was sentenced to life imprisonment."
+],
+"q": "Can someone who planned an attack to cause serious injury, but not death, be guilty of murder when a co-attacker kills?",
+"dec": [
+"Court of Criminal Appeal, 2 December 2002 ([2002] 4 IR 463; Denham J, with Murphy and Herbert JJ).",
+"There was evidence from which the trial court could find a joint enterprise to cause serious injury to the deceased.",
+"An intention to cause serious injury is sufficient mens rea for murder, so a joint enterprise to cause serious injury can found a murder conviction.",
+"The firing of the gun couldn't be said to go beyond what had been tacitly agreed, so the accused was liable for its consequences.",
+"The application for leave, treated as the appeal, was dismissed."
+],
+"later": [
+"Still cited on joint enterprise in murder cases."
+],
+"job": [
+"In a planned attack, gather evidence of the plan: meetings, calls, messages, payments.",
+"Establish what weapons were brought and who knew about them.",
+"Record each participant's role, and any withdrawal, as precisely as the evidence allows.",
+"Seize phones early — the agreement is often proved from them."
+],
+"law": "Yes — still cited. The full reasoning on what must be contemplated wasn't in the free text checked.",
+"src": [
+{
+"t": "vLex Ireland — People (DPP) v Doohan [2002] 4 IR 463",
+"u": "https://ie.vlex.com/vid/dpp-v-doohan-793204509"
+}
+]
+},
+"People (AG) v Oglesby": {
+"upd": "November 2026",
+"bg": [
+"A tape recorder belonging to CIÉ was taken from a cart on 4 March 1965.",
+"It was found at the accused's house on 15 May 1965. He told gardaí he had bought it from a man in a pub.",
+"He was convicted in the Dublin Circuit Court of receiving it knowing it to be stolen.",
+"He appealed against the judge's charge on possession of recently stolen goods — the so-called doctrine of recent possession — and the onus of proof."
+],
+"q": "Does possession of recently stolen goods create a rule that the accused must explain, or only an inference the jury may draw?",
+"dec": [
+"Court of Criminal Appeal, 10 March 1966 ([1966] IR 162; Kenny J).",
+"The so-called doctrine of recent possession is only a convenient label for inferences of fact that may be drawn as a matter of common sense when the accused gives no satisfactory explanation. As a rule of law, it doesn't exist.",
+"It doesn't shift or discharge the onus of proof: the prosecution must prove guilt on all the evidence. Earlier cases putting an onus on the accused to explain possession were wrong.",
+"If the jury find the explanation untrue, they may infer guilty knowledge — but they are never obliged to convict."
+],
+"keys": [
+{
+"q": "may be drawn as a matter of common sense",
+"w": "CCA, on inferences from recent possession (as quoted by the LRC)"
+},
+{
+"q": "does not exist",
+"w": "CCA, on a 'doctrine' of recent possession (as quoted by the LRC)"
+}
+],
+"later": [
+"Still cited — for example in DPP v Rattigan (2017) on how a judge may comment on an accused's explanation. See also DPP v Kelly (stolen van, 2018), in this app: an inference from possession needs a close link in time to the theft."
+],
+"job": [
+"When you find recently stolen goods, record the explanation in full, at once, word for word.",
+"Test it: who sold it, where, when, for how much — and check.",
+"Establish when the theft happened and how long after it the goods were found.",
+"Look for other evidence of knowledge: price far below value, removed serial numbers, false plates."
+],
+"law": "Yes — still cited. Summary based on the Law Reform Commission's account of the judgment.",
+"src": [
+{
+"t": "vLex Ireland — People (AG) v Oglesby [1966] IR 162",
+"u": "https://ie.vlex.com/vid/people-attorney-general-v-805710653"
+},
+{
+"t": "Law Reform Commission — Report on Receiving Stolen Property (LRC 23-1987)",
+"u": "https://www.lawreform.ie/_fileupload/Reports/rStolenProperty.htm"
+}
+]
+},
+"People (DPP) v McFadden": {
+"upd": "November 2026",
+"bg": [
+"The accused was arrested at a Garda checkpoint on suspicion of drink driving and taken to a Garda station.",
+"The member in charge searched him and removed his belt; he didn't object to that.",
+"When the member found his wallet and began to search it, the accused objected and said not to go near it. He wasn't told why it was being searched or what legal power was relied on. The member said later that he wanted to establish his identity and address.",
+"Inside was a tightly folded paper recording details of a senior RUC officer, including his family, his cars and his movements.",
+"The Special Criminal Court admitted the paper over objection and convicted him under s.8 of the Offences Against the State (Amendment) Act 1998 of possessing information likely to be useful to an unlawful organisation. He was sentenced to four years."
+],
+"q": "Once a person in custody objects to a search of his property, can gardaí carry on without telling him the power they are relying on?",
+"dec": [
+"Court of Criminal Appeal, 3 March 2003 ([2003] 2 IR 105; a three-judge court led by Keane CJ). The leave application was treated as the appeal and allowed.",
+"A search of a person's property without consent is lawful only if it is authorised by law.",
+"A person searched without consent must be told the legal justification for the search. Gardaí need to rely on compulsory powers only when the citizen's co-operation is withdrawn — and then they must have them and say so.",
+"Failing to explain the search when he was clearly objecting wasn't a trivial or inconsequential departure; it breached a fundamental requirement protecting his constitutional rights.",
+"The paper was inadmissible. Because it was the only evidence against him, the conviction was quashed and he was freed."
+],
+"keys": [
+{
+"q": "trivial or inconsequential departure",
+"w": "CCA — what the breach was not (as reported)"
+}
+],
+"later": [
+"Follows DPP v O'Donnell (1995), in this app: search powers need be invoked only when the person refuses to co-operate, and the person must then be told the legal basis before the search.",
+"Exclusion of unconstitutionally obtained evidence is now governed by People (DPP) v JC (2015), in this app; McFadden's requirement — a power, and telling the person what it is — still applies."
+],
+"job": [
+"If someone withdraws consent to a search, stop.",
+"Identify your power — the Act and section — before going any further.",
+"Tell the person the power and the reason, in plain words, and record what you said and when.",
+"Note any objection word for word.",
+"If you have no power, don't search; seek a warrant or other lawful route."
+],
+"law": "Yes on the requirement; exclusion is now decided under People (DPP) v JC (2015).",
+"src": [
+{
+"t": "vLex Ireland — People (DPP) v McFadden [2003] 2 IR 105",
+"u": "https://ie.vlex.com/vid/dpp-v-mcfadden-793729569"
+},
+{
+"t": "The Irish Times — report of the Court of Criminal Appeal ruling (March 2003)",
+"u": "https://www.irishtimes.com/news/man-who-had-ruc-details-wins-appeal-1.350857"
+}
+]
+},
+"People (AG) v Taylor": {
+"upd": "November 2026",
+"bg": [
+"The accused was tried for murder.",
+"The judge gave the prosecution leave to treat one of its own witnesses as hostile.",
+"The witness's written statement, made before the trial, was admitted. It conflicted with his evidence at the trial and undermined a defence the accused was running.",
+"The accused was convicted and appealed."
+],
+"q": "When a witness is treated as hostile and an earlier statement is put in evidence, what use can the jury make of it?",
+"dec": [
+"Court of Criminal Appeal, 30 July 1974 ([1974] IR 97; Walsh, Murnaghan and Gannon JJ).",
+"With the judge's leave, a party may treat its own witness as hostile, and the witness's earlier inconsistent statement may be put to him.",
+"If the witness disputes making the statement, the prosecution must formally prove it before it is admitted.",
+"The jury must be told that the statement is evidence only against the witness's credibility; it isn't evidence of the truth of its contents. That direction is essential.",
+"Leave to appeal was granted, the hearing treated as the appeal, and a retrial ordered."
+],
+"later": [
+"Section 16 of the Criminal Justice Act 2006 now allows a court, with leave, to admit a witness's earlier statement as evidence of the facts in it where the witness refuses to give evidence, denies making the statement or gives materially inconsistent evidence — if the statement was voluntary and reliable, and was given on oath, contains a statutory declaration, or the court is otherwise satisfied the witness understood the duty to tell the truth. Video-recording counts towards reliability."
+],
+"job": [
+"When a key witness may later retract, take the statement in a form that meets s.16: video-recorded where possible, or with a statutory declaration.",
+"Record the circumstances: who was present, the time, and that it was voluntary.",
+"Keep the original statement and any recording safely — it may have to be proved.",
+"If a witness is intimidated, record and report it; it bears on s.16 and on other charges."
+],
+"law": "The credibility-only rule still governs ordinary hostile-witness procedure; s.16 CJA 2006 provides the route to use the statement as evidence of its truth.",
+"src": [
+{
+"t": "vLex Ireland — People (AG) v Taylor [1974] IR 97",
+"u": "https://ie.vlex.com/vid/people-attorney-general-v-805185521"
+},
+{
+"t": "Revised Acts — Criminal Justice Act 2006, s.16",
+"u": "https://revisedacts.lawreform.ie/eli/2006/act/26/section/16/revised/en/html"
+}
+]
+},
+"People (DPP) v Mills (test purchases, 2015)": {
+"upd": "November 2026",
+"bg": [
+"In June 2013 gardaí ran an undercover test-purchase operation in Dublin aimed at identifying people selling drugs.",
+"The approach was indirect: a third party, approached at random, passed on the undercover officers' interest and could contact the accused immediately.",
+"The accused arrived within minutes and made three sales to the officers, with no apparent pressure from them.",
+"The operation had been sanctioned at Commissioner level and the officers had been told not to entice anyone, although there were no written guidelines for test purchasing.",
+"The trial judge refused to exclude the evidence after a voir dire. He then pleaded guilty to two counts of possession for sale or supply under s.15 of the Misuse of Drugs Act 1977 and received two years on each, suspended. He appealed, arguing entrapment and a breach of his fair-trial rights."
+],
+"q": "When does an undercover test purchase become entrapment that requires the evidence to be excluded?",
+"dec": [
+"Court of Appeal, 21 December 2015 ([2015] IECA 305; Mahon J).",
+"The court reviewed the European Court of Human Rights' approach (was the police role passive or did it incite; was there reasonable suspicion; were there safeguards and court review) and the English distinction in R v Looseley.",
+"Evidence should be excluded where the accused was incited or trapped into committing an offence he wouldn't otherwise have committed — but not where the gardaí merely provided an opportunity which he freely took.",
+"Here he was given no more than an unexceptional opportunity to commit a crime and took it freely, so there was no breach of Article 6 ECHR or Article 38. The evidence was rightly admitted and the appeal dismissed.",
+"The court recommended a code of practice for such operations, with more formality and record keeping.",
+"The Supreme Court refused leave to appeal in June 2016. In 2017 the European Court of Human Rights unanimously declared his complaint inadmissible: the police role had been essentially passive, the operation was authorised at a senior level, and the domestic courts had examined it thoroughly."
+],
+"keys": [
+{
+"q": "unexceptional opportunity to commit a crime",
+"w": "Court of Appeal (as reported)"
+},
+{
+"q": "a greater degree of formality and record keeping",
+"w": "Court of Appeal, on test-purchase operations (as reported)"
+}
+],
+"later": [
+"Contrast People (DPP) v JC (2015) on unconstitutionally obtained evidence; entrapment is assessed on its own test of incitement versus opportunity."
+],
+"job": [
+"Get the operation authorised at a senior level and record the authorisation.",
+"Brief every officer: offer the opportunity, never persuade, pressure or repeat an approach.",
+"Record every contact as it happens — words used, times, who initiated, the target's response.",
+"Note anything showing the target was already dealing: speed of response, quantities, prices, readiness.",
+"Keep exhibits from each purchase separate and continuous."
+],
+"law": "Yes — Court of Appeal authority (2015).",
+"src": [
+{
+"t": "vLex Ireland — People (DPP) v Mills [2015] IECA 305",
+"u": "https://ie.vlex.com/vid/the-people-director-of-793510193"
+},
+{
+"t": "Irish Legal News — evidence from undercover test purchasing ruled admissible",
+"u": "https://www.irishlegal.com/articles/evidence-resulting-from-undercover-test-purchasing-of-drugs-ruled-admissible-on-appeal"
+},
+{
+"t": "Irish Legal News — ECtHR declares the entrapment complaint inadmissible (2017)",
+"u": "https://www.irishlegal.com/articles/ecthr-irish-mans-police-entrapment-complaint-declared-inadmissible"
+}
+]
+},
+"DPP v Lawless (1985)": {
+"upd": "November 2026",
+"bg": [
+"Gardaí entered a flat in Dublin under a search warrant issued under s.26 of the Misuse of Drugs Act 1977.",
+"They found the accused in the lavatory. Small packets of heroin were found in a drain connected to that lavatory; the gardaí tested the link by experiment.",
+"He was convicted by a jury in the Circuit Court of possessing heroin and of possessing it for the purpose of supply.",
+"He appealed on four grounds: the information sworn for the warrant didn't comply with s.26; the unlawful entry made the evidence inadmissible; the judge shouldn't have applied the statutory presumption of supply; and prosecution counsel's opening speech was so prejudicial the jury should have been discharged."
+],
+"q": "Can someone found in another person's home rely on a defective warrant to exclude the drugs found — and when does the s.15 presumption of supply apply?",
+"dec": [
+"Court of Criminal Appeal, 28 November 1985 ((1985) 3 Frewen 30; McCarthy J).",
+"The warrant was defective because a statutory requirement had been omitted.",
+"But the accused wasn't the tenant or occupier of the flat, so the entry didn't infringe any of his rights, and the evidence wasn't inadmissible on that ground.",
+"The s.15 presumption that the drug was held for supply applies where it isn't reasonable to assume it was for immediate personal use. With no evidence at trial that he was a drug user, the judge was entitled to apply it.",
+"Nothing in the opening speech was of an inflammatory nature, so the jury didn't need to be discharged. The convictions were affirmed."
+],
+"keys": [
+{
+"q": "of an inflammatory nature",
+"w": "CCA, on prosecution counsel's opening (finding there was nothing of that kind)"
+}
+],
+"later": [
+"Read with the later law on unconstitutionally obtained evidence: People (DPP) v Kenny (1990) and People (DPP) v JC (2015), both in this app. On warrant errors see DPP v McCarthy (warrant, 2010) and DPP v Mallon (2011)."
+],
+"job": [
+"Get the information and warrant right — the occupier can rely on any defect even if a visitor can't.",
+"Record who lives at the premises and who was a visitor, and how you know.",
+"Where drugs are found near a suspect (a drain, a cistern, a window ledge), test and record the link — photograph it.",
+"Record anything bearing on personal use or supply: quantity, packaging, cash, the suspect's own account."
+],
+"law": "Older CCA authority (1985); read the standing point with later exclusionary-rule cases.",
+"src": [
+{
+"t": "vLex Ireland — DPP v Lawless (1985) 3 Frewen 30",
+"u": "https://ie.vlex.com/vid/dpp-v-lawless-793380589"
+}
+]
+},
+"DPP v Kelly (stolen van, 2018)": {
+"upd": "November 2026",
+"bg": [
+"In July 2014 the owner of a white van lent it to an employee, and it later went missing. The insurer paid out on it.",
+"In October 2014 the accused was found driving the van on false number plates.",
+"The evidence didn't explain how the van was taken or how it reached him, and the employee who last had it wasn't called as a witness.",
+"He was convicted on five of ten counts, including possession of the stolen van. By agreement the appeal was allowed on the other remaining counts, so only the van count was argued."
+],
+"q": "Can the jury infer that someone knew property was stolen from the bare fact that he had it months after it went missing?",
+"dec": [
+"Court of Appeal, 2018 ([2018] IECA 260; judgment of the President).",
+"The evidence about how the van came to be stolen, and about the accused's knowledge, was rather thin.",
+"If he had been found driving it soon after it left the owner's possession, it might have been possible to infer that he knew it was stolen.",
+"But there was a gap of months, which the evidence didn't bridge, so the prosecution failed to come up to proof.",
+"The application for a direction on that count should have succeeded; the conviction was unsafe and was quashed."
+],
+"keys": [
+{
+"q": "there has been a gap which just has not been bridged",
+"w": "Court of Appeal"
+},
+{
+"q": "failed to come up to proof",
+"w": "Court of Appeal, on the van count"
+}
+],
+"later": [
+"See People (AG) v Oglesby (1966), in this app: any inference from recent possession is one of common sense, and the burden never shifts."
+],
+"job": [
+"Get statements from everyone in the chain: the owner, the last person who had the property, the insurer if relevant.",
+"Pin down when and how the property went missing.",
+"Record how soon afterwards the suspect was found with it, and the condition it was in — false plates, changed locks, removed markings.",
+"Record the suspect's explanation in full and check it."
+],
+"law": "Yes — Court of Appeal authority (2018).",
+"src": [
+{
+"t": "legalblog.ie — Theft Issues (judgment text of DPP v Kelly [2018] IECA 260)",
+"u": "https://legalblog.ie/theft-issues/3"
+}
+]
+},
+"Syon v Hewitt and McTiernan": {
+"upd": "November 2026",
+"bg": [
+"The defendants, the proprietor and an employee of a shop, were prosecuted under s.3(1) of the Tobacco (Health Promotion and Protection) Act 1988, as amended, for selling tobacco to a minor.",
+"The sale followed a test purchase by a volunteer under 16, carried out under a protocol issued by the Office of Tobacco Control and approved by a health board. The protocol had no statutory force.",
+"It contemplated a list of target premises drawn from complaints and earlier test purchases. No list had been drawn up, and there had been no complaint about this shop.",
+"A paragraph about attending court had been deleted from the parent's consent form; the parent later consented to the child giving evidence.",
+"The District Court stated a case to the High Court with twelve questions, including whether the test purchase amounted to entrapment."
+],
+"q": "Is a test purchase by a child entrapment, and must test purchases be targeted on complaints?",
+"dec": [
+"High Court, 10 November 2006 (Murphy J).",
+"No substantive defence of entrapment arises from a test purchase of tobacco by a minor.",
+"A prior complaint is irrelevant: random test purchases are permissible and necessary, because offences of this kind are consensual and rarely reported.",
+"Departure from the protocol is relevant — the target list should have been drawn up.",
+"The deleted consent paragraph was material, but the parent's later consent resolved it.",
+"The offence is one of strict liability; the proprietor is vicariously liable for the employee, subject to the statutory defence, which requires all reasonable steps to make sure the buyer is 18 or over.",
+"Using children in test purchases isn't contrary to public policy."
+],
+"later": [
+"For undercover test purchases of drugs, see People (DPP) v Mills (test purchases, 2015), in this app."
+],
+"job": [
+"Follow the operating protocol exactly: target selection, consents, briefing and supervision.",
+"Get the parent's or guardian's informed written consent, including to court attendance.",
+"Record what the young person was told to do and say, and what happened, as it happens.",
+"Keep the purchase as an exhibit with continuity."
+],
+"law": "Yes — High Court authority (2006). Summary based on a published law report.",
+"src": [
+{
+"t": "The Irish Times — law report: no substantive defence of entrapment where a person under 16 makes a test purchase",
+"u": "https://www.irishtimes.com/news/no-substantive-defence-of-entrapment-where-a-person-under-16-is-used-to-make-test-purchase-of-tobacco-1.1193545"
+},
+{
+"t": "vLex Ireland — Syon v Hewitt (High Court, 2006)",
+"u": "https://ie.vlex.com/vid/synon-and-others-v-792795689"
+}
+]
+},
+"People (AG) v Gilliland": {
+"upd": "November 2026",
+"bg": [
+"The United States sought the accused's extradition to face 16 fraud-related charges.",
+"He was arrested in Galway in December 1984 and granted bail by the High Court.",
+"In February 1985 the District Court ordered his committal for extradition. He obtained a conditional order of habeas corpus and applied for bail pending its determination.",
+"Barrington J granted bail, asking whether the accused was likely to abscond and so be unavailable for extradition. The Attorney General appealed."
+],
+"q": "Is a stricter test for bail needed in extradition cases, with the onus on the person sought?",
+"dec": [
+"Supreme Court ([1985] IR 643; Finlay CJ, Henchy, Griffin, Hederman and McCarthy JJ). The Attorney General's appeal was dismissed and bail upheld.",
+"The Attorney General had argued that the onus should be on the accused to show there was no real possibility he would be unavailable, and that the State's treaty obligations limited the power to grant bail.",
+"One of the State's treaty obligations is to take all reasonable steps to make sure the person is available for extradition.",
+"The court cited People (AG) v O'Callaghan (1966). The free text checked was truncated before the full reasoning on the onus of proof."
+],
+"later": [
+"See People (AG) v O'Callaghan (1966) and Ryan v DPP (1989), in this app, and the Bail Act 1997."
+],
+"job": [
+"To oppose bail on flight risk, give evidence of actual risk: foreign ties, travel documents, assets abroad, past failures to appear.",
+"Seriousness of the charge supports, but doesn't replace, evidence of a real likelihood of absconding.",
+"If bail is granted, propose specific conditions — surrender of passports, signing on, residence."
+],
+"law": "Older Supreme Court authority (1985).",
+"src": [
+{
+"t": "vLex Ireland — People (AG) v Gilliland [1985] IR 643",
+"u": "https://ie.vlex.com/vid/dpp-gilliland-805818845"
+}
+]
+},
+"DPP v McGinley (bail hearsay, 1998)": {
+"upd": "November 2026",
+"bg": [
+"The accused was charged with a sexual offence against a child, alleged to have been committed in the Dublin area in August 1997.",
+"The High Court refused him bail. The refusal relied largely on Garda hearsay evidence that he would interfere with witnesses, including alleged threats and inducements towards the complainant's family.",
+"He denied the allegations and appealed to the Supreme Court."
+],
+"q": "Can bail be refused on Garda hearsay evidence that the accused will interfere with witnesses?",
+"dec": [
+"Supreme Court, 20 May 1998 ([1998] 2 IR 408; Keane J for the court, with Hamilton CJ, Denham, Barrington and Murphy JJ).",
+"A bail applicant is entitled to have the evidence against him given on oath.",
+"There may be particular reasons justifying the admission of hearsay evidence in a bail application.",
+"On the facts of this case, the hearsay evidence was inadmissible. The free text checked didn't show the final order."
+],
+"later": [
+"Read with People (AG) v O'Callaghan (1966), in this app, and s.2 of the Bail Act 1997, which allows bail to be refused to prevent serious offences."
+],
+"job": [
+"Get the witnesses' own accounts of any threats or approaches, with dates and words used.",
+"Where a witness can give evidence of interference, consider whether they can attend.",
+"If you must rely on hearsay, be ready to explain on oath why the source can't attend — for example, fear.",
+"Record every approach to a witness or their family as it is reported."
+],
+"law": "Older Supreme Court authority (1998), still cited on hearsay in bail hearings.",
+"src": [
+{
+"t": "vLex Ireland — DPP v McGinley [1998] 2 IR 408",
+"u": "https://ie.vlex.com/vid/dpp-v-mcginley-793163593"
+}
+]
+},
+"DPP v Corbally (bail pending appeal, 2000)": {
+"upd": "November 2026",
+"bg": [
+"The accused was convicted and applied for bail pending his application for leave to appeal.",
+"The Court of Criminal Appeal refused bail and certified a point of law of exceptional public importance: what principles apply when a convicted person who has sought, or been granted, leave to appeal applies for bail?",
+"He appealed to the Supreme Court."
+],
+"q": "When should a convicted person get bail while his appeal is pending?",
+"dec": [
+"Supreme Court, 15 December 2000 ([2000] IESC 38; [2001] 1 IR 180; Geoghegan J, with Keane CJ, Denham, Murphy and Hardiman JJ).",
+"Bail should be granted to a convicted person where the interests of justice require it.",
+"That requires a strong chance of success on the appeal.",
+"The possibility that the sentence will be served before the appeal is heard is also relevant.",
+"Applying those principles, this wasn't an appropriate case for bail. The appeal was dismissed."
+],
+"later": [
+"Still the leading authority on bail pending appeal. For bail before trial see People (AG) v O'Callaghan (1966), in this app, and the Bail Act 1997."
+],
+"job": [
+"Remember the different tests: before trial, the presumption of innocence and the O'Callaghan and Bail Act grounds; after conviction, the strength of the appeal.",
+"If asked for evidence on a post-conviction bail application, cover the length of sentence, time served and any risk of flight or reoffending."
+],
+"law": "Yes — Supreme Court authority (2000).",
+"src": [
+{
+"t": "vLex Ireland — DPP v Corbally [2001] 1 IR 180",
+"u": "https://ie.vlex.com/vid/dpp-v-corbally-793959881"
+}
+]
+},
+"DPP v MJ (totality, 2022)": {
+"upd": "November 2026",
+"bg": [
+"In 2018 the accused was convicted of several counts of indecent assault committed from the late 1970s.",
+"The trial judge imposed a headline sentence of 21 months on each count, ordered them to run consecutively, and suspended part of the total.",
+"The Court of Appeal kept the headline sentences and the consecutive structure but made a limited intervention to reduce the sentence for mitigation, leaving a total of eight years and nine months.",
+"He appealed to the Supreme Court."
+],
+"q": "How should a court approach consecutive sentences and the totality of a sentence for multiple historic offences?",
+"dec": [
+"Supreme Court, December 2022 ([2022] IESC 50; O'Malley J).",
+"The Court of Appeal hadn't clearly addressed the totality principle in assessing the overall sentence of eight years and nine months. That was an error of law.",
+"A total of that length for multiple indecent assaults needed to be explained and rationalised in light of totality.",
+"Consecutive sentences should be used sparingly — but that doesn't mean rarely or only in exceptional cases. They aren't an error in principle where concurrent sentences wouldn't reflect the gravity of the offending.",
+"Where offences escalate in seriousness, a judge may reasonably apply a near-maximum headline to less serious counts.",
+"The appeal was allowed, and the Supreme Court would itself re-sentence."
+],
+"keys": [
+{
+"q": "limited intervention",
+"w": "the Court of Appeal's own description of its reduction (as reported)"
+}
+],
+"later": [
+"The Supreme Court re-sentenced him in a later judgment, which the free sources checked don't report."
+],
+"job": [
+"In multi-count cases, set out the pattern of offending clearly in the book of evidence and at sentence: number of incidents, period, escalation.",
+"Make sure each count is particularised so the court can see what each sentence is for.",
+"Give accurate evidence of the impact and any victim impact statement process."
+],
+"law": "Yes — Supreme Court authority (2022).",
+"src": [
+{
+"t": "Irish Legal News — Supreme Court: appeal court failed to consider totality when re-sentencing",
+"u": "https://irishlegal.com/articles/supreme-court-appeal-court-failed-to-consider-totality-principle-when-re-sentencing-man-for-historic-sexual-abuse"
+},
+{
+"t": "vLex Ireland — DPP v MJ [2022] IESC 50",
+"u": "https://ie.vlex.com/vid/dpp-v-m-j-916027635"
+}
+]
+},
+"DPP v Flynn (dangerous driving, 2020)": {
+"upd": "November 2026",
+"bg": [
+"In September 2017 in Co Roscommon, the accused drove at about four times the legal alcohol limit. His insurance covered a car he no longer owned.",
+"He caused life-changing injuries to two cyclists.",
+"He pleaded guilty to dangerous driving causing serious bodily harm under s.53 of the Road Traffic Act 1961, with drink-driving and no-insurance offences.",
+"Roscommon Circuit Court imposed four years for the dangerous driving, with the final two and a half suspended, and an eight-year disqualification, with concurrent sentences and disqualifications on the other counts.",
+"The DPP sought a review on the ground that the sentence was unduly lenient."
+],
+"q": "Was four years with two and a half suspended unduly lenient for drink-driving that seriously injured two people — and what can a review court do if the offender has already been released?",
+"dec": [
+"Court of Appeal, 30 October 2020 ([2020] IECA 294; Edwards J presiding, with McCarthy and Donnelly JJ).",
+"The sentence was unduly lenient given his culpability — very high intoxication, no insurance — and the devastating harm caused.",
+"The headline should have been six years, reduced to three after mitigation (the plea, no previous convictions, remorse).",
+"Because he had been released and had found work, the court didn't increase the custodial element and suspended the unserved balance of the three years.",
+"It added a €20,000 fine, which it described as part of his punishment; he had offered €12,000 in compensation, which the injured men declined.",
+"The disqualifications were re-imposed unchanged, though the court noted they went substantially beyond what was required."
+],
+"keys": [
+{
+"q": "is part of his punishment",
+"w": "Court of Appeal, on the €20,000 fine (as reported)"
+},
+{
+"q": "substantially beyond what was required",
+"w": "Court of Appeal, on the disqualifications (as reported)"
+}
+],
+"later": [
+"The maximum for dangerous driving causing death or serious bodily harm under s.53 is 10 years and a fine of up to €20,000."
+],
+"job": [
+"Prove the level of intoxication precisely — the certificate and the time of the specimen.",
+"Check insurance properly: which vehicle the policy actually covers.",
+"Gather medical evidence of the injuries and their long-term effects, and arrange victim impact statements.",
+"Record the driver's account and any expression of remorse at the scene."
+],
+"law": "Yes — Court of Appeal authority (2020).",
+"src": [
+{
+"t": "The Irish Times — €20,000 fine added to 'unduly lenient' sentence (October 2020)",
+"u": "https://www.irishtimes.com/news/crime-and-law/courts/20-000-fine-added-to-unduly-lenient-sentence-of-drink-driver-who-injured-cyclist-1.4395656"
+},
+{
+"t": "CaseMine — commentary on DPP v Flynn [2020] IECA 294",
+"u": "https://www.casemine.com/commentary/uk/director-of-public-prosecutions-v.-flynn:-establishing-rigorous-standards-for-assessing-undue-leniency-in-dangerous-driving-cases/view"
+}
+]
+},
+"DPP v Fehily (2021)": {
+"upd": "November 2026",
+"bg": [
+"The accused had convictions for stealing over €25,000 from one employer in Co Cork in 2014–2015 and over €34,000 from another in 2015–2016.",
+"At a sentencing hearing in 2018, testimonials purportedly from an employer were handed in to support her plea in mitigation. They were forged.",
+"She pleaded guilty at Cork Circuit Criminal Court to two counts of forgery under s.25 of the Criminal Justice (Theft and Fraud Offences) Act 2001 and two counts of attempting to pervert the course of justice.",
+"In June 2020 she received concurrent 12-month sentences, wholly suspended. The judge was critical of her early release from earlier prison sentences, of which she had served only a fraction. The DPP said he had declined for that reason to impose a sentence reflecting the gravity of the offences.",
+"The DPP sought a review on grounds of undue leniency."
+],
+"q": "Was a wholly suspended sentence for forging mitigation documents unduly lenient — and can a court act on counsel's unproved claims in mitigation?",
+"dec": [
+"Court of Appeal ([2021] IECA 232; Edwards J for the court, with McCarthy and Kennedy JJ).",
+"At the first hearing, in June 2021, the court had no hesitation in finding the sentence unduly lenient.",
+"Counsel had made claims about her medical and personal circumstances. Edwards J said there wasn't a scintilla of evidence for them, and counsel can't give evidence from the bar. The court adjourned so that medical evidence could be obtained.",
+"Before re-sentencing, her own lawyers found that two further documents, dated 2018 and purportedly from a doctor and a counselling service, were also forged, and told the DPP.",
+"On 26 July 2021 (ex tempore) the court held the sentences seriously outside the norm. A court must be seen to protect its own process. Flagrantly misleading a court calls for a significant custodial sentence unless there is substantial mitigation, and there was none here. She also had a very bad record for dishonesty.",
+"Sentences quashed. Headline five years, reduced by 18 months for mitigation to three and a half years, with the final 18 months suspended as an incentive to reform. Conditions: a bond to keep the peace for the term and two years after release, and two years' Probation Service supervision."
+],
+"keys": [
+{
+"q": "a court must be seen to protect its own process",
+"w": "Court of Appeal, 26 July 2021"
+},
+{
+"q": "not a scintilla",
+"w": "Edwards J, June 2021, on evidence for counsel's claims (as reported)"
+}
+],
+"later": [
+"Five days after the first hearing, the same judge warned in DPP v Dunne (mitigation evidence, 2021), in this app, that claims made in mitigation must be backed by evidence."
+],
+"job": [
+"Keep a copy of every reference, report or letter handed up in mitigation, and note who produced it.",
+"If a document looks wrong, tell the prosecutor — it may need investigating in its own right.",
+"Forged mitigation documents are new offences: forgery and attempting to pervert the course of justice.",
+"Give the court an accurate record, including how much of any earlier sentence was actually served."
+],
+"law": "Yes — Court of Appeal authority (2021).",
+"src": [
+{
+"t": "vLex Ireland — DPP v Fehily [2021] IECA 232",
+"u": "https://ie.vlex.com/vid/the-people-at-the-875484166"
+},
+{
+"t": "The Irish Times — Court to resentence woman as judge said he did not believe prison would keep her in (24 June 2021)",
+"u": "https://www.irishtimes.com/news/crime-and-law/courts/court-to-resentence-woman-as-judge-said-he-did-not-believe-prison-would-keep-her-in-1.4602592"
+},
+{
+"t": "Irish Examiner — Cork fraudster who supplied court with falsified documents is jailed (27 July 2021)",
+"u": "https://www.irishexaminer.com/news/courtandcrime/arid-40346069.html"
+}
+]
+},
+"DPP v Dunne (mitigation evidence, 2021)": {
+"upd": "November 2026",
+"bg": [
+"In June 2021 the Court of Appeal heard several sentence appeals in which counsel had relied on claims in mitigation without any supporting evidence.",
+"The claims included that a client had depression or drug or alcohol problems, a tragic family background or a seriously injured sibling, or was attending counselling or drug-free.",
+"The Law Society Gazette links the court's remarks to DPP v Dunne [2021] IECA 189. The free sources checked didn't describe the offence or the outcome of that appeal."
+],
+"q": "Can a sentencing court act on mitigation that counsel asserts but doesn't prove?",
+"dec": [
+"Court of Appeal, 29 June 2021 ([2021] IECA 189; Edwards J).",
+"Advancing mitigation on a hearsay basis was happening all the time, and it had to stop.",
+"If matters are relied on in mitigation, there has to be evidence of them.",
+"The court was putting down a marker: no court should accept mitigation pleas without evidence."
+],
+"keys": [
+{
+"q": "there has to be evidence of it",
+"w": "Edwards J, on matters relied on in mitigation (as reported)"
+},
+{
+"q": "putting down a marker",
+"w": "Edwards J (as reported)"
+}
+],
+"later": [
+"In DPP v Crowley [2021] IECA 178 the court found an evidential deficit in claims made in mitigation, and criticised the failure to seek reports (Law Society Gazette).",
+"The older rule, from DPP v Timmons [2013] IECCA 5 as quoted in the Gazette: mitigation can only apply if there is some evidence or material before the court, which can include some hearsay.",
+"In August 2021 Circuit Court judges were also reported to be criticising uncorroborated claims and unsigned documents handed up at sentence.",
+"See DPP v Fehily (2021), in this app."
+],
+"job": [
+"At sentence you may be asked to confirm what the defence says. Say only what you know; if you haven't checked it, say so.",
+"Give exact evidence of the accused's cooperation, admissions and record — that's evidence the court can rely on.",
+"If you know a claim is untrue, such as about work or drug treatment, tell the prosecutor before the hearing."
+],
+"law": "Yes — the Court of Appeal's 2021 statements are regularly cited. The facts of the appeal itself weren't in the free sources checked.",
+"src": [
+{
+"t": "The Irish Times — Judge says barristers must provide evidence in mitigation pleas (29 June 2021)",
+"u": "https://www.irishtimes.com/news/crime-and-law/courts/judge-says-barristers-must-provide-evidence-in-mitigation-pleas-1.4606806"
+},
+{
+"t": "Law Society Gazette — 'Somebody save me' (pleas in mitigation), 9 March 2022",
+"u": "https://www.lawsociety.ie/gazette/in-depth/pleas-in-mitigation/"
+},
+{
+"t": "Irish Legal News — Judges express frustration with pre-sentencing evidence (23 August 2021)",
+"u": "https://www.irishlegal.com/articles/judges-express-frustration-pre-sentencing-evidence"
+}
+]
+},
+"DPP v McGinty (2019)": {
+"upd": "November 2026",
+"bg": [
+"In 2013 gardaí identified the respondent as a participant in an online chat room. They searched his home under warrant and seized two laptops.",
+"The laptops held over 250 images and four videos of child sexual abuse, some shared from the devices between 2007 and 2013, and two sexually explicit chat exchanges in which he distributed material.",
+"Because of a lack of Garda resources the laptops weren't examined until October 2015. The prosecution began in April 2017.",
+"He pleaded guilty at the first opportunity to possession (s.6) and distribution (s.5(1)) under the Child Trafficking and Pornography Act 1998.",
+"In March 2018 the Circuit Court imposed 18 months and two and a half years, concurrent, both fully suspended with Probation supervision. The mitigation included the early plea, remorse, cooperation, no previous convictions, a probation report assessing his risk as low, and family support.",
+"The DPP sought a review for undue leniency, arguing that the sentence didn't reflect general deterrence."
+],
+"q": "Was a wholly suspended sentence for possessing and distributing child sexual abuse material unduly lenient?",
+"dec": [
+"Court of Appeal, 30 January 2019 ([2019] IECA 27; McCarthy J for the court, with Birmingham P and Baker J).",
+"Sentencing judges have a margin of appreciation, and an appeal court intervenes only where it has been exceeded.",
+"The suspended sentence fell at the very outer limit of that margin, but the court wasn't persuaded that it fell outside it.",
+"Application refused."
+],
+"keys": [
+{
+"q": "must weigh heavily",
+"w": "McGinty on general deterrence, as quoted in DPP v Lordan (2019)"
+}
+],
+"later": [
+"DPP v Lordan (2019) quoted McGinty as saying general deterrence must weigh heavily in cases of this kind.",
+"DPP v Ryan (2024) used it as a comparator for a non-custodial outcome, and DPP v OC [2025] IECA 183 distinguished it on delay."
+],
+"job": [
+"Get seized devices examined promptly; delay between search and charge can count for the accused at sentence.",
+"Record how the suspect was identified online, and preserve chat logs that show distribution.",
+"Count and categorise the material, and separate what was possessed from what was shared.",
+"Put the nature of the material before the court clearly — later cases treat it as central to sentence."
+],
+"law": "Still cited as a non-custodial comparator; later cases distinguish it on delay. The free text checked stopped before the court's full reasoning.",
+"src": [
+{
+"t": "vLex Ireland — DPP v McGinty [2019] IECA 27",
+"u": "https://ie.vlex.com/vid/dpp-v-mcginty-793408393"
+},
+{
+"t": "vLex Ireland — DPP v OC [2025] IECA 183 (distinguishing McGinty on delay)",
+"u": "https://ie.vlex.com/vid/the-director-of-public-1089673050"
+}
+]
+},
+"DPP v JMcD (2021)": {
+"upd": "November 2026",
+"bg": [
+"The appellant, a teenager at the time, faced rape charges involving a child under 15.",
+"The DPP accepted guilty pleas instead to two counts of defilement of a child under 15, under s.2(1) of the Criminal Law (Sexual Offences) Act 2006.",
+"The first incident was recorded on his phone, and a video was later sent on to another person.",
+"In October 2019 he was sentenced to four years on each count, concurrent, with two years' post-release supervision, after a 50% discount for mitigation.",
+"He appealed, arguing that the judge gave disproportionate weight to his age as an aggravating factor and too little weight to the mitigation."
+],
+"q": "Was four years, after a 50% discount, too severe for two counts of defilement — and was the appellant's age wrongly treated as aggravating?",
+"dec": [
+"Court of Appeal, 8 February 2021 ([2021] IECA 31; Edwards J, with McCarthy and Donnelly JJ).",
+"There was no error of principle in the assessment of gravity, and the ground on age failed.",
+"The 50% discount for the combination of mitigating factors was entirely appropriate and proportionate.",
+"Appeal dismissed."
+],
+"keys": [
+{
+"q": "entirely appropriate and proportionate",
+"w": "Court of Appeal, on the 50% discount"
+}
+],
+"later": [
+"In DPP v PN [2023] IECA 42 the court described JMcD as using an effective 15-year scale for offences carrying life, and stressed that the life maximum mustn't be overlooked.",
+"It also held JMcD of limited help to an older offender, since JMcD involved a young offender, two incidents and recordings."
+],
+"job": [
+"Seize the phones of everyone involved early; recordings and onward sharing are key evidence.",
+"Trace where any recording went — sending it on may be a separate child sexual abuse material offence.",
+"Prove both parties' ages and dates of birth.",
+"Arrange a specialist interview for the child complainant."
+],
+"law": "Yes — Court of Appeal authority (2021). The free text checked stopped before the court's full reasoning.",
+"src": [
+{
+"t": "vLex Ireland — DPP v JMcD [2021] IECA 31",
+"u": "https://ie.vlex.com/vid/the-people-at-the-857334850"
+},
+{
+"t": "Irish Legal News — Court of Appeal upholds 10-year sentence (DPP v PN [2023] IECA 42, discussing JMcD)",
+"u": "https://www.irishlegal.com/articles/court-of-appeal-10-year-sentence-upheld-for-21-year-old-man-who-engaged-in-sexual-relationship-with-13-year-old-girl"
+}
+]
+},
+"Bates v Brady (2003)": {
+"upd": "November 2026",
+"bg": [
+"The applicant was tried in the District Court on several public order charges, including failing to comply with a Garda direction under s.8 of the Criminal Justice (Public Order) Act 1994.",
+"At the close of the prosecution case his solicitor asked for the s.8 charge to be dismissed: there was no evidence that he had been warned that failing to comply was an offence. The garda's evidence appeared to omit the penalties.",
+"The defence relied on DPP (Sheehan) v Galligan (High Court, Laffoy J, 1995): the evidence must show that the accused was informed, or aware, that non-compliance with a Garda direction is an offence, though no particular form of words is needed.",
+"The judge adjourned his ruling to the next day and, of his own motion, recalled the garda. Under cross-examination the garda said he had forgotten to mention the sanctions and the caution on arrest. The judge convicted.",
+"The applicant sought judicial review."
+],
+"q": "Can a District Judge recall a garda, of his own motion, to fill a gap in the prosecution's proofs after the prosecution case has closed?",
+"dec": [
+"High Court, 12 May 2003 ([2003] IEHC 20; [2003] 4 IR 111; Ó Caoimh J).",
+"A District Judge may recall a witness of his own volition to give evidence of a formal or technical nature. The power is to be used sparingly.",
+"This evidence went to the merits, not a formality, so it couldn't be admitted after the prosecution had closed its case.",
+"Certiorari granted; the convictions were quashed."
+],
+"keys": [
+{
+"q": "no particular formula of words being needed",
+"w": "the Galligan principle, as recorded in the judgment"
+}
+],
+"later": [
+"Followed in Mulligan v DPP (2008), in this app, which applied the Galligan principle to a demand for a name and address."
+],
+"job": [
+"When you give a s.8 direction, tell the person in plain words that failing to comply is an offence. Record your exact words.",
+"Give that evidence in chief, as part of the prosecution case — don't count on being recalled.",
+"Record their reply, and how long they had to comply.",
+"Before the prosecution closes, check you've covered the conduct, the direction, the warning, the failure to comply and the arrest."
+],
+"law": "Yes — High Court authority (2003).",
+"src": [
+{
+"t": "vLex Ireland — Bates v Brady [2003] IEHC 20",
+"u": "https://ie.vlex.com/vid/bates-v-brady-793659417"
+}
+]
+},
+"Mulligan v DPP (2008)": {
+"upd": "November 2026",
+"bg": [
+"A garda found the appellant asleep, formed the opinion that he was intoxicated, and decided to arrest him for his own safety.",
+"The garda twice asked for his name and address, and he refused.",
+"The garda didn't refer to s.24(2) of the Criminal Justice (Public Order) Act 1994, or tell him that refusing was an offence.",
+"He was convicted in the District Court. A case was stated: did the prosecution have to prove that the demand was made under s.24(2), that he was told so, and that he was told that refusing was an offence?"
+],
+"q": "Must a person who is asked for their name and address be told that refusing is an offence?",
+"dec": [
+"High Court, 29 October 2008 ([2008] IEHC 334; [2009] 1 IR 794; Charleton J).",
+"The principles in DPP v Galligan (Laffoy J, 1995) apply to the s.24(2) power: a person should be told of the legal obligation to comply with the Garda request, and of the penalty for not complying.",
+"The garda needn't quote the section or the wording of the Act.",
+"Bates v Brady (2003) and DPP v Rooney (1992) were followed. Appeal allowed."
+],
+"later": [
+"Applied in DPP v Bradley (2020), in this app: telling a person they were arrested for failing to comply with a s.8 direction was enough, without naming the power.",
+"Contrast DPP v Unnamed youth (s.5 offensive conduct, 2015), in this app: no warning was needed where the conduct was self-evidently criminal."
+],
+"job": [
+"When you demand a name and address, tell the person that they're required to give it, and that refusing or giving a false one is an offence for which they can be arrested.",
+"Record your exact words and their reply, with times.",
+"You don't need the section number, but do give the warning — and give that evidence in court.",
+"Do the same for other statutory requirements: tell the person they must comply, and what happens if they don't."
+],
+"law": "Yes — High Court authority (2008). Only the headnote and the opening of the judgment were in the free text checked.",
+"src": [
+{
+"t": "vLex Ireland — Mulligan v DPP [2008] IEHC 334",
+"u": "https://ie.vlex.com/vid/mulligan-v-dpp-garda-792880505"
+}
+]
+},
+"DPP v Bradley (2020)": {
+"upd": "November 2026",
+"bg": [
+"In September 2019, on a public road in Dublin, the accused was shouting at a former partner in a way that risked a breach of the peace. Members of the public were present, and she was abusive to gardaí.",
+"A garda directed her under s.8 of the Criminal Justice (Public Order) Act 1994 to leave the area. She didn't, and was arrested for failing to comply, charged under ss.6 and 8, and released on recognisance.",
+"In evidence, the arresting garda didn't say which power of arrest she had used.",
+"The District Court held that proof of a valid arrest was an essential ingredient, treated the omission as fatal, and dismissed both charges. The DPP appealed by case stated."
+],
+"q": "In a public order prosecution, must the prosecution prove a valid arrest and the power of arrest used?",
+"dec": [
+"High Court, 30 July 2020 ([2020] IEHC 466; Meenan J). All three questions were answered 'No'.",
+"All the relevant evidence concerned conduct before the arrest. So the general rule in DPP (Ivers) v Murphy applied: an irregular process bringing an accused before the court doesn't oust its jurisdiction. The court noted the rule has limits (State (Trimbole)).",
+"The garda didn't have to name the statutory power of arrest (s.24 of the 1994 Act). Telling the accused she was arrested for failing to comply with a s.8 direction was enough under Christie v Leachinsky and Mulligan v DPP.",
+"DPP v Gaffney was distinguished: there the arrest was made while trespassing in a dwelling, in breach of the constitutional right to its inviolability."
+],
+"later": [
+"See Mulligan v DPP (2008), Christie v Leachinsky, DPP v Gaffney and State (Trimbole) v Governor of Mountjoy Prison, in this app."
+],
+"job": [
+"Tell the person why they're being arrested, in ordinary words — for example, for failing to comply with your direction to leave.",
+"Record the conduct, the direction, the warning, the failure to comply and the arrest, in that order.",
+"Give evidence of the power and the reason for arrest anyway — it avoids argument.",
+"An arrest after entering a home unlawfully is different: it can sink the case (DPP v Gaffney)."
+],
+"law": "Yes — High Court authority (2020).",
+"src": [
+{
+"t": "vLex Ireland — DPP v Bradley [2020] IEHC 466",
+"u": "https://ie.vlex.com/vid/dpp-v-bradley-849521900"
+},
+{
+"t": "CaseMine — commentary on DPP v Bradley [2020] IEHC 466",
+"u": "https://www.casemine.com/commentary/uk/reaffirmation-of-arrest-protocols-in-public-order-offenses/view"
+}
+]
+},
+"Clifford v DPP (2013)": {
+"upd": "November 2026",
+"bg": [
+"In October 2006 the appellant went to a Dublin Garda station with two others.",
+"He was drunk and abusive, kicked and banged on the public office door, demanded a mobile phone back, and said he would 'get' a garda.",
+"Members of the public who were present shied away. The gardaí accepted that none of them would have breached the peace in response.",
+"He was convicted under s.6 of the Criminal Justice (Public Order) Act 1994, and under s.13 of the Criminal Justice Act 1984 for failing to appear in court in July 2006 while on bail. The garda who gave evidence hadn't been in court on that date, or when bail was granted.",
+"He appealed by case stated, arguing that there was insufficient evidence on both charges. The High Court (Charleton J, 2008) dismissed the appeal."
+],
+"q": "Can a s.6 conviction stand where nobody present was likely to breach the peace — and how is a failure to appear on bail proved?",
+"dec": [
+"Supreme Court, 25 October 2013 ([2013] IESC 43; Clarke J, with Denham CJ and O'Donnell J). Both convictions upheld.",
+"On s.6, the question is whether the court can infer that the accused knew there was a substantial risk that his behaviour would occasion a breach of the peace, and went ahead regardless.",
+"Whether a breach of the peace was actually likely in the circumstances isn't relevant. It was open to the judge to draw the inference from the abusive and threatening behaviour.",
+"On s.13, the court file showed that bail had been granted on recognisance, and that was enough. Without evidence of bail on recognisance, the offence wouldn't have been proved."
+],
+"later": [
+"See DPP v Bradley (2020), in this app, on s.6 and s.8 prosecutions."
+],
+"job": [
+"Record the person's exact words and actions, with times — the court infers recklessness from them.",
+"Note who was present and how they reacted. Bystanders not reacting doesn't defeat the charge.",
+"For failure to appear on bail, get the court record showing bail on recognisance and the missed date.",
+"Use station CCTV and body-worn camera footage where you have it."
+],
+"law": "Yes — Supreme Court authority (2013). Summary based mainly on the headnote and the parts of the judgment in the free text.",
+"src": [
+{
+"t": "vLex Ireland — Clifford v DPP [2013] IESC 43",
+"u": "https://ie.vlex.com/vid/clifford-v-dpp-garda-793916201"
+}
+]
+},
+"DPP v CC (2025)": {
+"upd": "November 2026",
+"bg": [
+"The appellant was 14 when he committed murder.",
+"The Central Criminal Court sentenced him to life detention with a review by the court after 13 years. The Court of Appeal upheld that approach.",
+"In the Supreme Court he argued that a child shouldn't receive an indeterminate sentence, and that sentencing should prioritise rehabilitation.",
+"He turned 18 during the proceedings, which raised whether he kept his anonymity under s.93 of the Children Act 2001. The Attorney General took part as amicus curiae."
+],
+"q": "Can a court sentence a child to life with a built-in review — and when is life detention justified for a child who murders?",
+"dec": [
+"Supreme Court, 13 March 2025 ([2025] IESC 11; O'Malley J; seven-judge court).",
+"A sentencing court has no power to reserve a review of its own sentence. Once sentence is imposed the judge is functus officio; the review power in the Children Act 1908 no longer exists; and a court-ordered release would trespass on the executive's power to commute or remit under Article 13.6.",
+"Including a review date was an error in principle that an appeal court must correct — but it didn't make the detention unlawful.",
+"Life isn't mandatory for a child convicted of murder. It should be imposed only in exceptional cases where the child's intentions and actions resembled an adult's: premeditation, planning (including planned concealment), luring or exploiting the victim, sexual violence or gratuitous brutality. An impulsive, angry attack by a child is different.",
+"Otherwise a determinate sentence is more appropriate, and it may be part-suspended under s.99 of the Criminal Justice Act 2006. Its custodial length should reflect the child's age at the offence.",
+"Life prisoners can apply for parole after 12 years, and that threshold applies to child offenders too. The court said it should be urgently reconsidered by the Oireachtas.",
+"Section 93 anonymity continued even though he turned 18. Appeal allowed, with remittal to the Court of Appeal for re-sentencing."
+],
+"keys": [
+{
+"q": "only in those exceptional cases",
+"w": "O'Malley J, on life sentences for children"
+},
+{
+"q": "error in principle which should be corrected",
+"w": "O'Malley J, on the review date (as reported)"
+}
+],
+"later": [
+"Decided with DPP v PB (2025), in this app, on anonymity after 18.",
+"The Court of Appeal heard the two re-sentencings in December 2025 and reserved judgment.",
+"Contrast Lynch and Whelan v Minister for Justice (2010), in this app: for adults, the mandatory life sentence for murder was upheld."
+],
+"job": [
+"In a killing involving a child suspect, gather the evidence that goes to culpability: planning, messages, searches, concealment, luring.",
+"Record the suspect's date of birth, and follow the Children Act 2001 for detention and interview.",
+"Never publish or release anything that could identify a child suspect or offender. The s.93 protection continues after they turn 18."
+],
+"law": "Yes — Supreme Court authority (2025).",
+"src": [
+{
+"t": "vLex Ireland — DPP v CC [2025] IESC 11",
+"u": "https://ie.vlex.com/vid/director-of-public-prosecution-1074718862"
+},
+{
+"t": "Irish Legal News — Supreme Court: sentencing court cannot reserve power to review its own sentence (19 March 2025)",
+"u": "https://www.irishlegal.com/articles/supreme-court-sentencing-court-cannot-reserve-power-to-review-its-own-sentence"
+},
+{
+"t": "The Irish Times — Practice of reviewing children's sentences unconstitutional, Supreme Court rules (13 March 2025)",
+"u": "https://www.irishtimes.com/crime-law/courts/2025/03/13/practice-of-reviewing-childrens-sentences-unconstitutional-supreme-court-rules/"
+},
+{
+"t": "RTÉ News — Court of Appeal to decide on life sentences for two teens (11 December 2025)",
+"u": "https://www.rte.ie/news/courts/2025/1211/1548472-children-sentencing/"
+}
+]
+},
+"DPP v PB (2025)": {
+"upd": "November 2026",
+"bg": [
+"The appellant was 17 when he committed murder.",
+"He was sentenced to life detention with a review after 13 years. The Court of Appeal dismissed his appeal; by then he was an adult.",
+"The question for the Supreme Court was whether the s.93 Children Act 2001 protection against identifying a child in criminal proceedings ended when he turned 18."
+],
+"q": "Does a child accused's anonymity under s.93 of the Children Act 2001 end when they turn 18?",
+"dec": [
+"Supreme Court, 13 March 2025 ([2025] IESC 12; O'Malley J; seven-judge court).",
+"The s.93 protections apply once proceedings are commenced against a child, and continue throughout and beyond the conclusion of the proceedings — including appeals, and even where the child turns 18 along the way.",
+"Following DPP v CC (2025), decided the same day, his scheduled review couldn't go ahead as ordered. His case was one of two returned to the Court of Appeal for re-sentencing."
+],
+"later": [
+"Applied in DPP v CC (2025), in this app, to an appellant who turned 18 during his appeal.",
+"The Court of Appeal heard the re-sentencings in December 2025 and reserved judgment."
+],
+"job": [
+"Never release or post anything that could identify a person who was a child when proceedings began against them, whatever their age now.",
+"That includes names, photographs, addresses, schools and details that would identify them indirectly.",
+"Refer media queries about child accused to the press office."
+],
+"law": "Yes — Supreme Court authority (2025). The judgment text wasn't in the free sources checked; this summary relies on reports of it.",
+"src": [
+{
+"t": "Courts Service — DPP v PB [2025] IESC 12 (judgment record)",
+"u": "https://courts.ie/view/Judgments/53aa9eca-4d22-498c-9f67-7ac776f93740/6710d216-6fcc-4fd6-8e3e-ff0075e80dfe/2025_IESC_12.pdf/pdf"
+},
+{
+"t": "Irish Legal News — Supreme Court rules on sentencing and anonymity of young offenders (14 March 2025)",
+"u": "https://www.irishlegal.com/articles/supreme-court-rules-on-sentencing-and-anonymity-of-young-murderers"
+},
+{
+"t": "The Irish Times — Court of Appeal sets date for resentencing in murder cases after Supreme Court ruling (2 May 2025)",
+"u": "https://www.irishtimes.com/crime-law/courts/2025/05/02/court-of-appeal-sets-date-for-resentencing-in-murder-cases-after-supreme-court-ruling/"
+}
+]
+},
+"Lynch and Whelan v Minister for Justice (2010)": {
+"upd": "November 2026",
+"bg": [
+"Each appellant was convicted of murder in the Central Criminal Court — one in 1997, the other in 2002 — and received the mandatory life sentence under s.2 of the Criminal Justice Act 1990.",
+"They argued that the mandatory sentence breached the separation of powers and the constitutional principle of proportionality, because the trial judge couldn't tailor the sentence to the case.",
+"They also argued that it was incompatible with the European Convention on Human Rights, because the Minister's power to release a life prisoner was in substance a judicial function.",
+"The High Court rejected their challenge."
+],
+"q": "Is the mandatory life sentence for murder constitutional and compatible with the ECHR?",
+"dec": [
+"Supreme Court, 14 May 2010 ([2010] IESC 34; Murray CJ for a unanimous court, with Denham, Hardiman, Geoghegan and Macken JJ). Appeals dismissed.",
+"The Oireachtas may validly prescribe a mandatory life sentence for murder. The State has a fundamental duty to protect life, and murder is the gravest offence, so a fixed penalty isn't disproportionate and doesn't breach the separation of powers.",
+"A life sentence is wholly punitive, with no element of preventive detention. The temporary release system doesn't change that: release is discretionary, and no prisoner is entitled to it as of right.",
+"Under ECHR case law, a mandatory punitive life sentence with an executive power to release isn't incompatible with the Convention."
+],
+"later": [
+"In 2014 the European Court of Human Rights rejected one appellant's complaint under Article 5: preventive detention isn't part of Irish law, and temporary release doesn't end a life sentence. The other application was out of time.",
+"For children, see DPP v CC (2025), in this app: life isn't mandatory and should be reserved for exceptional cases."
+],
+"job": [
+"In a homicide, the evidence of intent decides murder or manslaughter — and with it, whether life is mandatory.",
+"Record admissions, preparations, weapons and injuries that show what the suspect intended."
+],
+"law": "Yes — Supreme Court authority (2010).",
+"src": [
+{
+"t": "vLex Ireland — Lynch v Minister for Justice; Whelan v same [2010] IESC 34",
+"u": "https://ie.vlex.com/vid/lynch-v-minister-for-793757525"
+},
+{
+"t": "The Irish Times — Mandatory life sentences for murder upheld (August 2012)",
+"u": "https://www.irishtimes.com/news/crime-and-law/mandatory-life-sentences-for-murder-upheld-1.543514"
+},
+{
+"t": "TheJournal.ie — European court ruling on Lynch and Whelan (31 July 2014)",
+"u": "https://www.thejournal.ie/european-court-rules-judgement-lynch-whelan-justice-1598546-Jul2014"
+}
+]
 }
 }
