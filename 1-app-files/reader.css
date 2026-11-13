@@ -1,0 +1,67 @@
+/* Dense reader (v205): slimmer header, tighter sections, smaller text, jump bar, previews. Off with html.rd-roomy */
+html:not(.rd-roomy) .rd-top{padding:6px 6px 6px 4px!important;gap:2px!important;min-height:0!important}
+html:not(.rd-roomy) .rd-top .iconbtn{width:36px!important;height:36px!important;min-width:36px!important;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:10px!important;padding:0!important}
+html:not(.rd-roomy) .rd-top .iconbtn svg{width:19px!important;height:19px!important}
+html:not(.rd-roomy) .rd-top #rdBack{width:34px!important;min-width:34px!important}
+html:not(.rd-roomy) .rd-meta{min-width:0;flex:1}
+html:not(.rd-roomy) .rd-title{font-size:14.5px!important;line-height:1.25!important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal!important}
+html:not(.rd-roomy) .rd-page{font-size:11px!important;margin-top:1px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html:not(.rd-roomy) .rd-top .rd-clock{display:none!important}
+html:not(.rd-roomy) .rd-body{padding:8px 12px 24px!important;line-height:1.5!important}
+.rd-body{font-size:var(--rdfs,14.5px)!important}
+html:not(.rd-roomy) #rdBody .cs-sc p,html:not(.rd-roomy) #rdBody .cs-sc li{font-size:1em!important;line-height:1.5!important}
+html:not(.rd-roomy) #rdBody .cs-sc{padding:11px 12px!important;margin-top:8px!important;border-radius:14px!important}
+html:not(.rd-roomy) .reader .rd-body .rsec,html:not(.rd-roomy) .rsec{margin:6px 0!important;border-radius:10px!important}
+html:not(.rd-roomy) .reader .rd-body .rsec>summary,html:not(.rd-roomy) .rsec summary{padding:9px 10px!important;font:600 13px/1.3 var(--font)!important;letter-spacing:0!important;text-transform:none!important;gap:8px!important;min-height:40px}
+html:not(.rd-roomy) .rsec summary::before{font-size:10px!important;padding:3px 5px!important;min-width:0!important}
+html:not(.rd-roomy) .rsecb{padding:8px 11px 4px!important}
+html:not(.rd-roomy) .rsecb p,html:not(.rd-roomy) .rsecb li{margin-top:0;margin-bottom:.45em}
+html:not(.rd-roomy) .rb-h2{font-size:1.02em!important;margin:.8em 0 .3em!important}
+html:not(.rd-roomy) .rb-h3{font-size:.95em!important;margin:.7em 0 .25em!important}
+html:not(.rd-roomy) .rb-box{padding:8px 10px!important;margin:8px 0!important;border-radius:8px!important}
+html:not(.rd-roomy) .rb-t td,html:not(.rd-roomy) .rb-t th{padding:5px 7px!important}
+/* preview line on a closed section */
+.rs-prev{display:block;font:400 12px/1.35 var(--font);color:var(--rdim,var(--dim));margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0;text-transform:none}
+.rsec[open] .rs-prev{display:none}
+.rsec summary .rs-txt{min-width:0}
+/* jump bar */
+.rjump{position:sticky;top:-8px;z-index:2;display:flex;gap:6px;overflow-x:auto;padding:8px 0 8px;margin:-8px 0 4px;background:var(--rbg,var(--bg));scrollbar-width:none}
+.rjump::-webkit-scrollbar{display:none}
+.rjump button{flex:none;min-height:34px;padding:0 11px;border-radius:17px;border:1px solid var(--rline,rgba(127,140,160,.3));background:var(--rsurf,transparent);color:var(--rtx,inherit);font:600 12px/1 var(--font);white-space:nowrap}
+.rjump button.all{background:var(--racc,#2F6FB0);color:#fff;border-color:transparent}
+.rjump button.on{border-color:var(--racc,#2F6FB0);color:var(--racc,#2F6FB0)}
+/* case page: smaller */
+html:not(.rd-roomy) #rdBody .cs-ratio{padding:12px 13px!important;border-radius:14px!important}
+html:not(.rd-roomy) #rdBody .cs-ratio p{font-size:1.05em!important;line-height:1.4!important}
+html:not(.rd-roomy) #rdBody [class^="cs-"]{--gap:8px}
+html:not(.rd-roomy) #rdBody .nb-links{padding:8px 10px!important;margin:4px 0 8px!important;border-radius:10px!important}
+html:not(.rd-roomy) #rdBody .nb-links>b{font-size:12.5px!important;margin-bottom:4px!important}
+html:not(.rd-roomy) #rdBody .nb-lk{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto;gap:6px!important;scrollbar-width:none}
+html:not(.rd-roomy) #rdBody .nb-lkb{flex:none;font-size:12px!important;padding:6px 10px!important;min-height:34px;white-space:nowrap}
+/* At a glance tiles + Ask the page */
+.raf,.rq{margin:4px 0 8px}
+.raf-h{font:600 11px/1.2 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--rdim,var(--dim));margin:6px 0 6px}
+.raf-h small{letter-spacing:0;text-transform:none;font-weight:400;margin-left:4px}
+.raf-g{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.raf-t{text-align:left;border:1px solid var(--rline,rgba(127,140,160,.3));background:var(--rsurf,transparent);color:var(--rtx,inherit);border-radius:10px;padding:7px 9px;display:flex;flex-direction:column;gap:3px;min-height:44px}
+.raf-t small{font:600 10px/1 var(--font);letter-spacing:.07em;text-transform:uppercase;color:var(--racc,#2F6FB0)}
+.raf-t span{font-size:12px;line-height:1.35}
+.rq-c{display:flex;flex-wrap:wrap;gap:6px}
+.rq-c button{min-height:36px;padding:0 11px;border-radius:18px;border:1px solid var(--rline,rgba(127,140,160,.3));background:transparent;color:var(--rtx,inherit);font:500 12.5px/1 var(--font)}
+.rq-c button.on{background:var(--racc,#2F6FB0);border-color:transparent;color:#fff}
+.rq-a{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.rq-r{text-align:left;border:0;border-left:3px solid #E0A43A;background:rgba(224,164,58,.12);color:var(--rtx,inherit);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:4px}
+.rq-r span{font-size:12.5px;line-height:1.45}.rq-r small{font-size:11px;color:var(--rdim,var(--dim))}
+.rq-m{font-size:11px;color:var(--rdim,var(--dim))}
+.rq-flash{animation:rqf 1.8s ease}
+@keyframes rqf{0%,40%{background:rgba(224,164,58,.35)}100%{background:transparent}}
+/* tap targets ≥40px (tap test v206) */
+html:not(.rd-roomy) .rd-top .iconbtn{width:40px!important;height:40px!important;min-width:40px!important}
+html:not(.rd-roomy) .rd-top #rdBack{width:40px!important;min-width:40px!important}
+#fsBtn{min-width:40px;min-height:40px}
+.rjump button,.rq-c button{min-height:40px}
+html:not(.rd-roomy) #rdBody .nb-lkb{min-height:40px}
+.kbhead .iconbtn,.kbhead button:first-child,button.back,.backbtn{min-width:40px;min-height:40px}
+#cams .chip,.cam-chips .chip,.rp-seg button,#rst .rp-top button,.ixtabs button,.chips .chip{min-height:40px}
+#tbBack,.tbback{min-width:40px!important;min-height:40px!important}
+.m-x,.reel-x{min-height:40px}

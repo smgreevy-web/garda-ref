@@ -1,0 +1,68 @@
+/* Assisting — Sync across devices. Scoped to #syn (and the small sync button on other screens); theme tokens only. */
+#syn{position:fixed;inset:0;z-index:3170;display:flex;flex-direction:column;background:var(--bg);color:var(--tx);font:16px/1.45 var(--font,system-ui,sans-serif);overscroll-behavior:contain}
+#syn[hidden]{display:none}
+#syn *,#syn *::before,#syn *::after{box-sizing:border-box}
+#syn button{font:inherit;color:inherit;cursor:pointer}
+#syn .gri{width:20px;height:20px;flex:0 0 auto}
+#syn .sy-top{flex:0 0 auto;display:flex;align-items:center;gap:10px;min-height:56px;padding:calc(5px + env(safe-area-inset-top,0px)) 10px 5px;border-bottom:1px solid var(--line);background:var(--bg)}
+#syn .sy-back{display:flex;align-items:center;gap:4px;min-height:46px;padding:0 14px 0 8px;border-radius:99px;border:1px solid var(--line2);background:var(--surface2);font-weight:800;color:var(--acc)}
+#syn .sy-tt{flex:1;min-width:0;text-align:center}
+#syn .sy-tt b{display:block;font:800 14px/1.25 var(--fhead,var(--font));letter-spacing:.06em;text-transform:uppercase;color:var(--acc)}
+#syn .sy-tt .hudclock{display:block;margin-top:2px}
+#syn .sy-sp{width:86px}
+#syn .sy-main{flex:1 1 auto;min-height:0;overflow-y:auto}
+#syn .sy-wrap{max-width:680px;margin:0 auto;padding:14px 16px calc(28px + env(safe-area-inset-bottom,0px))}
+#syn .sy-lead{margin:2px 2px 12px;font-size:15.5px;line-height:1.5;color:var(--tx2)}
+#syn .sy-card{display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+#syn .sy-card>.gri{width:28px;height:28px;color:var(--acc)}
+#syn .sy-card b{display:block;font-size:16px}
+#syn .sy-card small{display:block;margin-top:2px;font-size:13px;color:var(--dim);overflow-wrap:anywhere}
+#syn .sy-dot{display:inline-block;width:8px;height:8px;margin:0 7px 1px 0;border-radius:50%;background:var(--dim2)}
+#syn .sy-dot.ok{background:var(--green)}
+#syn .sy-dot.err{background:var(--red)}
+#syn .sy-dot.busy{background:var(--acc);animation:syPulse 1s ease-in-out infinite}
+@keyframes syPulse{50%{opacity:.3}}
+#syn .sy-go{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;margin-top:12px;padding:0 16px;border:0;border-radius:13px;background:var(--acc);color:var(--accink);font-weight:800;font-size:16px}
+#syn .sy-go:disabled{opacity:.55}
+#syn .sy-sec{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;margin-top:8px;padding:0 14px;border:1px solid var(--line2);border-radius:12px;background:var(--surface2);font-weight:700;font-size:14px}
+#syn .sy-sec:disabled{opacity:.5}
+#syn .sy-sec.red{color:var(--red);border-color:var(--redline)}
+#syn .sy-row{display:flex;flex-wrap:wrap;gap:8px}
+#syn .sy-chk{display:flex;align-items:flex-start;gap:10px;margin-top:12px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer}
+#syn .sy-chk input{flex:0 0 auto;width:22px;height:22px;margin:1px 0 0;accent-color:var(--acc)}
+#syn .sy-chk b{display:block;font-size:14.5px}
+#syn .sy-chk small{display:block;margin-top:2px;font-size:12.5px;color:var(--dim)}
+#syn .sy-note{margin:10px 2px 0;font-size:12.5px;line-height:1.45;color:var(--dim)}
+#syn .sy-priv{display:flex;gap:9px;align-items:flex-start;margin-top:18px;padding:11px 12px;border-radius:12px;background:var(--accbg);color:var(--tx2)}
+#syn .sy-priv .gri{width:18px;height:18px;margin-top:1px;color:var(--acc)}
+#syn .sy-steps{margin:14px 0 0;padding:0;list-style:none;counter-reset:sy}
+#syn .sy-steps>li{position:relative;margin:0 0 10px;padding:12px 12px 13px 48px;border:1px solid var(--line);border-radius:14px;background:var(--surface);counter-increment:sy}
+#syn .sy-steps>li::before{content:counter(sy);position:absolute;left:12px;top:12px;width:26px;height:26px;border-radius:50%;border:2px solid var(--line2);display:flex;align-items:center;justify-content:center;font:800 13px/1 var(--font);color:var(--dim)}
+#syn .sy-steps>li.cur{border-color:var(--accline)}
+#syn .sy-steps>li.cur::before{border-color:var(--acc);color:var(--acc)}
+#syn .sy-steps>li.done::before{content:'✓';border-color:var(--green);background:var(--green);color:var(--bg)}
+#syn .sy-steps>li>b{display:block;font-size:15.5px}
+#syn .sy-steps>li>small{display:block;margin-top:3px;font-size:13px;line-height:1.45;color:var(--dim)}
+#syn .sy-in{display:block;width:100%;min-height:48px;margin-top:10px;padding:10px 12px;border:1px solid var(--line2);border-radius:12px;background:var(--bg);color:var(--tx);font:400 16px var(--font,system-ui)}
+#syn .sy-in:focus{outline:2px solid var(--accline);outline-offset:1px}
+#syn .sy-meter{height:5px;margin-top:6px;border-radius:3px;background:var(--line);overflow:hidden}
+#syn .sy-meter i{display:block;width:0;height:100%;background:var(--red);transition:width .2s}
+#syn .sy-meter i.s3{background:var(--amber)}
+#syn .sy-meter i.s4{background:var(--green)}
+#syn .sy-err{margin:8px 0 0;font-size:13.5px;font-weight:600;color:var(--red)}
+#syn .sy-err[hidden]{display:none}
+#syn details{margin-top:10px}
+#syn summary{cursor:pointer;font-weight:700;font-size:13.5px;color:var(--acc)}
+#syn .sy-how ol{margin:8px 0 0;padding-left:20px;font-size:13.5px;line-height:1.5;color:var(--tx2)}
+#syn .sy-how li{margin:6px 0}
+#syn .sy-more{margin-top:16px}
+@media (prefers-reduced-motion:reduce){#syn .sy-dot.busy{animation:none}}
+/* the sync button on the Tasks screen */
+#tsk .tk-sync{flex:0 0 auto;display:flex;align-items:center;gap:5px;height:40px;padding:0 10px;border-radius:99px;border:1px solid var(--kn3);background:color-mix(in srgb,var(--surface2) 90%,transparent);color:var(--kid);font-size:12px;font-weight:700}
+#tsk .tk-sync .gri{width:18px;height:18px}
+#tsk .tk-sync.on{color:var(--kg)}
+#tsk .tk-sync.err{color:var(--kred)}
+#tsk .tk-sync[hidden]{display:none}
+@media (max-width:440px){#tsk .tk-sync{width:40px;padding:0;justify-content:center}#tsk .tk-sync .sy-cl{display:none}}
+#tsk .tk-synclink{display:flex;align-items:center;justify-content:center;gap:6px;margin:6px auto 0;padding:8px 12px;border:0;background:none;color:var(--kg);font-weight:700;font-size:13px}
+#tsk .tk-synclink .gri{width:16px;height:16px}

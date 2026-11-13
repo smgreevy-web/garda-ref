@@ -1,0 +1,2114 @@
+window.GRAPP='207';
+/* Assisting PWA — offline, no case data, no analytics */
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const view=$('#view'), reader=$('#reader'), rdBody=$('#rdBody');
+
+let META=null, AZ=null, CASES=null, OPS=null, OPS2=null, TPL=null, G3=null, STEN=null, KB=null;
+const CHUNKS={};            // file -> {start,end,pages}
+let chunksReady=false, chunksLoading=false;
+let curPage=1, tab='today', lastQuery='', lastFilter='all';
+let toolState={};           // session-only checklist state
+const FAVKEY='gr_favs_v1';
+let favs=JSON.parse(localStorage.getItem(FAVKEY)||'[]'); // [{a,title,label}] — section IDs only
+
+/* ---------- boot ---------- */
+(async function boot(){
+  if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
+  const [m,a,cs,op,sn,kb,o2,tpl,g3]=await Promise.all(['meta','az','cases','ops','stencils','kb','ops2','templates','guides3'].map(f=>fetch('data/'+f+'.json').then(r=>r.json())));
+  META=m; AZ=a; CASES=cs; window.CASES_N=cs.length; OPS=op; OPS2=o2; TPL=tpl; G3=g3; STEN=sn; KB=kb;
+  window.GRVER='v'+(window.GRAPP||'')+' · content '+META.built+' · '+META.pages+' pp'; { const vi=$('#verinfo'); if(vi)vi.textContent=GRVER; }
+  wrapSubviews(); bindUI(); render();
+  loadAllChunks(); // background; SW caches for offline
+})();
+
+async function loadAllChunks(){
+  if(chunksLoading) return; chunksLoading=true;
+  let done=0, total=META.chunks.length;
+  const st=$('#loadState');
+  for(const c of META.chunks){
+    try{ CHUNKS[c.f]=await fetch(c.f).then(r=>r.json()); }
+    catch(e){ st.textContent='Load failed — retry online'; heroLoad('LOAD FAILED · RETRY ONLINE'); chunksLoading=false; return; }
+    done++; st.textContent='Loading '+done+'/'+total; heroLoad('LOADING '+done+'/'+total);
+    if(tab==='search'&&lastQuery) doSearch(lastQuery,lastFilter,true);
+  }
+  chunksReady=true; st.textContent='All content saved offline'; st.classList.add('ok'); heroLoad('OFFLINE READY');
+  setTimeout(()=>{st.textContent='';},2500);
+}
+
+const HEAD_EMO=/^[\s\u2190-\u21FF\u2300-\u23FF\u2460-\u27BF\u2900-\u2BFF\u{1F000}-\u{1FAFF}\uFE0F\u200D★☆◉⌕✓✦▸•]+/u;
+function tidyHeads(root){
+  root.querySelectorAll('h2.sec:not([data-t])').forEach(h=>{ h.dataset.t='1';
+    if(h.querySelector('.sec-r')||h.children.length)return;
+    let t=h.textContent.replace(HEAD_EMO,'').trim(), sub='';
+    const i=t.indexOf(' — '); if(i>0&&t.length>30){ sub=t.slice(i+3).trim(); t=t.slice(0,i).trim(); }
+    h.textContent=t;
+    if(sub){ const d=document.createElement('div'); d.className='sec-sub'; d.textContent=sub.charAt(0).toUpperCase()+sub.slice(1); h.after(d); }
+  });
+}
+new MutationObserver(()=>tidyHeads(view)).observe(view,{childList:true,subtree:true});
+function heroLoad(t){ window._heroLoad=t; document.querySelectorAll('.hs-load').forEach(e=>{e.textContent=t;}); }
+function pageText(abs){
+  for(const c of META.chunks){ if(abs>=c.s&&abs<=c.e){ const ch=CHUNKS[c.f]; return ch?ch.pages[abs-c.s]:null; } }
+  return null;
+}
+function pageLabel(abs){ return META.labels[abs]||('p.'+abs); }
+function topicEmoji(t){t=(t||'').toLowerCase();
+  if(/knife|blade|weapon|s\.9|offensive/.test(t))return '🔪 ';
+  if(/firearm|gun|s\.15 fire/.test(t))return '🔫 ';
+  if(/drug|misuse|controlled/.test(t))return '💊 ';
+  if(/traffic|collision|rta|driving|vehicle|scooter/.test(t))return '🚗 ';
+  if(/assault|harm|nfoap/.test(t))return '👊 ';
+  if(/theft|burglary|robbery|stolen/.test(t))return '🧰 ';
+  if(/sexual|rape|consent/.test(t))return '⚠️ ';
+  if(/public order|intoxicat/.test(t))return '📢 ';
+  if(/cctv|footage/.test(t))return '📹 ';
+  if(/search|warrant/.test(t))return '🔍 ';
+  if(/domestic|coercive/.test(t))return '🏠 ';
+  return '';}
+function titleFor(abs){
+  const t=META.titles; let lo=0,hi=t.length-1,ans='Cover';
+  while(lo<=hi){const mid=(lo+hi)>>1; if(t[mid][0]<=abs){ans=t[mid][1];lo=mid+1;}else hi=mid-1;}
+  return ans;
+}
+function isDated(abs){ return false; } // the 2007 manual pages were removed
+
+/* ---------- tabs ---------- */
+function applyFS(){document.documentElement.dataset.fs=localStorage.getItem('gr_fs')||'m';}
+/* ---------- display: theme + text size (the Aa button) ---------- */
+/* [key, name, note, page, card, text, accent, tone] — keep in step with the head script in index.html and the tokens in theme.css */
+const THEMES=[
+  ['pro','Pro','Clean and bright · light by day','#F2F4F8','#FFFFFF','#101828','#2F6FB0','light'],
+  ['pronight','Pro night','Deep navy · for night tours','#0A101B','#131D2E','#E7EDF5','#7FB2F0','dark'],
+  ['ivory','Ivory','Warm paper · best in daylight','#f3f0e9','#fbf9f4','#1d2733','#1f4e79','light'],
+  ['daylight','Daylight','Maximum contrast · bright sun','#f2f3f5','#ffffff','#000000','#0047b3','light'],
+  ['sepia','Sepia','Soft and warm · long reads','#eee4d1','#f6eedd','#2e2316','#8a4513','light'],
+  ['mist','Mist & indigo','Cool grey · crisp','#eef1f5','#f8fafc','#18212c','#3d4db7','light'],
+  ['slate','Slate','Neutral grey · soft blue','#121519','#191d23','#e4e7eb','#8fb0d6','dark'],
+  ['graphite','Graphite & teal','Minimal · easy at night','#0f1111','#171a19','#e5e8e6','#72b6a9','dark'],
+  ['navy','Navy & brass','Classic','#0c1320','#121b2a','#e6eaf0','#c9a96e','dark'],
+  ['forest','Forest & sage','Deep green · calm','#0f1411','#151c18','#e2e9e4','#9cc58f','dark'],
+  ['midnight','Midnight & amber','True black · gentle at night','#000000','#0d0d0e','#ece9e4','#e0a650','dark']];
+const proAuto=()=>{ try{ return localStorage.getItem('gr_pro_auto')!=='0'; }catch(e){ return true; } };
+function applyTheme(t){
+  if((t==='pro'||t==='pronight')&&proAuto())t=sunUp(Date.now())?'pro':'pronight';   // light by day, dark at night
+  let th=THEMES.find(x=>x[0]===t); if(!th)th=THEMES[0];
+  const d=document.documentElement; d.dataset.theme=th[0]; d.dataset.tone=th[7]; try{localStorage.setItem('gr_theme',th[0]);}catch(e){}
+  const m=document.querySelector('meta[name="theme-color"]'); if(m)m.setAttribute('content',th[3]);
+  try{ window.dispatchEvent(new CustomEvent('gr:theme',{detail:th[0]})); }catch(e){}
+}
+/* ---------- looks: whole-app styles on top of the colour themes (looks.css) ----------
+   [key, name, note, modes ('l' light only · 'd' dark only · 'ld' both), status-bar colours [light, dark]]
+   Keep in step with the head script in index.html. Classic = the colour themes on their own. */
+const LOOKS=[
+  ['classic','Classic','Clean cards · choose any colour theme','',null],
+  ['editorial','Editorial','Paper and serif type · reads like a briefing','ld',['#f6f1e7','#16130f']],
+  ['glass','Glass','Dublin at night behind frosted cards','d',['#0b1626']],
+  ['command','Command','Dark HUD · live countdown up front','d',['#070b10']],
+  ['bento','Bento','Widget grid · a colour for each area','ld',['#eef1f6','#0e1117']],
+  ['duty','Duty board','Hi-vis yellow · big buttons for gloves and sun','d',['#0b0b0b']],
+  ['redlight','Red light','All dim red · keeps your night vision','d',['#000000']],
+  ['material','Material','Android style · soft colour, big rounded shapes','ld',['#fef7ff','#141218']],
+  ['notebook','Notebook','Ruled paper and typewriter type','l',['#fbf8ef']],
+  ['swiss','Swiss','Bold type on a strict grid · black, white, red','l',['#ffffff']],
+  ['terminal','Terminal','Green screen — just for fun','d',['#020803']]];
+/* Red light after dark: from sunset to sunrise in Dublin the app switches to Red light (your own look comes back by day).
+   sunUp: is the sun above the horizon (−0.833°, refraction) at Dublin right now — same sum as the head script. */
+function sunUp(t){ const r=Math.PI/180, n=t/864e5+2440587.5-2451545, g=(357.528+.9856003*n)*r, l=(280.46+.9856474*n+1.915*Math.sin(g)+.02*Math.sin(2*g))*r, e=(23.439-4e-7*n)*r,
+  ra=Math.atan2(Math.cos(e)*Math.sin(l),Math.cos(l)), dec=Math.asin(Math.sin(e)*Math.sin(l)), ha=(280.46061837+360.98564736629*n-6.26)*r-ra, la=53.35*r;
+  return Math.asin(Math.sin(la)*Math.sin(dec)+Math.cos(la)*Math.cos(dec)*Math.cos(ha))/r>-0.833; }
+const nightRed=()=>{ try{ return localStorage.getItem('gr_look_night')==='1'; }catch(e){ return false; } };
+function lookOf(){ try{ const k=localStorage.getItem('gr_look'); return LOOKS.some(x=>x[0]===k)?k:'classic'; }catch(e){ return 'classic'; } }
+function lookMode(){ try{ return localStorage.getItem('gr_look_mode')||'auto'; }catch(e){ return 'auto'; } }
+const darkPref=()=>{ try{ return matchMedia('(prefers-color-scheme: dark)').matches; }catch(e){ return false; } };
+function applyLook(k,mode){
+  let L=LOOKS.find(x=>x[0]===k)||LOOKS[0]; const d=document.documentElement;
+  try{ localStorage.setItem('gr_look',L[0]); if(mode)localStorage.setItem('gr_look_mode',mode); }catch(e){}
+  if(nightRed()&&!sunUp(Date.now()))L=LOOKS.find(x=>x[0]==='redlight');   // after dark: red light, until sunrise
+  if(L[0]==='classic'){ d.removeAttribute('data-look'); applyTheme(d.dataset.theme||'pro'); }
+  else { mode=mode||lookMode(); const tone=L[3]==='d'?'dark':L[3]==='l'?'light':(mode==='light'||mode==='dark')?mode:(darkPref()?'dark':'light');
+    d.dataset.look=L[0]; d.dataset.tone=tone; const m=document.querySelector('meta[name="theme-color"]'); if(m)m.setAttribute('content',tone==='dark'&&L[4][1]?L[4][1]:L[4][0]);
+    try{ window.dispatchEvent(new CustomEvent('gr:theme',{detail:L[0]})); }catch(e){} }
+  paintToday(); }
+try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ const k=lookOf(); if(k!=='classic'&&lookMode()==='auto')applyLook(k); }); }catch(e){}
+setInterval(()=>{ const th=document.documentElement.dataset.theme; if(lookOf()==='classic'&&(th==='pro'||th==='pronight')&&proAuto()){ const want=sunUp(Date.now())?'pro':'pronight'; if(want!==th)applyTheme(want); } },60000);
+setInterval(()=>{ if(!nightRed())return; const want=sunUp(Date.now())?lookOf():'redlight', now=document.documentElement.dataset.look||'classic'; if(want!==now)applyLook(lookOf()); },60000);
+const lookMini=k=>'<span class="lk-mini lk-'+k+'" aria-hidden="true"><i class="m1"></i><i class="m2"></i><i class="m3"></i><i class="m4"><b></b><b></b><b></b><b></b></i><i class="m5"></i></span>';
+function displaySheet(){
+  let o=document.getElementById('dsp');
+  if(!o){ o=document.createElement('div'); o.id='dsp'; o.className='dsp hidden'; document.body.appendChild(o); }
+  const cur=document.documentElement.dataset.theme||'pro', fs=localStorage.getItem('gr_fs')||'m', lk=lookOf(), LK=LOOKS.find(x=>x[0]===lk), md=lookMode();
+  const tile=([k,n,d,pg,cd,tx,ac])=>'<button type="button" class="dsp-t'+(k===cur?' on':'')+'" data-th="'+k+'" aria-pressed="'+(k===cur)+'">'
+    +'<span class="sw" style="background:'+pg+'" aria-hidden="true"><span class="sw-c" style="background:'+cd+'"><i style="background:'+tx+'"></i><i style="background:'+tx+'"></i><em style="background:'+ac+'"></em></span></span>'
+    +'<span class="lt"><b>'+esc(n)+'</b><small>'+esc(d)+'</small></span>'+(window.GRI?GRI('check','ok'):'')+'</button>';
+  o.innerHTML='<div class="dsp-shade"></div><div class="dsp-sheet" role="dialog" aria-label="Display"><div class="dsp-grip"></div><h3>Display</h3>'
+    +'<div class="dsp-l">Look</div><div class="dsp-looks">'+LOOKS.map(([k,n,d])=>'<button type="button" class="lk-c'+(k===lk?' on':'')+'" data-look="'+k+'" aria-pressed="'+(k===lk)+'">'+lookMini(k)+'<b>'+esc(n)+'</b><small>'+esc(d)+'</small>'+(window.GRI?GRI('check','ok'):'')+'</button>').join('')+'</div>'
+    +(LK&&LK[3]==='ld'?'<div class="dsp-mode" role="group" aria-label="Light or dark">'+[['light','Light'],['dark','Dark'],['auto','Match phone']].map(([k,l])=>'<button type="button" data-mode="'+k+'" class="'+(md===k?'on':'')+'" aria-pressed="'+(md===k)+'">'+l+'</button>').join('')+'</div>':'')
+    +'<label class="dsp-night"><input type="checkbox"'+(nightRed()?' checked':'')+'><span><b>Red light after dark</b><small>From sunset to sunrise the app turns dim red, to keep your night vision — your look comes back by day</small></span></label>'
+    +(lk==='glass'?'<label class="dsp-name">Your first name, for the greeting <small>optional · saved on this phone</small><input type="text" maxlength="24" autocomplete="given-name" value="'+esc(localStorage.getItem('gr_name')||'')+'" placeholder="e.g. Sean"></label>':'')
+    +(lk==='classic'?'<label class="dsp-night dsp-auto"><input type="checkbox"'+(proAuto()&&/^pro/.test(cur)?' checked':'')+'><span><b>Light by day, dark at night</b><small>The Pro look switches by itself at sunset and sunrise</small></span></label>':'')
+    +(lk==='classic'?'<div class="dsp-l">Light themes</div><div class="dsp-th">'+THEMES.filter(x=>x[7]==='light').map(tile).join('')+'</div>'
+      +'<div class="dsp-l">Dark themes</div><div class="dsp-th">'+THEMES.filter(x=>x[7]==='dark').map(tile).join('')+'</div>'
+      :'<p class="dsp-n">The nine colour themes go with the Classic look — tap Classic to pick one.</p>')
+    +'<div class="dsp-l">Text size</div><div class="dsp-fs">'+['s','m','l','xl'].map((k,i)=>'<button type="button" data-fs="'+k+'" class="'+(k===fs?'on':'')+'" style="font-size:'+(13+i*3)+'px" aria-label="Text size '+k+'">A</button>').join('')+'</div>'
+    +'<p class="dsp-n">The look and colours carry through every screen — tools, cameras, notes and the reader — on the phone and on a computer.</p>'
+    +'<button type="button" class="dsp-done">Done</button></div>';
+  const close=()=>o.classList.add('hidden');
+  o.querySelector('.dsp-shade').onclick=close; o.querySelector('.dsp-done').onclick=close;
+  o.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{ try{ localStorage.setItem('gr_pro_auto','0'); }catch(e){} { const pa=o.querySelector('.dsp-auto input'); if(pa)pa.checked=false; } applyTheme(b.dataset.th); o.querySelectorAll('[data-th]').forEach(x=>{ x.classList.toggle('on',x===b); x.setAttribute('aria-pressed',String(x===b)); }); });
+  o.querySelectorAll('[data-look]').forEach(b=>b.onclick=()=>{ if(b.dataset.look===lookOf())return; const y=o.querySelector('.dsp-sheet').scrollTop; applyLook(b.dataset.look); displaySheet(); const sh2=o.querySelector('.dsp-sheet'); if(sh2)sh2.scrollTop=y; });
+  o.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ applyLook(lookOf(),b.dataset.mode); o.querySelectorAll('[data-mode]').forEach(x=>{ x.classList.toggle('on',x===b); x.setAttribute('aria-pressed',String(x===b)); }); });
+  { const ni=o.querySelector('.dsp-name input'); if(ni)ni.oninput=()=>{ try{ localStorage.setItem('gr_name',ni.value.trim().slice(0,24)); }catch(e){} paintToday(); }; }
+  { const pa=o.querySelector('.dsp-auto input'); if(pa)pa.onchange=()=>{ try{ localStorage.setItem('gr_pro_auto',pa.checked?'1':'0'); }catch(e){} if(pa.checked){ applyTheme('pro'); displaySheet(); } }; }
+  { const nc=o.querySelector('.dsp-night:not(.dsp-auto) input'); if(nc)nc.onchange=()=>{ try{ localStorage.setItem('gr_look_night',nc.checked?'1':'0'); }catch(e){} applyLook(lookOf()); if(window.grToast)grToast(nc.checked?(sunUp(Date.now())?'Red light will come on at sunset':'Red light on until sunrise'):'Red light after dark is off'); }; }
+  o.querySelectorAll('[data-fs]').forEach(b=>b.onclick=()=>{ localStorage.setItem('gr_fs',b.dataset.fs); applyFS(); o.querySelectorAll('[data-fs]').forEach(x=>x.classList.toggle('on',x===b)); if(typeof bookRelayout==='function')setTimeout(bookRelayout,60); });
+  o.classList.remove('hidden');
+}
+window.displaySheet=displaySheet;
+function updateDlBtn(){const d=$('#rdDl');if(d)d.style.display=curDoc?'':'none';}
+function bindUI(){
+  applyFS();
+  const top=document.querySelector('.rd-top');
+  if(top){
+    top.insertAdjacentHTML('beforeend','<div id="rdProg"></div>');
+    const star=$('#rdStar');
+    star.insertAdjacentHTML('beforebegin','<button id="rdListen" class="iconbtn" title="Read aloud" aria-label="Read this page aloud" aria-pressed="false">'+(window.GRI?GRI('volume-2'):'♪')+'</button><button id="rdBook" class="iconbtn" title="Book reading — page by page" aria-label="Book reading" aria-pressed="false">'+(window.GRI?GRI('book-open-text'):'B')+'</button><button id="rdDl" class="iconbtn" title="Download as Word" aria-label="Download Word document" style="display:none">'+(window.GRI?GRI('download'):'⬇')+'</button>');
+    const rb=$('#rdBack'); if(rb&&window.GRI)rb.innerHTML=GRI('chevron-left');
+    $('#rdDl').addEventListener('click',()=>{if(curDoc){ if(curDoc.blocks)downloadBlocks(curDoc); else downloadDoc(curDoc.title,curDoc.text); }});
+    $('#rdBook').addEventListener('click',bookToggle);
+    $('#rdListen').addEventListener('click',()=>{ if(TTS.on)ttsStop(); else ttsStart(); });
+    bookWire();
+    rdBody.addEventListener('scroll',()=>{if(book.on)return;const el=rdBody;const max=el.scrollHeight-el.clientHeight;
+      const p=max>0?(el.scrollTop/max*100):0;const bar=$('#rdProg');if(bar)bar.style.width=p+'%';},{passive:true});
+  }
+  $('#topbar .tb-clock').insertAdjacentHTML('afterend','<button id="fsBtn" title="Theme and text size" aria-label="Theme and text size"><span>A</span><span>a</span></button>');
+  $('#fsBtn').addEventListener('click',displaySheet);
+  $$('#tabbar .tab').forEach(b=>{
+    if(window.GRI&&b.dataset.ic&&!b.querySelector('.gri'))b.insertAdjacentHTML('afterbegin',GRI(b.dataset.ic));
+    b.addEventListener('click',()=>{ const t=b.dataset.tab;
+      if(t===tab&&view.dataset.root===t){ view.scrollTo({top:0,behavior:'smooth'}); if(t==='search'){const i=$('#q'); if(i)i.focus();} return; }
+      setTab(t); closeReader(); render(); view.scrollTop=0; if(t==='search'){const i=$('#q'); if(i&&!lastQuery)i.focus();} });
+  });
+
+  $('#brandBtn').addEventListener('click',goHome);
+  $('#brandBtn').insertAdjacentHTML('beforebegin','<button id="tbBack" class="tbback" aria-label="Back">'+(window.GRI?GRI('chevron-left'):'‹')+'</button>');
+  $('#tbBack').addEventListener('click',()=>{ if(window.grBack)grBack(); });
+  $('#rdBack').addEventListener('click',closeReader);
+  $('#rdPrev').addEventListener('click',()=>openPage(Math.max(1,curPage-1)));
+  $('#rdNext').addEventListener('click',()=>openPage(Math.min(META.pages,curPage+1)));
+  $('#rdJump').addEventListener('click',jumpPrompt);
+  $('#rdStar').addEventListener('click',toggleFav);
+  document.addEventListener('keydown',e=>{ if(!reader.classList.contains('hidden')){ if(e.key==='ArrowLeft')openPage(Math.max(1,curPage-1)); if(e.key==='ArrowRight')openPage(Math.min(META.pages,curPage+1)); if(e.key==='Escape')closeReader(); }});
+}
+
+const OLD_TABS=['browse','index','tools','saved'];   // the earlier tab pages — now reached from the folders
+function render(){
+  if(tab==='home')tab='today';
+  setTab(tab); vstack.length=0; vcur=null; view.dataset.root=tab; document.body.classList.toggle('subview',OLD_TABS.includes(tab));
+  if(tab==='today'){ if(window.GRPro)GRPro.today(view); else renderSearch(); }
+  else if(tab==='folders'){ if(window.GRPro)GRPro.browse(view); else renderTools(); }
+  else if(tab==='search')renderSearch();
+  else if(tab==='browse')renderBrowse();
+  else if(tab==='index')renderIndex();
+  else if(tab==='tools')renderTools();
+  else renderSaved();
+}
+function setTab(t){ tab=t; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t||(x.dataset.tab==='folders'&&OLD_TABS.includes(t)))); }
+function goHome(){ lastQuery=''; setTab('today'); closeReader(); render(); view.scrollTop=0; }
+function searchFor(q,opt){ lastQuery=q||''; lastFilter='all'; setTab('search'); closeReader(); render(); view.scrollTop=0;
+  if(opt&&opt.focus){ const i=$('#q'); if(i)i.focus(); } }
+function subView(){ view.innerHTML='<div id="results"></div>'; view.scrollTop=0; return $('#results'); }
+/* sub-view stack: every screen drawn into #view that isn't a tab's own page. Back steps through it, then to the tab, then Home. */
+const vstack=[]; let vcur=null;
+const SUBVIEWS=['renderPTP','renderGuides','renderMajor','renderEssentials','renderOffences','renderOffence','renderStencils','renderLive','renderClock',
+  'renderCourtDay','renderCaution','renderKBtopic','renderLatin','renderAcronyms','renderCCTV','renderPreserve','renderCautions','renderTemplates','openTemplate','renderExhibits',
+  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings','renderWanted','renderSearchPerson','renderNB','renderNBLib','renderRS','renderFolder','renderSettings','renderProofs','renderRights'];
+function sameArgs(a,b){ return JSON.stringify(a||[])===JSON.stringify(b||[]); }
+function wrapSubviews(){
+  for(const name of SUBVIEWS){ const orig=window[name]; if(typeof orig!=='function'||orig._sv)continue;
+    const w=function(...a){
+      a=a.filter(x=>x!==undefined&&!(x&&typeof x==='object'&&'isTrusted' in x));   // drop click events passed by listeners
+      const ix=vstack.findIndex(e=>e.f===name&&sameArgs(e.a,a));
+      if(ix>=0){ vstack.length=ix; }                                             // "up" to a screen already in the trail
+      else if(vcur){ if(vcur.f!==name||(!vcur.a.length&&a.length)) vstack.push({f:vcur.f,a:vcur.a,y:view.scrollTop}); }
+      vcur={f:name,a}; view.dataset.root=''; document.body.classList.add('subview');
+      return orig.apply(this,a); };
+    w._sv=1; w._orig=orig; window[name]=w; }
+}
+
+/* ---------- SEARCH (search.js draws the Search tab; this is only the fallback) ---------- */
+const FILTERS=[['all','Everything'],['vols','Vols 1–11'],['v12','Vol 12'],['st','Statements'],['pb','Playbooks']];
+const FRANGE={vols:[15,937],v12:[938,968],st:[969,992],pb:[986,992]};
+function renderSearch(){
+  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery}); return; }
+  view.innerHTML=`<div class="tabroot" data-tab="search" hidden></div>
+  <div class="searchbox sb-mag"><input id="q" type="search" placeholder="Search — topic, case, statute, offence…" value="${esc(lastQuery)}" autocomplete="off" enterkeyhint="search"></div>
+  <div id="results"></div>`;
+  const q=$('#q'); let t;
+  q.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(()=>doSearch(q.value,lastFilter),200);});
+  q.addEventListener('keydown',e=>{if(e.key==='Enter'){q.blur();doSearch(q.value,lastFilter);}});
+  lastFilter='all';
+  if(lastQuery)doSearch(lastQuery,lastFilter,true); else homeQuick($('#results'));
+}
+
+/* ---------- HOME ---------- */
+const HERO=[
+  ['hOsint','map','Map','stations · districts · cameras · DCC CCTV · Street View pin · draw & measure — you choose what\u2019s on'],
+  ['hFirstAid','heart-pulse','Medical emergency','call 112/999 · CPR metronome · choking · bleeding · overdose · 22 conditions · step by step','red'],
+  ['hTools','toolbox','Toolbox','ruler · measure with evidence photo · evidence camera · level · compass · torch · timers · 21 tools']];
+const HOME=[
+ {h:'Live cameras',r:'live',c:[
+  ['hCamDist','cctv','Fitzgibbon St / Mountjoy','street cams · your district + north city'],
+  ['hCamM50','route','M50 motorway','every TII camera · J3 → J17'],
+  ['hCamPort','ship','Dublin Port','ships · Liffey · Poolbeg'],
+  ['hCamAll','video','All cameras','organised list · M1 · N4 · N7 too'],
+  ['hDccList','list-video','DCC City CCTV list','241 Dublin City Council cameras · search a street → pinpoint it on the map · locations only, no live feed','wide']]},
+ {h:'Live TV & radio',c:[
+  ['hLiveNews','tv','Live news','Sky News live · RTÉ News latest · in the app'],
+  ['hRadio','radio','Irish radio','favourites · RTÉ · Newstalk · 98 · FM104 · all']]},
+ {h:'On the job',c:[
+  ['qbOff','shield','Offences','elements · arrest · statement'],
+  ['hSearchP','user-search','Search of the person','guided · power · grounds · what to say · record'],
+  ['hNB','notebook-pen','Notebook entries','every offence · search · incident · complaint-proof'],
+  ['hRS','brain','Reasonable suspicion','think it through · grounds for your notebook'],
+  ['hPatrol','walk','Proactive patrol','GPS route · stops · times · patrol log'],
+  ['hRoute','route','Emergency route','straight to a call · any road · ignores one-way'],
+  ['hClock','timer','Detention clock','deadlines · extensions · alerts'],
+  ['hGaol','users','Gaoler · cell checks','buzz 2 min before each check'],
+  ['hCaution','triangle-alert','Cautions','wording · declarations'],
+  ['hScene','sunrise','First at scene','golden hour']]},
+ {h:'My work',c:[
+  ['hRoster','calendar-days','My roster','today · next tour · leave · court · swaps'],
+  ['hTasks','square-check','Tasks','CCTV · arrests · deadlines · photo a list'],
+  ['hNotes','notebook-pen','Notes','sketches · photos · checklists · lock'],
+  ['hRec','mic','Voice recorder','markers · crash-safe · stays on phone'],
+  ['hScan','scan-text','Scanner','documents → PDF · saved to phone only'],
+  ['hPres','monitor','Present to TV','photos & CCTV on the TV · Smart View · DeX']]},
+ {h:'In-depth investigation guides',c:[
+  ['hAssault','hand','Assault','scene · evidence · trial · case law'],
+  ['hRobbery','wallet','Robbery from person','force · ID · continuing act'],
+  ['hBurglary','door-open','Burglary','entry forensics · recent possession'],
+  ['hTheft','shopping-bag','Theft & handling','dishonesty · claim of right'],
+  ['hDrugs2','pill','Drugs prosecutions','MDA · s.23 · s.26 warrants'],
+  ['hImm','plane','Immigration','status · smuggling · trafficking']]},
+ {h:'Law & authority',c:[
+  ['qbEss','star','Essential case law','the ones that changed everything'],
+  ['qbCases','library','Full case library','every case by topic · ✓ checked'],
+  ['hBail','scale','Objecting to bail',"O'Callaghan · s.2 · burglary presumption"],
+  ['hOcall','clipboard-list',"O'Callaghan worksheet",'systematic objection'],
+  ['hBailpack','folder-open','Bail pack','case-manager worksheet'],
+  ['hAmend','file-pen-line','Recent amendments','new laws by area — verify'],
+  ['hSentence','scale','Aggravating & mitigating','sentencing · what to bring to court'],
+  ['hDiscretion','shield-check','Garda discretion','legal basis · limits · recording'],
+  ['hJudg','gavel','Judgments search','BAILII Ireland · Supreme · Appeal · High'],
+  ['hCourtLists','calendar-clock','Court lists','CCJ & all Dublin courts — today']]},
+ {h:'Files & paperwork',c:[
+  ['hGuides','file-text','Statement guides','per offence'],
+  ['hSten','layout-template','Stencils','your templates'],
+  ['hTpl','mail','Templates','CCTV · s.41 · agency'],
+  ['hPrecis','file-check','Précis of evidence','build it to win']]},
+ {h:'Deep guides',c:[
+  ['hPO','megaphone','Public order','s.6 & s.8'],
+  ['hAffray','swords','Affray','investigation guide'],
+  ['hClamp','car-front','Clamping & s.41','public clamping · seizure · rogue clampers'],
+  ['hIndec','eye-off','Indecency (s.45)','exposure · statements · file'],
+  ['hIplan','messages-square','Interview plan','stencil'],
+  ['hDrugs','pill','Drugs prosecutions','MDA · s.23 · s.26 warrants'],
+  ['hRare','scroll','Rare offences','niche statutes'],
+  ['hDeep','book-open','All deep guides','search · weapons · RTC · MP','wide']]},
+ {h:'The manual',c:[
+  ['g986','book-marked','Playbooks','5-part per offence'],
+  ['g955','brain','Inference aide','ss.18/19/19A'],
+  ['g975','eye','ADVOKATE','identification'],
+  ['g941','message-square-quote','Cross-exam','surviving the stand'],
+  ['g945','landmark','Law of evidence','V12 Part B'],
+  ['g144','file-pen','Assault statements','s.2 / s.3 guide'],
+  ['hLang','languages','Latin & acronyms','ABC · MMO · PEACE'],
+  ['hCourt','gavel','Court-day mode','everything for the stand']]}
+];
+function hsub(t){ const p=String(t).split(' · '); return p.map((x,i)=>'<span class="sb">'+esc(x)+(i<p.length-1?' ·':'')+'</span>').join(' '); }
+function hcard(c){ const [id,ic,t,sub,cls]=c; const go=/^g\d+$/.test(id)?` data-go="${id.slice(1)}"`:` id="${id}"`;
+  return `<button class="qbtn${cls?' '+cls:''}"${go}><span class="qh">${GRI(ic)}<b>${esc(t)}</b></span><small>${hsub(sub)}</small></button>`; }
+/* ---------- HOME layout: every block and box can be moved, hidden and brought back ---------- */
+const HOME_KEYS=['cams','tv','job','work','inv','law','files','deep','manual'];
+HOME.forEach((g,i)=>{ g.k=g.k||HOME_KEYS[i]; });
+const HOME_STRIPS={tasks:'Tasks',news:'Need-to-know news',recent:'Recent',inner:'Dublin inner city'};
+const BOXES={}; HERO.forEach(c=>{ BOXES[c[0]]=c; }); HOME.forEach(g=>g.c.forEach(c=>{ BOXES[c[0]]=c; }));
+function homeDefault(){ const boxes={top:HERO.map(c=>c[0])}; HOME.forEach(g=>{ boxes[g.k]=g.c.map(c=>c[0]); });
+  return {order:['tasks','news','recent','top','inner',...HOME.map(g=>g.k)],boxes,hidden:[]}; }
+function homeLayout(){
+  const d=homeDefault(); let sv=null; try{ sv=JSON.parse(localStorage.getItem('gr_home')||'null'); }catch(e){}
+  if(!sv||!Array.isArray(sv.order))return d;
+  const known=new Set(d.order), order=sv.order.filter(k=>known.has(k));
+  d.order.forEach((k,i)=>{ if(!order.includes(k))order.splice(Math.min(i,order.length),0,k); });   // new blocks go where they'd be by default
+  const placed=new Set(), boxes={};
+  Object.keys(d.boxes).forEach(k=>{ boxes[k]=((sv.boxes||{})[k]||[]).filter(id=>BOXES[id]&&!placed.has(id)&&placed.add(id)); });
+  Object.keys(d.boxes).forEach(k=>d.boxes[k].forEach(id=>{ if(!placed.has(id)){ boxes[k].push(id); placed.add(id); } }));   // new boxes join their usual section
+  return {order,boxes,hidden:(sv.hidden||[]).filter(id=>known.has(id)||BOXES[id])}; }
+function homeSave(L){ try{ localStorage.setItem('gr_home',JSON.stringify({v:1,order:L.order,boxes:L.boxes,hidden:L.hidden})); }catch(e){} }
+let homeEdit=false;
+function homeEditOpen(){ if(window.grToast)grToast('Edit your favourites from Today'); }
+function homeEditDone(){ homeEdit=false; const r=$('#results'); if(r&&r.querySelector('.homeq'))homeQuick(r); }
+window.homeEditOpen=homeEditOpen;
+function homeQuick(box){
+  box=box||$('#results'); if(!box)return;
+  const lp=+localStorage.getItem('gr_lastpage')||0;
+  let recent=[]; try{recent=JSON.parse(localStorage.getItem('gr_recent')||'[]');}catch(e){}
+  let rows=recent.slice();
+  if(lp){ rows=rows.filter(r=>!(r.k!=='guide'&&+r.id===lp)); rows.unshift({k:'page',id:lp,t:titleFor(lp).split(' › ').pop(),s:pageLabel(lp)+' · continue reading',ts:0,cont:1}); }
+  const L=homeLayout(), hid=new Set(L.hidden), ed=homeEdit;
+  const eye=on=>GRI(on?'eye':'eye-off');
+  const card=(id,sec)=>{ const c=BOXES[id]; if(!c)return ''; if(!ed&&hid.has(id))return '';
+    const [bid,ic,t,sub,cls0]=c, cls=((sec==='top'?'hero ':'')+(cls0||'')).trim();
+    const go=/^g\d+$/.test(bid)?` data-go="${bid.slice(1)}"`:` id="${bid}"`;
+    return `<button class="qbtn${cls?' '+cls:''}${ed&&hid.has(id)?' hid':''}"${go} data-box="${bid}">`
+      +(ed?`<span class="he-ctl"><i class="he-eye" data-eye="${bid}" aria-label="${hid.has(id)?'Show':'Hide'}">${eye(!hid.has(id))}</i><i class="he-drag" data-drag="${bid}" aria-label="Move">${GRI('grip')}</i></span>`:'')
+      +`<span class="qh">${GRI(ic)}<b>${esc(t)}</b></span><small>${hsub(sub)}</small></button>`; };
+  const bar=(k,name)=>ed?`<div class="hb-bar"><i class="he-drag" data-bdrag="${k}" aria-label="Move">${GRI('grip')}</i><b>${esc(name)}</b><i class="he-eye" data-beye="${k}" aria-label="${hid.has(k)?'Show':'Hide'}">${eye(!hid.has(k))}</i></div>`:'';
+  const blk=(k,inner)=>`<section class="hblk${ed&&hid.has(k)?' hid':''}" data-b="${k}">${inner}</section>`;
+  const recentHtml=()=>`<h2 class="sec">Recent<span class="sec-r"><button type="button" class="sec-x" id="recentHide" aria-label="Hide Recent">Hide</button></span></h2><div class="recentwrap">`+
+    rows.slice(0,2).map(r=>`<button class="recentrow${r.cont?' cont':''}" data-k="${r.k}" data-id="${esc(String(r.id))}">${GRI(r.cont?'book-open':'history')}<div class="rr-t">${esc(r.t)}</div><div class="rr-s">${esc(r.s)}</div><div class="rr-time">${r.cont?'':relTime(r.ts)}</div></button>`).join('')+`</div>`;
+  const blockHtml=k=>{
+    if(hid.has(k)&&!ed)return '';
+    if(HOME_STRIPS[k]){
+      if(ed)return blk(k,bar(k,HOME_STRIPS[k]));
+      if(k==='recent')return rows.length?blk(k,recentHtml()):'';
+      return blk(k,`<div id="${{tasks:'homeTasks',news:'homeNews',inner:'homeInner'}[k]}"></div>`); }
+    if(k==='top'){ const ids=L.boxes.top; return blk(k,bar(k,'Top · big boxes')+`<div class="heroes" data-sec="top">${ids.map(id=>card(id,'top')).join('')}</div>`); }
+    const g=HOME.find(x=>x.k===k); if(!g)return '';
+    return blk(k,(ed?bar(k,g.h):`<h2 class="sec">${esc(g.h)}${g.r==='live'?'<span class="sec-r live"><i></i>LIVE</span>':''}</h2>`)
+      +`<div class="quick" data-sec="${k}">${L.boxes[k].map(id=>card(id,k)).join('')}</div>`); };
+  box.innerHTML=`<div class="homeq${ed?' editing':''}">
+  ${ed?`<div class="he-banner"><b>Customise Home</b><span>Drag ${GRI('grip')} to move · tap ${GRI('eye')} to hide or show</span><div class="he-acts"><button type="button" id="heReset">Reset</button><button type="button" id="heDone" class="on">Done</button></div></div>`:''}
+  ${ed?'':'<div id="homeToday"></div>'}
+  <div id="homePatrol"></div>
+  <div id="homeGaol"></div>
+  <div id="homeRoster"></div>
+  <div id="homeDet"></div>
+  ${L.order.map(blockHtml).join('')}
+  ${ed?'':`<button type="button" class="home-edit" id="homeEditBtn">${GRI('sliders-horizontal')}Customise Home</button>`}
+  <div class="empty">Or type anything above — all ${(META.pages||0).toLocaleString('en-IE')} pages are searchable.</div>
+  </div>`;
+  if(ed){ homeEditWire(box,L); return; }
+  { const eb=box.querySelector('#homeEditBtn'); if(eb)eb.addEventListener('click',homeEditOpen);
+    const rh=box.querySelector('#recentHide'); if(rh)rh.addEventListener('click',e=>{ e.stopPropagation(); const L2=homeLayout(); if(!L2.hidden.includes('recent'))L2.hidden.push('recent'); homeSave(L2); homeQuick(box); if(window.grToast)grToast('Recent hidden — Customise Home brings it back'); }); }
+  if(window.grHudTick)grHudTick();
+  box.querySelectorAll('.recentrow').forEach(b=>b.addEventListener('click',()=>{
+    const k=b.dataset.k, id=b.dataset.id;
+    if(k==='guide')openGuide3(id); else openPage(+id);
+  }));
+  const go=(id,fn)=>{const b=box.querySelector('#'+id); if(b)b.addEventListener('click',fn);};
+  go('qbOff',()=>renderOffences());
+  go('qbEss',()=>renderEssentials());
+  go('qbCases',()=>{ixKind='case';setTab('index');render();});
+  go('hPatrol',()=>{ if(window.openPatrol) openPatrol(); });
+  go('hGaol',()=>{ if(window.openGaol) openGaol(); });
+  go('hClock',()=>{ if(window.openDetention) openDetention(); else renderClock(); });
+  go('hCaution',()=>renderCautions());
+  go('hScene',()=>renderMajor());
+  go('hOsint',()=>{ if(window.openOSINT) window.openOSINT(); });
+  go('hCamDist',()=>{ if(window.openCamReel) window.openCamReel(0,'district',true); });
+  go('hCamM50',()=>{ if(window.openCamReel) window.openCamReel(0,'m50',true); });
+  go('hCamPort',()=>{ if(window.openCamReel) window.openCamReel(0,'port',true); });
+  go('hCamAll',()=>{ if(window.openCamReel) window.openCamReel(0,null,true); });
+  go('hDccList',()=>{ if(window.openDccList) window.openDccList(); });
+  go('hTools',()=>{ if(window.openToolbox) window.openToolbox(); });
+  go('hFirstAid',()=>{ if(window.openFirstAid) openFirstAid(); });
+  go('hLiveNews',()=>{ if(window.GRMedia) GRMedia.openTV('sky'); });
+  go('hSearchP',()=>{ if(window.renderSearchPerson) window.renderSearchPerson(); });
+  go('hRadio',()=>{ if(window.GRMedia) GRMedia.openRadio(); });
+  { const top=view.querySelector('.sx-top'); if(top&&!view.querySelector('#homeHello'))top.insertAdjacentHTML('beforebegin','<div id="homeHello" aria-hidden="true"></div>'); }
+  // iPhone in Safari: how to put it on the Home Screen (offline, and the only way an iPhone lets it send reminders)
+  { const P=window.GRP||{}; let gone=false; try{ gone=localStorage.getItem('gr_ios_hint')==='x'; }catch(e){}
+    const at=view.querySelector('#homeHello')||view.querySelector('.sx-top');
+    if(P.ios&&!P.standalone&&!gone&&at&&!view.querySelector('#iosHint')){
+      at.insertAdjacentHTML('beforebegin','<div id="iosHint" class="ios-hint" role="note"><b>Put Assisting on your Home Screen</b><span>In Safari tap <b>Share</b> '+GRI('share')+' then <b>Add to Home Screen</b>, and open Assisting from there. It works offline, and an iPhone only lets a Home Screen app send reminders.</span><button type="button" aria-label="Hide this tip">✕</button></div>');
+      view.querySelector('#iosHint button').addEventListener('click',()=>{ try{ localStorage.setItem('gr_ios_hint','x'); }catch(e){} const e=document.getElementById('iosHint'); if(e)e.remove(); }); } }
+  paintToday();
+  if(window.GRPatrol) GRPatrol.mountStrip(box.querySelector('#homePatrol'));
+  if(window.GRGaol) GRGaol.mountStrip(box.querySelector('#homeGaol'));
+  if(window.GRDet) GRDet.mountStrip(box.querySelector('#homeDet'));
+  if(window.GRRoster) GRRoster.mountStrip(box.querySelector('#homeRoster'));
+  if(window.GRTasks) GRTasks.mountStrip(box.querySelector('#homeTasks'));
+  go('hRoster',()=>{ if(window.openRoster) openRoster(); });
+  go('hTasks',()=>{ if(window.openTasks) openTasks(); });
+  go('hNotes',()=>{ if(window.openNotes) openNotes(); });
+  go('hRec',()=>{ if(window.openRecorder) openRecorder(); });
+  go('hScan',()=>{ if(window.openScanner) openScanner(); });
+  go('hPres',()=>{ if(window.openPresent) openPresent(); });
+  if(window.GRMedia){ GRMedia.mountNewsStrip(box.querySelector('#homeNews')); if(GRMedia.mountInnerStrip)GRMedia.mountInnerStrip(box.querySelector('#homeInner')); }
+  go('hBail',()=>openGuide3('bail'));
+  go('hOcall',()=>openGuide3('ocall'));
+  go('hBailpack',()=>openTemplate(TPL.findIndex(t=>t.id==='bailpack')));
+  go('hAssault',()=>openGuide3('assault_inv'));
+  go('hRobbery',()=>openGuide3('robbery_inv'));
+  go('hBurglary',()=>openGuide3('burglary_inv'));
+  go('hTheft',()=>openGuide3('theft_inv'));
+  go('hDrugs2',()=>openGuide3('drugs'));
+  go('hDrugs',()=>openGuide3('drugs'));
+  go('hImm',()=>openGuide3('immigration_inv'));
+  go('hRare',()=>openGuide3('rare'));
+  go('hPrecis',()=>openGuide3('precis2'));
+  go('hPO',()=>openGuide3('po'));
+  go('hAffray',()=>openGuide3('affray'));
+  go('hClamp',()=>openGuide3('clamping'));
+  go('hRoute',()=>{ if(window.openRoute)window.openRoute(); });
+  go('hIndec',()=>openGuide3('indecency'));
+  go('hSentence',()=>openGuide3('sentencing'));
+  go('hDiscretion',()=>openGuide3('discretion'));
+  go('hIplan',()=>openGuide3('iplan'));
+  go('hNB',()=>{ if(window.renderNBLib)renderNBLib(); });
+  go('hRS',()=>{ if(window.renderRS)renderRS(); });
+  go('hAmend',()=>openGuide3('amendments'));
+  go('hJudg',()=>renderJudgments());
+  go('hCourtLists',()=>renderCourtLists());
+  go('hGuides',()=>renderGuides());
+  go('hSten',()=>renderStencils());
+  go('hTpl',()=>renderTemplates());
+  go('hDeep',()=>renderDeep());
+  go('hLang',()=>renderLang());
+  go('hCourt',()=>renderCourtDay());
+  box.querySelectorAll('.qbtn[data-go]').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
+}
+/* ---------- Home "today": your tour and your list at a glance — shown in the looks (Classic keeps the roster strip) ---------- */
+const HD_DAY=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'], HD_MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const p2h=n=>String(n).padStart(2,'0'), hhmm=t=>{ const x=new Date(t); return p2h(x.getHours())+':'+p2h(x.getMinutes()); };
+const greetWord=h=>h<5?'Good night':h<12?'Good morning':h<17?'Good afternoon':'Good evening';
+function hdShort(ms){ ms=Math.max(0,ms); const d=Math.floor(ms/864e5), h=Math.floor(ms%864e5/36e5), m=Math.floor(ms%36e5/6e4); return d?d+'d '+h+'h':h?h+'h '+p2h(m)+'m':m+'m'; }
+function hdWords(ms){ ms=Math.max(0,ms); const d=Math.floor(ms/864e5), h=Math.floor(ms%864e5/36e5), m=Math.floor(ms%36e5/6e4), u=(n,w)=>n+' '+w+(n===1?'':'s');
+  return d?u(d,'day')+(h?' '+u(h,'hour'):''):h?u(h,'hour')+(m?' '+u(m,'minute'):''):u(Math.max(1,m),'minute'); }
+function hdWhen(d,now){ const a=new Date(now); a.setHours(0,0,0,0); const b=new Date(d); b.setHours(0,0,0,0); const k=Math.round((b-a)/864e5);
+  return k===0?'today':k===1?'tomorrow':k<7?'on '+HD_DAY[b.getDay()]:'on '+HD_DAY[b.getDay()].slice(0,3)+' '+b.getDate()+' '+HD_MON[b.getMonth()].slice(0,3); }
+function todayParts(now){
+  const R=window.GRRoster, rs=R&&R._state?R._state():null, st=rs&&R.status?R.status(now):null, T=window.GRTasks&&GRTasks.summary?GRTasks.summary(now):null;
+  const d=new Date(now), unit=rs&&rs.unit?'Unit '+rs.unit:'', nm=(()=>{ try{ return (localStorage.getItem('gr_name')||'').trim(); }catch(e){ return ''; } })();
+  const lab=i=>String(i&&i.label||'Tour').replace(/ \(.*\)$/,''), nT=T?T.open:0, things=n=>n===1?'one thing':n+' things';
+  const P={date:HD_DAY[d.getDay()]+' '+d.getDate()+' '+HD_MON[d.getMonth()]+(unit?' · '+unit:''),hello:greetWord(d.getHours())+(nm?', '+nm:''),kind:'none',p:null,end:null,go:'Tasks',open:'tasks'};
+  if(st&&st.on){ const L=lab(st.info), left=st.sp.e-now, tt=T?T.tourN:0;
+    Object.assign(P,{kind:'on',k:'On duty · '+L,u:unit,t:'On duty · '+L,big:hdShort(left),end:st.sp.e,sub:'until '+hhmm(st.sp.e)+(tt?' · '+tt+' task'+(tt===1?'':'s')+' this tour':''),
+      lead:'You’re on the <b>'+esc(L.toLowerCase())+'</b> tour — '+hdWords(left)+' left'+(tt?', and '+things(tt)+' to do before '+hhmm(st.sp.e):'')+'.',p:Math.max(0,Math.min(1,(now-st.sp.s)/(st.sp.e-st.sp.s))),go:'Roster',open:'roster'}); }
+  else if(st&&st.sp&&st.next){ const L=lab(st.next), until=st.sp.s-now, td=st.today;
+    Object.assign(P,{kind:'off',k:'Off duty'+(td&&td.off&&td.label?' · '+lab(td):''),u:unit,t:'Next · '+L+' '+hdWhen(st.next.d,now).replace(/^on /,''),big:'in '+hdShort(until),sub:L+' '+hhmm(st.sp.s)+'–'+hhmm(st.sp.e)+(nT?' · '+nT+' task'+(nT===1?'':'s')+' open':''),
+      lead:'You’re off'+(td&&td.off?' today':' right now')+'. Next up: the <b>'+esc(L.toLowerCase())+'</b> tour '+hdWhen(st.next.d,now)+' at '+hhmm(st.sp.s)+(nT?' — '+things(nT)+' on your list.':'.'),go:'Roster',open:'roster'}); }
+  else { Object.assign(P,{k:P.date,t:greetWord(d.getHours()),big:hhmm(now),sub:(nT?nT+' task'+(nT===1?'':'s')+' open':'Nothing on your list')+(T&&T.overdue?' · '+T.overdue+' overdue':''),
+      lead:greetWord(d.getHours())+'. '+(nT?'You have '+things(nT)+' on your list'+(T&&T.overdue?', '+T.overdue+' overdue':'')+'.':'Nothing on your list.')+(R&&!rs?' Set up My roster to see your tours here.':''),
+      go:R&&!rs?'Set up roster':'Tasks',open:R&&!rs?'roster':'tasks'}); }
+  return P; }
+function paintToday(){
+  const el=document.getElementById('homeToday'), hi=document.getElementById('homeHello'); if(!el&&!hi)return;
+  const now=Date.now(), P=todayParts(now);
+  if(hi){ const h='<small>'+esc(P.date)+'</small><b>'+esc(P.hello)+'</b>'; if(hi._h!==h){ hi._h=h; hi.innerHTML=h; } }
+  if(!el)return;
+  const pc=P.p==null?null:Math.round(P.p*100), seg=P.p==null?'':'<span class="hd-seg" aria-hidden="true">'+Array.from({length:12},(_,i)=>'<i'+(i<Math.round(P.p*12)?' class="on"':'')+'></i>').join('')+'</span>';
+  const ring='<span class="hd-ring" aria-hidden="true"'+(pc!=null?' style="--p:'+pc+'"':'')+'><b>'+esc(P.kind==='on'?P.big.replace(/^(\d+)h (\d+)m$/,'$1:$2'):P.kind==='off'?'OFF':hhmm(now))+'</b><small>'+(P.kind==='on'?'LEFT':P.kind==='off'?'DUTY':'NOW')+'</small></span>';
+  const h='<button type="button" class="hd-card '+P.kind+'" data-open="'+P.open+'" aria-label="'+esc((P.k||'')+'. '+(P.sub||''))+'">'
+    +'<span class="hd-k">'+esc(P.k)+(P.u?'<span class="hd-u"> · '+esc(P.u)+'</span>':'')+'</span><span class="hd-lead">'+P.lead+'</span>'
+    +'<span class="hd-main">'+ring+'<span class="hd-tx"><b class="hd-t">'+esc(P.t)+'</b><span class="hd-big"><span class="hd-bm">'+esc(P.big)+'</span>'+(P.end?'<span class="hd-cd" data-end="'+P.end+'"></span>':'')+'</span><span class="hd-sub">'+esc(P.sub)+'</span></span></span>'
+    +seg+'<span class="hd-go">'+esc(P.go)+' ›</span></button>';
+  if(el._h===h)return; el._h=h; el.innerHTML=h;
+  el.querySelector('.hd-card').onclick=()=>{ if(P.open==='roster'&&window.openRoster)openRoster(); else if(window.openTasks)openTasks(); };
+  if(window.grHudTick)grHudTick(); }
+setInterval(()=>{ if(document.visibilityState==='visible')paintToday(); },20000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible')paintToday(); });
+
+/* edit mode: drag a box (or a whole block) by its handle; the eye hides or shows it */
+function homeEditWire(box,L){
+  const root=box.querySelector('.homeq');
+  const fromDom=()=>{ const order=[...root.querySelectorAll('.hblk')].map(b=>b.dataset.b), boxes={};
+    root.querySelectorAll('[data-sec]').forEach(g=>{ boxes[g.dataset.sec]=[...g.querySelectorAll('[data-box]')].map(x=>x.dataset.box); });
+    return {order,boxes,hidden:homeLayout().hidden}; };
+  root.querySelector('#heDone').addEventListener('click',homeEditDone);
+  root.querySelector('#heReset').addEventListener('click',()=>{ try{ localStorage.removeItem('gr_home'); }catch(e){} homeQuick(box); if(window.grToast)grToast('Home is back to the standard layout'); });
+  root.addEventListener('click',e=>{ const t=e.target.closest('[data-eye],[data-beye]');
+    if(t){ const id=t.dataset.eye||t.dataset.beye, L2=fromDom(), i=L2.hidden.indexOf(id); if(i>=0)L2.hidden.splice(i,1); else L2.hidden.push(id); homeSave(L2); const y=view.scrollTop; homeQuick(box); view.scrollTop=y; }
+    if(e.target.closest('.qbtn,.recentrow')){ e.preventDefault(); e.stopPropagation(); } },true);
+  let st=null, raf=0;
+  const place=(x,y)=>{
+    if(st.block){ const bl=[...root.querySelectorAll('.hblk')].filter(b=>b!==st.el); let before=null;
+      for(const b of bl){ const r=b.getBoundingClientRect(); if(y<r.top+r.height/2){ before=b; break; } }
+      if(before){ if(before!==st.el.nextElementSibling)root.insertBefore(st.el,before); }
+      else { const last=bl[bl.length-1]; if(last&&last.nextElementSibling!==st.el)last.after(st.el); }
+      return; }
+    const t=document.elementFromPoint(x,y); if(!t)return;
+    const cardEl=t.closest('.homeq [data-box]'), grid=t.closest('[data-sec]')||(t.closest('.hblk')&&t.closest('.hblk').querySelector('[data-sec]'));
+    if(cardEl&&cardEl!==st.el){ const r=cardEl.getBoundingClientRect(), hero=cardEl.parentNode.dataset.sec==='top';
+      const before=hero?y<r.top+r.height/2:(y<r.top+r.height*.3||(y<r.bottom-r.height*.3&&x<r.left+r.width/2));
+      if(before){ if(cardEl.previousElementSibling!==st.el)cardEl.before(st.el); } else if(cardEl.nextElementSibling!==st.el)cardEl.after(st.el); }
+    else if(grid&&!grid.contains(st.el))grid.appendChild(st.el); };
+  const tick=()=>{ if(!st)return; const vr=view.getBoundingClientRect(), edge=70; let dy=0;
+    if(st.y<vr.top+edge)dy=-Math.ceil((vr.top+edge-st.y)/6); else if(st.y>vr.bottom-edge)dy=Math.ceil((st.y-(vr.bottom-edge))/6);
+    if(dy){ view.scrollTop+=dy; place(st.x,st.y); } raf=requestAnimationFrame(tick); };
+  root.addEventListener('pointerdown',e=>{ const h=e.target.closest('[data-drag],[data-bdrag]'); if(!h)return;
+    e.preventDefault(); e.stopPropagation();
+    const block=!!h.dataset.bdrag, el=block?h.closest('.hblk'):h.closest('[data-box]'); if(!el)return;
+    const r=el.getBoundingClientRect(), gh=el.cloneNode(true);
+    gh.classList.add('he-ghost'); gh.style.cssText='left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px';
+    document.body.appendChild(gh); el.classList.add('he-ph');
+    st={el,gh,block,dx:e.clientX-r.left,dy:e.clientY-r.top,x:e.clientX,y:e.clientY};
+    try{ root.setPointerCapture(e.pointerId); }catch(_){}   // on the list itself: the dragged box moves in the page, the list never does
+    if(navigator.vibrate)try{navigator.vibrate(15);}catch(_){}
+    raf=requestAnimationFrame(tick); });
+  root.addEventListener('pointermove',e=>{ if(!st)return; e.preventDefault(); st.x=e.clientX; st.y=e.clientY;
+    st.gh.style.left=(e.clientX-st.dx)+'px'; st.gh.style.top=(e.clientY-st.dy)+'px'; place(e.clientX,e.clientY); });
+  const end=()=>{ if(!st)return; cancelAnimationFrame(raf); st.gh.remove(); st.el.classList.remove('he-ph'); st=null;
+    const y=view.scrollTop; homeSave(fromDom()); homeQuick(box); view.scrollTop=y; };
+  root.addEventListener('pointerup',end); root.addEventListener('pointercancel',end);
+}
+function netPaint(){ const on=navigator.onLine; document.querySelectorAll('.hs-net').forEach(el=>{ el.classList.toggle('off',!on); const sp=el.querySelector('span'); if(sp)sp.textContent=on?'ONLINE':'OFFLINE'; }); }
+addEventListener('online',netPaint); addEventListener('offline',netPaint);
+function pushRecent(item){
+  try{
+    let r=JSON.parse(localStorage.getItem('gr_recent')||'[]');
+    r=r.filter(x=>!(x.k===item.k&&String(x.id)===String(item.id)));
+    item.ts=Date.now(); r.unshift(item); r=r.slice(0,8);
+    localStorage.setItem('gr_recent',JSON.stringify(r));
+  }catch(e){}
+}
+function relTime(ts){
+  const m=Math.round((Date.now()-ts)/60000);
+  if(m<1)return 'now'; if(m<60)return m+'m'; const h=Math.round(m/60);
+  if(h<24)return h+'h'; return Math.round(h/24)+'d';
+}
+function openGuide3(id){
+  const g=G3.find(x=>x.id===id); if(!g)return;
+  pushRecent({k:'guide',id:id,t:g.t,s:'Investigation guide'});
+  reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
+  $('#rdTitle').textContent=g.t; $('#rdPage').textContent='Guide';
+  $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
+  $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
+  if(g.blocks){ curDoc={title:g.t,text:g.b,blocks:g.blocks}; rdBody.innerHTML=renderBlocks(g.blocks,{sections:true,link:true}); wireBlocks(rdBody); }
+  else { curDoc={title:g.t,text:g.b}; rdBody.innerHTML=formatPage(g.b); }
+  if(NBG[id]&&window.GRNB){ rdBody.insertAdjacentHTML('afterbegin',GRNB.links(NBG[id])); GRNB.wire(rdBody); }
+  applyRdScale(); rdBody.scrollTop=0; updateDlBtn();
+}
+const NBG={po:['po6','po8','publicorder','difficult'],affray:['publicorder','assault3'],drugs:['drugs3','drugs15','sperson','svehicle','warrant'],assault_inv:['assault2','assault3','harm4'],robbery_inv:['robbery14'],burglary_inv:['burglary12','entry'],theft_inv:['theft4','handling17'],clamping:['svehicle','seizure'],discretion:['difficult'],precis2:['cctv','recognition'],iplan:['admissions','custody'],indecency:['arrestentry','difficult']};
+const NBK={searches:['sperson','svehicle','consent','warrant','entry'],weapons:['sperson','svehicle','seizure'],rtc:['rtc','drinkroadside','drinkstation','dangerous53'],escooter:['escooter','rtc'],seizure:['seizure','cctv'],missing:['missing'],exhibitsHelp:['seizure','cctv'],precis:['cctv','recognition']};
+function nbBar(ids,box){ if(!window.GRNB||!ids||!box)return; box.insertAdjacentHTML('beforeend',GRNB.links(ids)); GRNB.wire(box); }
+/* synonym groups for full-text search — a word that isn't on the page is tried as its synonyms */
+const SYN=[
+ ['garda','gardai','gardaí','member','police'],
+ ['arrest','arrested','arresting','apprehend'],
+ ['detention','detained','custody','cell','prisoner'],
+ ['assault','assaulted','attack','attacked','harm'],
+ ['theft','steal','stole','stolen','shoplifting','shoplifter','larceny'],
+ ['burglary','burglar','break-in','housebreaking'],
+ ['robbery','robbed','mugging','mugged'],
+ ['drug','drugs','controlled drug','cannabis','cocaine','heroin','misuse of drugs'],
+ ['knife','blade','bladed','weapon','point'],
+ ['firearm','firearms','gun','shotgun','pistol','ammunition'],
+ ['car','vehicle','mechanically propelled','motor'],
+ ['drink','drunk','intoxicated','intoxicant','alcohol','breath','evidenzer'],
+ ['statement','memo','memorandum','deposition'],
+ ['interview','questioning','interrogation'],
+ ['search','searched','searching','warrant'],
+ ['bail','remand','recognisance','surety'],
+ ['court','district court','circuit court','judge'],
+ ['child','children','juvenile','minor','young person'],
+ ['domestic','domestic violence','domestic abuse','barring','safety order','protection order'],
+ ['cctv','footage','camera','video'],
+ ['exhibit','exhibits','evidence','continuity'],
+ ['disclosure','unused material'],
+ ['harassment','stalking','coercive control'],
+ ['rape','sexual assault','sexual','defilement'],
+ ['fraud','deception','counterfeit','forgery','forged'],
+ ['criminal damage','damage','vandalism','graffiti'],
+ ['immigration','visa','passport','deportation'],
+ ['mental health','mental illness','s.12'],
+ ['missing','missing person'],
+ ['collision','crash','accident','rtc','road traffic'],
+ ['scooter','e-scooter','powered personal transporter'],
+ ['identification','identify','advokate','id parade'],
+ ['inference','inferences','silence'],
+ ['overdose','od','opioid'],
+ ['caution','cautioned','cautioning']
+];
+function doSearch(q,filter,keep){
+  lastQuery=q;
+  const box=$('#results'); if(!box)return;
+  q=q.trim();
+  if(q.length<2){homeQuick();return;}
+  const terms=q.toLowerCase().split(/\s+/).filter(w=>w.length>1);
+  if(!terms.length){box.innerHTML='';return;}
+  let html='';
+  // 1) A–Z index matches (instant)
+  const ixhits=AZ.filter(e=>terms.every(t=>e.t.toLowerCase().includes(t))).slice(0,8);
+  if(ixhits.length){
+    html+='<h2 class="sec">Index matches</h2>';
+    for(const e of ixhits){
+      html+=`<button class="hit ixhit" data-go="${e.r[0].a}"><div class="h-title ${e.k==='case'?'':''}">${e.k==='case'?'<i>':''}${esc(e.t)}${e.k==='case'?'</i>':''}</div>
+      <div class="h-loc">${e.r.map(r=>`<span class="goref" data-a="${r.a}">${esc(r.l)}</span>`).join(' · ')}</div></button>`;
+    }
+  }
+  // 2) full-text
+  const range=FRANGE[filter]||[1,META.pages];
+  const hits=[];
+  for(const c of META.chunks){
+    if(c.e<range[0]||c.s>range[1])continue;
+    const ch=CHUNKS[c.f]; if(!ch)continue;
+    for(let i=0;i<ch.pages.length;i++){
+      const abs=c.s+i; if(abs<range[0]||abs>range[1])continue;
+      const low=ch.pages[i].toLowerCase();
+      let score=0, first=-1, ok=true;
+      for(const t of terms){
+        let idx=low.indexOf(t), syn=false;
+        if(idx<0){ // synonyms then stem fallback
+          for(const g of SYN)if(g.includes(t)){for(const x of g){idx=low.indexOf(x);if(idx>=0){syn=true;break;}}break;}
+          if(idx<0&&t.length>4)idx=low.indexOf(t.slice(0,t.length-2));
+        }
+        if(idx<0){ok=false;break;}
+        if(first<0||idx<first)first=idx;
+        let n=0,p=idx; while(p>=0&&n<20){n++;p=low.indexOf(t,p+1);} score+=(syn?n*0.5:n);
+      }
+      if(ok){ // boost exact phrase and title matches so the chapter itself beats tables that mention it
+        const tl=(titleFor(abs)||'').toLowerCase(), ph=terms.join(' ');
+        if(terms.length>1&&low.includes(ph))score+=8;
+        for(const t of terms)if(tl.includes(t))score+=4;
+        hits.push({abs,score,first,txt:ch.pages[i]}); }
+    }
+  }
+  hits.sort((a,b)=>b.score-a.score);
+  const loaded=Object.keys(CHUNKS).length, total=META.chunks.length;
+  html+=`<h2 class="sec">In the text ${loaded<total?`(searching ${loaded}/${total} loaded…)`:`(${hits.length} pages)`}</h2>`;
+  if(!hits.length&&loaded>=total&&!ixhits.length)html+='<div class="empty">No match. Try fewer or different words.</div>';
+  for(const h of hits.slice(0,40)){
+    const s=Math.max(0,h.first-60), snip=stripMd(h.txt.slice(s,h.first+140)).replace(/\s+/g,' ');
+    let marked=esc(snip);
+    for(const t of terms)marked=marked.replace(new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark>$1</mark>');
+    html+=`<button class="hit" data-go="${h.abs}"><div class="h-title">${topicEmoji(titleFor(h.abs))}${esc(titleFor(h.abs))}</div>
+    <div class="h-loc">${esc(pageLabel(h.abs))}${isDated(h.abs)?' · <span style="color:var(--flag)">2007 — verify</span>':''}</div>
+    <div class="h-snip">…${marked}…</div></button>`;
+  }
+  box.innerHTML=html;
+  box.querySelectorAll('.hit').forEach(b=>b.addEventListener('click',e=>{
+    const g=e.target.closest('.goref'); openPage(g?+g.dataset.a:+b.dataset.go);
+  }));
+}
+
+/* ---------- POINTS TO PROVE ---------- */
+function renderPTP(){
+  subView();
+  let html='<h2 class="sec">Points to prove — tap offence · always verify current wording</h2>';
+  OPS.ptp.forEach((p,pi)=>{
+    html+=`<div class="cslot"><button class="ixrow cshead"><span class="term" style="font-style:normal;font-weight:700">${esc(p.o)}</span><div class="refs">▾</div></button>
+    <div class="csbody hidden"><ul class="rlist" style="color:var(--ink)">${p.e.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>
+    <div class="ddefk"><b>Arrest/notes:</b> ${esc(p.a)}</div>
+    <button class="csall gbtn" data-g="${p.g}">📝 Statement guide for this offence</button>
+    <button class="csall" data-nb="ptp:${pi}">📓 Notebook entry for this offence</button>
+    <button class="csall" data-q="${esc(p.o.split('—')[0].trim())}">⌕ Open in manual</button></div></div>`;
+  });
+  $('#results').innerHTML=html;
+  $$('.cshead').forEach(h=>h.addEventListener('click',()=>h.nextElementSibling.classList.toggle('hidden')));
+  $$('#results .csall').forEach(b=>b.addEventListener('click',()=>{
+    if(b.dataset.nb){ if(window.renderNB)renderNB(b.dataset.nb); return; }
+    if(b.dataset.g){renderGuides(b.dataset.g);return;}
+    searchFor(b.dataset.q);}));
+  view.scrollTop=0;
+}
+function renderGuides(openG){
+  view.innerHTML='<h2 class="sec">📝 Statement guides — what each statement MUST capture</h2><div id="results"></div>';
+  let html='';
+  for(const g of OPS.sguides){
+    const open=g.g===openG;
+    html+=`<div class="cslot"><button class="ixrow cshead"><span class="term" style="font-style:normal;font-weight:700">${esc(g.t)}</span><div class="refs">${g.must.length} points ▾</div></button>
+    <div class="csbody ${open?'':'hidden'}"><ul class="rlist" style="color:var(--ink)">${g.must.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>
+    ${(pi=>pi>=0?`<button class="csall" data-pf="${pi}" data-pfk="wit">Check a statement against the proofs</button>`:'')(OPS.ptp.findIndex(p=>p.g===g.g))}
+    <button class="csall" data-a="969">Open statement-taking chapter</button>
+    <button class="csall" data-a="144">Open worked example (assault SG)</button></div></div>`;
+  }
+  html+='<div class="toolnote">Structure every statement on the 5-part model (ST:6). These lists are the offence-specific layer on top.</div>';
+  $('#results').innerHTML=html;
+  $$('.cshead').forEach(h=>h.addEventListener('click',()=>h.nextElementSibling.classList.toggle('hidden')));
+  $$('#results .csall[data-a]').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.a)));
+  view.scrollTop=0;
+}
+function renderMajor(){
+  const M=OPS.major;
+  let html='<h2 class="sec">🚨 '+esc(M.t)+'</h2>';
+  M.sections.forEach((sec,si)=>{
+    html+=`<div class="tool"><h3>${esc(sec.h)}</h3>`;
+    sec.items.forEach((it,i)=>{
+      const k='mj'+si+'_'+i, on=toolState[k];
+      html+=`<div class="ck ${on?'done':''}" data-k="${k}"><div class="box">${on?'✓':''}</div><div class="lb">${esc(it)}</div></div>`;
+    });
+    html+='</div>';
+  });
+  html+=`<div class="toolnote">Ticks are session-only — nothing stored. This guide supplements, never replaces, direction from your member i/c and SIO.</div>`;
+  view.innerHTML=html;
+  nbBar(['major','publicorder','suddendeath','missing'],view);
+  $$('.ck').forEach(c=>c.addEventListener('click',()=>{const k=c.dataset.k;toolState[k]=!toolState[k];c.classList.toggle('done',toolState[k]);c.querySelector('.box').textContent=toolState[k]?'✓':'';}));
+  $$('#view .csall').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.a)));
+  view.scrollTop=0;
+}
+function renderEssentials(){
+  const ess=CASES.filter(c=>c.star);
+  view.innerHTML=`<h2 class="sec">★ Essential case law — know these cold</h2><div id="esslist"></div>`;
+  $('#esslist').innerHTML=ess.map(c=>`<button class="hit ixhit" data-n="${esc(c.n)}">
+    <div class="h-title"><i>${esc(c.n)}</i>${c.c[0]?' · '+esc(c.c[0]):''}</div>
+    <div class="h-snip" style="color:var(--ink)">${esc(c.why||c.d)}</div></button>`).join('');
+  $$('#esslist .hit').forEach(b=>b.addEventListener('click',()=>openCase(b.dataset.n)));
+  view.scrollTop=0;
+}
+/* ---------- in-depth write-ups (data/cases_deep.json): facts in full, the reasoning, key lines, later cases, on the job ---------- */
+let DEEP=null, deepP=null;
+function loadDeep(){ if(DEEP)return Promise.resolve(DEEP); if(!deepP)deepP=fetch('data/cases_deep.json').then(r=>r.ok?r.json():{}).catch(()=>({})).then(d=>(DEEP=d||{})); return deepP; }
+const deepOf=n=>DEEP&&DEEP[n]?DEEP[n]:null;
+/* ---------- case law as a reference table: Case / Authority · Facts, Ratio & Reasoning · Practical Application ----------
+   Every case opens as a row of this table (FACTS · HELD · RATIO · TEST · STILL THE LAW?); a case written up in depth gets a
+   second row below (the question · facts in full, reasoning, key lines, later cases · on the job). A topic, a filter or the
+   whole library can be read as one table, numbered by topic, and saved as a Word file in the same layout. */
+const CL_HEAD=['Case / Authority','Facts, Ratio & Reasoning','Practical Application'];
+const CL_CATS=['Arrest & Detention','Search, Entry & Seizure','Confessions & Interviews','Inferences & Silence','Evidence & Exclusion','Identification','Disclosure & Fair Trial','Bail','Street & Public Order','Road Traffic','Sexual & DV','Sentencing','Constitutional & Rights','Immigration & Asylum','General'];
+const CL_INTRO={
+  'Arrest & Detention':'The foundation. Every coercive step flows from a lawful arrest and a lawful detention: your own reasonable suspicion, the reason given in plain language, and every minute in custody accounted for.',
+  'Search, Entry & Seizure':'Entry, search and seizure need lawful authority every time: a valid warrant or a clear statutory power, used within its limits and recorded.',
+  'Confessions & Interviews':'An admission is only as good as the way it was obtained: voluntary, after a caution, with access to a solicitor, and properly recorded.',
+  'Inferences & Silence':'Silence can’t be used against a suspect unless a statute allows an inference and its conditions are met: the warning in ordinary language, a chance to consult a solicitor, a recorded interview.',
+  'Evidence & Exclusion':'Evidence obtained in breach of the law or of constitutional rights can be excluded. Get the legal basis right first time and preserve what you find.',
+  'Identification':'Identification evidence needs special care: record the conditions of every sighting, and use formal procedures where identity is in issue.',
+  'Disclosure & Fair Trial':'The prosecution must disclose relevant material, and gardaí must seek out and preserve evidence that could bear on guilt or innocence.',
+  'Bail':'Bail is the rule and refusal the exception: an objection must rest on evidence of a recognised ground.',
+  'Street & Public Order':'Street powers (stop, search, direct, disperse) must be used for their purpose and within their limits, with tolerance for lawful protest.',
+  'Road Traffic':'Road traffic prosecutions turn on procedure: the right requirement, in the right words, on the right form, in the right order.',
+  'Sexual & DV':'Sexual and domestic abuse cases call for careful evidence-gathering, early protection of the victim and close attention to the statutory rules.',
+  'Sentencing':'How the courts approach sentence, and what your evidence (previous convictions, the impact on the victim, cooperation) contributes.',
+  'Constitutional & Rights':'The constitutional and Convention rights that frame every policing decision.',
+  'Immigration & Asylum':'Immigration powers, and the rights of people seeking protection.',
+  'General':'Offences, defences and general principles that come up across all kinds of work.'};
+const CL_COURT=[[/^Supreme Court of the United States/i,'US Sup Ct'],[/^Supreme Court of Canada/i,'Sup Ct Can'],[/^UK Supreme Court/i,'UKSC'],[/^Supreme Court/i,'SC'],
+  [/^Court of Criminal Appeal \(England/i,'CCA, E&W'],[/^Court of Criminal Appeal/i,'CCA'],[/^Court of Appeal \(England/i,'CA, E&W'],[/^Court of Appeal/i,'CA'],[/^High Court/i,'HC'],
+  [/^Special Criminal Court/i,'SCC'],[/^Central Criminal Court/i,'CCC'],[/^Circuit/i,'Circuit Ct'],[/^District Court/i,'DC'],[/^European Court of Human Rights \(Grand Chamber\)/i,'ECtHR, GC'],
+  [/^European Court of Human Rights/i,'ECtHR'],[/^Court of Justice/i,'CJEU'],[/^House of Lords/i,'HL'],[/^Privy Council/i,'PC'],[/^Divisional Court/i,'Div Ct']];
+function clAb(c){
+  if(c.court)return c.court.split(/;\s*/).map(p=>{ const m=CL_COURT.find(r=>r[0].test(p.trim())); return m?m[1]:''; }).filter((v,i,a)=>v&&a.indexOf(v)===i).join('/');
+  const m=String(c.d||'').match(/\((SC|CCA|CA|HC|HL|PC|UKSC|ECtHR|CJEU|SCC|CCC)\)/); if(m)return m[1];
+  const t=(c.c||[]).join(' ');
+  return /IESC/.test(t)?'SC':/IECCA/.test(t)?'CCA':/IECA/.test(t)?'CA':/IEHC/.test(t)?'HC':/UKHL/.test(t)?'HL':/UKSC/.test(t)?'UKSC':/EWCA/.test(t)?'CA, E&W':/ECHR|Application no/.test(t)?'ECtHR':''; }
+function clCites(c){ return (c.c||[]).map(s=>String(s||'').trim()).filter(s=>s&&/[\d)]$/.test(s)).slice(0,c.chk?2:1); }
+function clYear(c){ if(c.y)return c.y; const m=(c.c||[]).join(' ').match(/[[(]((?:18|19|20)\d\d)[\])]/); return m?m[1]:''; }
+function clHeld(c){ return String(c.f&&c.f.held||'').replace(/^Held:?\s*/i,''); }
+// a not-yet-checked case: split the manual's own note into its labelled parts (FACTS / PRINCIPLE / PRACTICAL APPLICATION …)
+const CL_MLB=/\b(FACTS|PRINCIPLE|PRACTICAL APPLICATION|CROSS-REFERENCES|RATIO|TEST|HELD|Holding|Held|Why It Matters|Why it matters|Facts|Principle)\s*:/g;
+function clManualParts(c){
+  const src=c.f&&c.f.facts?'FACTS: '+c.f.facts+(c.f.held?' HELD: '+c.f.held:''):String(c.d||'');
+  const parts=[]; let last=0, lab='', m; CL_MLB.lastIndex=0;
+  while((m=CL_MLB.exec(src))){ parts.push([lab,src.slice(last,m.index).trim()]); lab=m[1].toUpperCase(); last=CL_MLB.lastIndex; }
+  parts.push([lab,src.slice(last).trim()]);
+  const mid=[], prac=[];
+  parts.forEach(([l,t],i)=>{ if(!t)return;
+    if(!l&&i===0&&t.length<110&&/[[(]\d{4}[\])]/.test(t))return;   // just the case name and citation again
+    if(l==='PRACTICAL APPLICATION'||l==='WHY IT MATTERS')prac.push(t);
+    else mid.push([l==='HOLDING'?'HELD':l==='CROSS-REFERENCES'?'SEE ALSO':l,t]); });
+  if(!prac.length&&c.why)prac.push(c.why);
+  return {mid,prac}; }
+const clLb=s=>'<span class="cl-lb">'+s+'</span>';
+const clP=(lb,t)=>t?'<p>'+clLb(lb)+' '+esc(t)+'</p>':'';
+function clAuth(c,o){
+  const cites=clCites(c), ab=clAb(c), dp=deepOf(c.n), cit=(cites.join(' · ')+(ab?' ('+ab+')':'')).trim();
+  return '<td class="cl-a">'+(o.link?'<button type="button" class="cl-n cl-go" data-n="'+esc(c.n)+'">'+esc(c.n)+'</button>':'<b class="cl-n">'+esc(c.n)+'</b>')
+    +(cit?'<span class="cl-cit">'+esc(cit)+'</span>':'')+'<span class="cl-m">'+esc([clYear(c),c.cat||'General'].filter(Boolean).join(' · '))+'</span>'
+    +'<span class="cl-pills">'+(c.star?'<i class="ess">★ Essential</i>':'')+(dp?'<i class="deep">📖 In depth</i>':'')+(c.chk?'<i class="ok">✓ Checked</i>':'<i class="un">⚠ Not yet checked</i>')+'</span>'
+    +(o.link&&dp?'<button type="button" class="cl-more cl-go" data-n="'+esc(c.n)+'">Open in depth ›</button>':'')+'</td>'; }
+function clRow(c,o){ o=o||{};
+  const w=o.warn&&c.warn?'<p class="cl-w">⚠ '+esc(c.warn)+'</p>':'';
+  if(c.chk)return '<tr class="cl-r">'+clAuth(c,o)
+    +'<td class="cl-f">'+w+clP('FACTS:',c.f&&c.f.facts)+clP('HELD:',clHeld(c))+clP('RATIO:',c.d)+clP('TEST:',c.t)+clP('STILL THE LAW?',c.st)+'</td>'
+    +'<td class="cl-pa">'+(c.why?'<p>'+esc(c.why)+'</p>':'')+'</td></tr>';
+  const m=clManualParts(c);
+  return '<tr class="cl-r un">'+clAuth(c,o)
+    +'<td class="cl-f"><p class="cl-un">Not yet checked — your manual’s note:</p>'+w+(m.mid.map(([l,t])=>l?clP(l+':',t):'<p>'+esc(t)+'</p>').join('')||'<p>'+esc(c.d||'')+'</p>')+'</td>'
+    +'<td class="cl-pa">'+(m.prac.length?'<p class="cl-un">From your manual:</p>'+m.prac.map(t=>'<p>'+esc(t)+'</p>').join(''):'')+'<p class="cl-nb">Not yet checked against the judgment. Read it before relying on this.</p></td></tr>'; }
+function clDeepRows(d){
+  const P=a=>(Array.isArray(a)?a:[a]).filter(Boolean).map(x=>'<p>'+esc(x)+'</p>').join(''), U=a=>'<ul class="cl-ul">'+(a||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>', H=s=>'<p class="cl-h">'+clLb(s)+'</p>';
+  let mid='';
+  if(d.bg&&d.bg.length)mid+=H('FACTS IN FULL')+P(d.bg);
+  if(d.dec&&d.dec.length)mid+=H('THE COURT’S REASONING')+P(d.dec);
+  if(d.keys&&d.keys.length)mid+=H('KEY LINES')+d.keys.map(k=>'<p class="cl-kq">“'+esc(k.q)+'”'+(k.w?' <span>— '+esc(k.w)+'</span>':'')+'</p>').join('');
+  if(d.later&&d.later.length)mid+=H('LATER CASES')+U(d.later);
+  if(d.law)mid+=H('STILL THE LAW?')+P(d.law);
+  return '<div class="cl-dh" id="csDeep">'+(window.GRI?GRI('book-open'):'📖 ')+'<span>In depth — the full facts, the court’s reasoning and later cases'+(d.upd?' · written up '+esc(d.upd):'')+'</span></div>'
+    +clTable('<tr class="cl-r cl-deep"><td class="cl-a">'+(d.q?H('THE QUESTION')+P(d.q):'')+'</td><td class="cl-f">'+mid+'</td><td class="cl-pa">'+(d.job&&d.job.length?H('ON THE JOB')+U(d.job):'')+'</td></tr>',true); }
+function clTable(rows,cont){ return '<div class="cl-tw'+(cont?' cl-tw2':'')+'"><table class="cl-t"><colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>'+(cont?'':'<thead><tr>'+CL_HEAD.map(h=>'<th scope="col">'+esc(h)+'</th>').join('')+'</tr></thead>')+'<tbody>'+rows+'</tbody></table></div>'; }
+// group by topic, numbered as in the printed reference; checked cases first within each topic
+function clSections(items){
+  const by=new Map(); for(const c of items){ const k=c.cat||'General'; if(!by.has(k))by.set(k,[]); by.get(k).push(c); }
+  return [...CL_CATS,...[...by.keys()].filter(k=>!CL_CATS.includes(k))].filter(k=>by.has(k)).map(k=>[k,by.get(k).slice().sort((a,b)=>(b.chk?1:0)-(a.chk?1:0))]); }
+const clSecName=k=>{ const n=CL_CATS.indexOf(k)+1; return (n?n+'. ':'')+k; };
+/* the same layout as a Word file: navy header row, labelled paragraphs, long rows allowed to run on to the next page */
+function clDocT(rows){ return {cols:[21,43,36],head:CL_HEAD,rows,headFill:'1F3864',headColor:'FFFFFF',split:true,sz:8.5,line:'7F7F7F',pad:60}; }
+function clDocCells(c,o){ o=o||{};
+  const L=(lb,t)=>t?[[lb+' ','b'],[String(t),'']]:null, cites=clCites(c), ab=clAb(c);
+  const a={ps:[[[c.n,'b']],(cites.join(' · ')+(ab?' ('+ab+')':'')).trim(),[clYear(c),c.cat||'General'].filter(Boolean).join(' · '),
+    (c.star?'★ Essential · ':'')+(deepOf(c.n)?'In depth · ':'')+(c.chk?'✓ Checked':'⚠ Not yet checked')].filter(Boolean)};
+  const w=o.warn&&c.warn?[['⚠ '+c.warn,'i']]:null;
+  if(c.chk)return [a,{ps:[w,L('FACTS:',c.f&&c.f.facts),L('HELD:',clHeld(c)),L('RATIO:',c.d),L('TEST:',c.t),L('STILL THE LAW?',c.st)].filter(Boolean)},{ps:c.why?[c.why]:[]}];
+  const m=clManualParts(c);
+  return [a,{ps:[[['Not yet checked — your manual’s note:','b']],w].concat(m.mid.map(([l,t])=>l?L(l+':',t):t)).filter(Boolean)},
+    {ps:(m.prac.length?[[['From your manual:','b']]].concat(m.prac):[]).concat([[['Not yet checked against the judgment. Read it before relying on this.','i']]])}]; }
+function clDocDeep(d){ const B=t=>[[t,'b']];
+  return [{span:'In depth — the full facts, the court’s reasoning and later cases'+(d.upd?' · written up '+d.upd:''),fill:'DCE3EE'},
+    [{ps:d.q?[B('THE QUESTION'),d.q]:[]},
+     {ps:[].concat(d.bg&&d.bg.length?[B('FACTS IN FULL')].concat(d.bg):[],d.dec&&d.dec.length?[B('THE COURT’S REASONING')].concat(d.dec):[],
+       d.keys&&d.keys.length?[B('KEY LINES')].concat(d.keys.map(k=>[['“'+k.q+'”','i'],[k.w?' — '+k.w:'','']])):[],
+       d.later&&d.later.length?[B('LATER CASES')].concat(d.later.map(x=>'•  '+x)):[],d.law?[B('STILL THE LAW?'),d.law]:[])},
+     {ps:d.job&&d.job.length?[B('ON THE JOB')].concat(d.job.map(x=>'•  '+x)):[]}]]; }
+function clDocCase(c,dp){
+  const b=[{table:clDocT([clDocCells(c,{warn:true})].concat(dp?clDocDeep(dp):[]))}];
+  if((c.src||[]).length)b.push({note:'Summary checked against: '+c.src.map(x=>x.t+' — '+x.u).join(' · ')});
+  if(dp&&(dp.src||[]).length)b.push({note:'In depth written up '+(dp.upd||'')+' in our own words from: '+dp.src.map(x=>x.t+' — '+x.u).join(' · ')+'. Read the judgment before relying on it in court.'});
+  if((c.p||[]).length)b.push({note:'In your manual: '+c.p.map(pageLabel).join(' · ')});
+  return b; }
+function clDocTable(secs){ const b=[];
+  secs.forEach(([k,cs])=>{ b.push({h1:clSecName(k)}); if(CL_INTRO[k])b.push({p:[[CL_INTRO[k],'i']],small:true}); b.push({table:clDocT(cs.map(c=>clDocCells(c,{warn:true})))}); });
+  b.push({note:'Working reference — check the judgment before relying on it in court. Cases marked “not yet checked” show your manual’s note as it stands.'});
+  return b; }
+/* a topic, a filter or the whole library as one table */
+let clLast=null;
+function openCaseTable(items,title,keep){
+  if(!items||!items.length)return;
+  if(!DEEP){ loadDeep().then(()=>openCaseTable(items,title,keep)); return; }
+  clLast={items,title,top:0,page:0};
+  reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
+  $('#rdTitle').textContent=title.charAt(0).toUpperCase()+title.slice(1); $('#rdPage').textContent='Case law · '+items.length+(items.length===1?' case':' cases');
+  $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
+  $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
+  const secs=clSections(items);
+  const card=c=>{ const dp=deepOf(c.n), st=csStill(c), ab=clAb(c), line=c.chk?(c.d||clHeld(c)||c.why||''):(c.why||c.d||'');
+    return '<button type="button" class="cc cl-go" data-n="'+esc(c.n)+'"><span class="cc-ct">'+esc(ab||'—')+'</span><span class="cc-tx"><b>'+esc(c.n)+(clYear(c)&&!/\(\d{4}\)\s*$/.test(c.n)?' ('+esc(clYear(c))+')':'')+'</b><small>'+esc(line.length>150?line.slice(0,147).replace(/\s+\S*$/,'')+'…':line)+'</small>'
+      +'<span class="cc-pl">'+(c.star?'<i class="pu">★ Essential</i>':'')+(dp?'<i class="bl">In depth</i>':'')+(c.chk?'<i class="ok">✓ Checked</i>':'<i class="warn">Not yet verified</i>')+(st&&st[1]!=='ok'?'<i class="'+st[1]+'">'+st[0]+'</i>':'')+'</span></span></button>'; };
+  rdBody.innerHTML='<div class="cs-pg"><p class="cl-0" hidden></p>'+secs.map(([k,cs])=>'<h2 class="cl-sec">'+esc(clSecName(k))+'</h2>'+(CL_INTRO[k]?'<p class="cl-intro">'+esc(CL_INTRO[k])+'</p>':'')+'<div class="cc-list">'+cs.map(card).join('')+'</div>').join('')
+    +'<p class="cl-foot">Working reference — check the judgment before relying on it in court. Cases marked “Not yet verified” show your manual’s note as it stands.</p></div>';
+  curDoc={title:'Case law — '+title,blocks:clDocTable(secs),text:''}; updateDlBtn();
+  rdBody.querySelectorAll('.cl-go').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); clLast.top=rdBody.scrollTop; clLast.page=book.page; openCase(b.dataset.n,true); }));
+  rdBody.scrollTop=0;
+  if(keep)setTimeout(()=>{ if(book.on)bookLayout(keep.page||0); else rdBody.scrollTop=keep.top||0; },90); }
+function deepText(d){ return ['IN DEPTH',d.bg&&d.bg.length?'The facts in full:\n'+d.bg.join('\n\n'):'',d.q?'What the court had to decide:\n'+d.q:'',d.dec&&d.dec.length?'The court’s reasoning:\n'+d.dec.join('\n\n'):'',
+  d.keys&&d.keys.length?'Key lines:\n'+d.keys.map(k=>'“'+k.q+'”'+(k.w?' — '+k.w:'')).join('\n'):'',d.later&&d.later.length?'How later cases have treated it:\n- '+d.later.join('\n- '):'',
+  d.job&&d.job.length?'On the job:\n- '+d.job.join('\n- '):'',d.law?'Still the law?\n'+d.law:''].filter(Boolean).join('\n\n'); }
+/* ---------- the case page: one column, the point first ("case at a glance") ----------
+   Case / Authority → The question → Facts → Held → Ratio and test → Reasoning → Practical application → Key lines → Later cases
+   → Facts in full → sources. Everything from the old three-column table and the in-depth write-up is here; nothing was dropped. */
+const csI=(code)=>window.GRPro?GRPro.icon(code,30):'';
+function csSec(code,title,body,cls){ return body?'<section class="cs-sc'+(cls?' '+cls:'')+'"><div class="cs-sh">'+csI(code)+'<b>'+esc(title)+'</b></div>'+body+'</section>':''; }
+function csStill(c){ const t=String(c.st||''); return /^\s*yes\b/i.test(t)?['Still the law','ok']:/^\s*no\b|overruled|no longer/i.test(t)?['No longer the law','bad']:/^\s*(partly|in part|qualified|modified)/i.test(t)?['Law has moved on in part','warn']:null; }
+function reportMistake(what){ const txt='Assisting '+(window.GRVER||'')+'\nMistake in: '+what+'\nWhat is wrong:\n';
+  if(navigator.share){ navigator.share({title:'Assisting — report a mistake',text:txt}).catch(()=>{}); return; }
+  (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>{ if(window.grToast)grToast('Copied — paste it into a message or email and add what’s wrong'); }).catch(()=>{ if(window.grToast)grToast('Note the case name and what’s wrong, and send it on'); }); }
+window.reportMistake=reportMistake;
+function openCase(name,fromTable){
+  const c=CASES.find(x=>x.n===name); if(!c)return;
+  try{ pushRecent({k:'case',id:c.n,t:c.n,s:'Case law'+(c.cat?' · '+c.cat:'')}); }catch(e){}
+  if(!DEEP)loadDeep().then(()=>{ if(deepOf(name)&&!reader.classList.contains('hidden')&&$('#rdTitle').textContent===name){ const st=rdBody.scrollTop; openCase(name,fromTable); rdBody.scrollTop=st; } });
+  const dp=deepOf(c.n), P=a=>(Array.isArray(a)?a:[a]).filter(Boolean).map(x=>'<p>'+esc(x)+'</p>').join(''), U=(a,tk)=>'<ul class="'+(tk?'cs-tk':'cs-ul')+'">'+(a||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+  reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
+  $('#rdTitle').textContent=c.n; $('#rdPage').textContent=c.cat||'Case law';
+  $('#rdFlag').classList.add('hidden');$('#rdStar').textContent='☆';
+  $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
+  const still=csStill(c), yr=clYear(c), cites=(c.c||[]).map(x=>String(x||'').trim()).filter(Boolean), m=c.chk?null:clManualParts(c);
+  const chkTxt=c.chk?(c.conf==='high'?'Checked against the judgment or a reliable case note':c.conf==='low'?'Only partly checked — the free report doesn’t show the ruling':'Checked against one source only'):'Not yet verified';
+  let h='<div class="cs-pg">'+(fromTable&&clLast?'<button type="button" class="chip cl-back">‹ Back to the list</button>':'');
+  h+='<div class="cs-pills">'+(c.court?'<i class="bl">'+esc(c.court.split(/;\s*/)[0])+'</i>':'')+(c.chk?(still?'<i class="'+still[1]+'">'+(still[1]==='ok'?'✓ ':'')+still[0]+'</i>':'')+(c.conf==='low'?'<i class="warn">Partly checked</i>':''):'<i class="warn">Not yet verified</i>')+(c.star?'<i class="pu">★ Essential</i>':'')+'<i class="pu">'+esc(c.cat||'General')+'</i></div>';
+  h+='<h1 class="cs-h1">'+esc(c.n)+(yr&&!/\(\d{4}\)\s*$/.test(c.n)?' ('+esc(yr)+')':'')+'</h1>';
+  if(c.warn)h+='<div class="cs-warn">'+(window.GRI?GRI('triangle-alert'):'⚠')+'<span>'+esc(c.warn)+'</span></div>';
+  const kv=(k,v)=>v?'<div><i>'+k+'</i>'+v+'</div>':'';
+  h+=csSec('2696-fe0f','Case / Authority','<div class="cs-kv">'+kv('Citation',cites.map(esc).join('<br>'))+kv('Court'+(yr?' · year':''),esc([c.court,yr].filter(Boolean).join(' · ')))+kv('Still the law?',esc(c.st||''))
+    +kv('Checked',esc(chkTxt)+(c.ckd?' · '+esc(c.ckd):'')+((c.src||[]).length?'<br><small>'+c.src.map(x=>esc(x.t||'')).filter(Boolean).join(' · ')+'</small>':''))+kv('Topic',esc(c.topic||c.cat||''))+(dp&&dp.upd?kv('In depth',esc('Written up '+dp.upd)):'')+'</div>');
+  if(dp&&dp.q)h+=csSec('2753','The question','<p class="cs-q">'+esc(dp.q)+'</p>');
+  if(c.chk){
+    h+=csSec('1f4cb','Facts',P(c.f&&c.f.facts));
+    h+=csSec('1f3db-fe0f','Held',P(clHeld(c)));
+    if(c.d||c.t)h+='<section class="cs-ratio"><span class="cs-rl">RATIO</span>'+(c.d?'<p>'+esc(c.d)+'</p>':'')+(c.t?'<div class="cs-test"><b>Test:</b> '+esc(c.t)+'</div>':'')+'</section>';
+  } else {
+    h+=csSec('1f4cb','From your manual — not yet verified','<p class="cs-un">This case has not been checked against the judgment yet. This is your manual’s note as it stands — read the judgment before relying on it.</p>'+(m.mid.map(([l,t])=>'<p>'+(l?'<span class="cl-lb">'+esc(l)+':</span> ':'')+esc(t)+'</p>').join('')||P(c.d)));
+  }
+  if(dp&&dp.dec&&dp.dec.length)h+=csSec('1f9e0','Reasoning',P(dp.dec[0])+(dp.dec.length>1?'<details class="cs-more"><summary>The court’s reasoning in full</summary>'+P(dp.dec.slice(1))+'</details>':''));
+  { const pa=(c.chk?(c.why?'<p>'+esc(c.why)+'</p>':''):m.prac.map(t=>'<p>'+esc(t)+'</p>').join(''))+(dp&&dp.job&&dp.job.length?U(dp.job,true):''); h+=csSec('1f6e1-fe0f','Practical application',pa); }
+  if(dp&&dp.keys&&dp.keys.length)h+=csSec('1f4ac','Key lines',dp.keys.map(k=>'<p class="cs-kl">“'+esc(k.q)+'”'+(k.w?' <span>— '+esc(k.w)+'</span>':'')+'</p>').join(''));
+  if(dp&&((dp.later&&dp.later.length)||dp.law))h+=csSec('1f517','Later cases',(dp.later&&dp.later.length?U(dp.later):'')+(dp.law?'<p><span class="cl-lb">STILL THE LAW?</span> '+esc(dp.law)+'</p>':''));
+  if(dp&&dp.bg&&dp.bg.length)h+='<section class="cs-sc" id="csDeep"><details class="cs-fold"><summary>'+csI('1f4d6')+'<b>Facts in full</b><span>Open</span></summary>'+P(dp.bg)+'</details></section>';
+  if((c.s||[]).length||c.p.length)h+='<section class="cs-sc"><details class="cs-fold"><summary>'+csI('1f4da')+'<b>In your manual</b><span>Open</span></summary>'+(c.chk?'<p class="cs-un">Your manual’s notes on this case haven’t been re-checked — where they differ, go by the checked summary above.</p>':'')
+    +(c.s||[]).map(sn=>'<p><span class="xref" data-a="'+sn.a+'">'+esc(pageLabel(sn.a))+'</span> — '+esc(sn.t)+'</p>').join('')+(c.p.length?'<p class="cs-pp">Every page it appears on: '+c.p.map(p=>'<span class="xref" data-a="'+p+'">'+esc(pageLabel(p))+'</span>').join(' · ')+'</p>':'')+'</details></section>';
+  { const nc=caseNeutral(c), jur=caseJur(c), srcs=[...(dp&&dp.src||[]),...(c.src||[])].filter((x,i,a)=>x&&x.u&&a.findIndex(y=>y.u===x.u)===i);
+    h+='<div class="cs-src">'+(srcs.length?'<p>Written in our own words'+(dp&&dp.upd?' ('+esc(dp.upd)+')':'')+' from: '+srcs.map(x=>'<span class="extj" data-href="'+esc(x.u)+'">'+esc(x.t||x.u.replace(/^https?:\/\/(www\.)?/,'').split('/')[0])+'</span>').join(' · ')+'.</p>':'')
+      +'<p>Read the judgment before relying on it in court'+(' — '+(nc?'<span class="extj" data-u="cite">BAILII '+esc(nc.s)+'</span> · ':'')+'<span class="extj" data-u="bailii">'+(nc?'search BAILII by name':jur==='echr'?'BAILII, Human Rights Court':'BAILII')+'</span>')+' (needs signal).</p>'
+      +'<p><button type="button" class="cs-rep">Report a mistake</button></p></div>'; }
+  h+='</div>';
+  rdBody.innerHTML=h; curDoc={title:c.n,blocks:clDocCase(c,dp),text:[c.c.filter(Boolean).join(' · '),c.court?(c.court+(c.y?' '+c.y:'')):'',c.why?'On the job: '+c.why:(c.d||''),c.f?('Facts: '+(c.f.facts||'')+'\nHeld: '+(c.f.held||'')):'',c.t?'Test: '+c.t:'',c.st?'Still the law? '+c.st:'',(c.src||[]).length?'Checked against: '+c.src.map(x=>x.t+' — '+x.u).join('\n'):'',dp?deepText(dp):'',(c.s||[]).map(x=>pageLabel(x.a)+' — '+x.t).join('\n\n')].filter(Boolean).join('\n\n')}; updateDlBtn();
+  { const bk=rdBody.querySelector('.cl-back'); if(bk)bk.onclick=()=>openCaseTable(clLast.items,clLast.title,{top:clLast.top,page:clLast.page}); }
+  { const r=rdBody.querySelector('.cs-rep'); if(r)r.onclick=()=>reportMistake('Case — '+c.n); }
+  rdBody.querySelectorAll('.xref').forEach(x=>x.addEventListener('click',()=>openPage(+x.dataset.a)));
+  rdBody.querySelectorAll('.extj').forEach(x=>x.addEventListener('click',()=>{
+    if(x.dataset.href){ window.open(x.dataset.href,'_blank','noopener'); return; }
+    const nm=c.n.replace(/\s*\((19|20)\d\d\)$/,''), nc=caseNeutral(c), jur=caseJur(c);
+    window.open({cite:nc?bailiiCiteURL(nc):'',bailii:bailiiURL(bailiiName(nm),{ie:'ie/cases',echr:'eu/cases/ECHR',all:''}[jur],'rank')}[x.dataset.u],'_blank','noopener');}));
+  rdBody.scrollTop=0;
+}
+function renderOffences(){
+  view.innerHTML='<h2 class="sec">⚖ Offences — tap one for everything on it</h2><div class="toolmenu" id="offlist"></div>';
+  $('#offlist').innerHTML=OPS.ptp.map((p,i)=>`<button class="tmenu" data-i="${i}"><b>${esc(p.o.split('—')[0].trim())}</b><small>${esc(p.o.split('—')[1]||'')}</small></button>`).join('');
+  $$('#offlist .tmenu').forEach(b=>b.addEventListener('click',()=>renderOffence(+b.dataset.i)));
+  view.scrollTop=0;
+}
+function renderOffence(i){
+  const p=OPS.ptp[i], short=p.o.split('—')[0].trim();
+  view.innerHTML=`<button class="chip" id="backO">‹ Offences</button>
+  <h2 class="sec">${esc(p.o)}</h2>
+  <div class="tool"><h3>Points to prove</h3><ul class="rlist">${p.e.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>
+  <div class="ddefk"><b>Arrest/notes:</b> ${esc(p.a)}</div></div>
+  <div class="quick">
+    <button class="qbtn" id="oGuide">📝 Statement guide<small>what to capture</small></button>
+    <button class="qbtn" id="oPlay">Playbook<small>5-part approach</small></button>
+    <button class="qbtn" id="oSearch">⌕ In the manual<small>every mention</small></button>
+    <button class="qbtn" id="oCases">⚖ Related case law<small>from the library</small></button>
+    <button class="qbtn" id="oNB">📓 Notebook entry<small>detailed draft · why each part matters</small></button>
+    <button class="qbtn" data-pf="${i}" data-pfk="wit">✅ Statement check<small>does it meet the proofs?</small></button>
+  </div>`;
+  $('#backO').addEventListener('click',renderOffences);
+  $('#oGuide').addEventListener('click',()=>renderGuides(p.g));
+  $('#oPlay').addEventListener('click',()=>openPage(986));
+  $('#oSearch').addEventListener('click',()=>searchFor(short));
+  $('#oCases').addEventListener('click',()=>{window.caseCat='All';ixKind='case';caseQ=short.split(' ')[0];setTab('index');render();});
+  $('#oNB').addEventListener('click',()=>{ if(window.renderNB)renderNB('ptp:'+i); });
+  view.scrollTop=0;
+}
+function renderStencils(){
+  const cats=[...new Set(STEN.map(x=>x.cat))];
+  let html='<button class="chip" id="backT" style="margin-bottom:8px">‹ Tools</button><h2 class="sec">📄 My stencils — tap to open · ⧉ copies the whole template</h2>';
+  for(const cat of cats){
+    html+=`<h2 class="sec">${esc(cat)}</h2>`;
+    STEN.forEach((st,i)=>{ if(st.cat!==cat)return;
+      html+=`<button class="hit" data-i="${i}"><div class="h-title">${esc(st.t)}</div><div class="h-loc">${st.form?'Printable form · 2 A4 pages · fill in by pen':'≈'+Math.round(st.b.split(/\s+/).length)+' words'}</div></button>`;});
+  }
+  view.innerHTML=html;wireBack();
+  $$('#view .hit').forEach(b=>b.addEventListener('click',()=>openStencil(+b.dataset.i)));
+  view.scrollTop=0;
+}
+
+/* ---------- reflow hard-wrapped text into normal paragraphs (stencils, templates, exports) ---------- */
+function reflow(txt){
+  return String(txt||'').replace(/\r/g,'').replace(/([.!?])"(?=[A-Z])/g,'$1 "').split(/\n\s*\n/).map(block=>{
+    const L=block.split('\n').map(x=>x.trim()).filter(Boolean); if(!L.length)return '';
+    const out=[]; let cur=L[0];
+    for(let i=1;i<L.length;i++){ const t=L[i];
+      const brk=/^([-•▪◦*]|\(?[a-z0-9ivx]{1,3}[.)])\s+/i.test(t) || /^[A-Z][A-Za-z\s\/()'’&-]{1,24}:\s/.test(t) || (cur.length<38 && /[.:!?]$/.test(cur));
+      if(brk){ out.push(cur); cur=t; } else cur+=(/-$/.test(cur)&&!/\s-$/.test(cur)?'':' ')+t;
+    }
+    out.push(cur); return out.join('\n');
+  }).filter(Boolean).join('\n\n');
+}
+function paraHtml(txtEsc){ return txtEsc.split(/\n\n/).map(b=>'<p>'+b.replace(/\n/g,'<br>')+'</p>').join(''); }
+function openStencil(i){
+  const st=STEN[i];
+  if(st&&st.form&&window.GRForms){ GRForms.open(st.form); return; }   // a print-and-fill form, not a text stencil
+  reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
+  $('#rdTitle').textContent=st.t; $('#rdPage').textContent='Stencil · '+st.cat;
+  const star=$('#rdStar'); star.textContent='⧉';
+  const body=st.blocks?String(st.b):reflow(String(st.b).replace(/^\s*\.\s*\n/,''));
+  star.onclick=()=>{navigator.clipboard.writeText(body).then(()=>{$('#rdPage').textContent='Copied ✓';setTimeout(()=>$('#rdPage').textContent='Stencil · '+st.cat,1500);}).catch(()=>{$('#rdPage').textContent='Copy failed';});};
+  $('#rdFlag').classList.add('hidden');
+  if(st.blocks){ curDoc={title:st.t,text:body,blocks:st.blocks,notitle:!!st.notitle}; rdBody.innerHTML='<div class="rb-doc">'+renderBlocks(st.blocks,{ph:true})+'</div>'; wireBlocks(rdBody); rdBody.scrollTop=0; updateDlBtn();
+    $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden'; return; }
+  let h=esc(body);
+  h=h.replace(/(\[[^\]\n]{1,60}\]|_{3,}|\bXXXX?\b|\bTIME\b|\bDATE\b|\bLOCATION\b|\bNAME\b|\bSTATION\b|\bOFFENCE\b)/g,'<mark class="ph">$1</mark>');
+  h=paraHtml(h);
+  curDoc={title:st.t,text:body}; rdBody.innerHTML=h; rdBody.scrollTop=0; updateDlBtn();
+  $('#rdPrev').style.visibility='hidden';$('#rdNext').style.visibility='hidden';$('#rdJump').style.visibility='hidden';
+}
+function renderLive(){
+  view.innerHTML=`<h2 class="sec">◉ Live judgments — needs signal</h2>
+  <div class="searchbox" style="position:static"><input id="lq" type="search" placeholder="Topic, case, statute… e.g. inference s.19A"></div>
+  <div class="quick">
+    <button class="qbtn" data-src="courts">Courts.ie<small>official, most recent first</small></button>
+    <button class="qbtn" data-src="bailii">BAILII Ireland<small>free full text</small></button>
+    <button class="qbtn" data-src="westlaw">Westlaw IE<small>opens your subscription</small></button>
+    <button class="qbtn" data-src="supreme">Supreme Court<small>latest judgments</small></button>
+  </div>
+  <div class="toolnote">Each opens in your browser with your search. Westlaw can't take the query in the link — it opens your signed-in Westlaw and you paste there. A true in-app Westlaw feed isn't possible without a Thomson Reuters API licence.</div>`;
+  $$('#view .qbtn').forEach(b=>b.addEventListener('click',()=>{
+    const q=encodeURIComponent(($('#lq').value||'').trim());
+    const u={courts:'https://www.courts.ie/judgments?search_api_fulltext='+q,
+      bailii:'https://www.bailii.org/cgi-bin/lucy_search_1.cgi?sort=date&highlight=1&mask_path=ie&query='+q,
+      westlaw:'https://www.westlaw.ie',
+      supreme:'https://www.courts.ie/judgments?f%5B0%5D=judgment_court%3A251286'+(q?'&search_api_fulltext='+q:'')}[b.dataset.src];
+    window.open(u,'_blank');
+  }));
+  view.scrollTop=0;
+}
+
+/* ---------- DETENTION CLOCK (session only — nothing saved) ---------- */
+function renderClock(){
+  subView();
+  $('#results').innerHTML=`<h2 class="sec">⏱ Detention clock</h2>
+  <div class="tool">
+    <label class="flab">Time detention commenced (member i/c)</label>
+    <input type="datetime-local" id="dtStart" class="fin">
+    <label class="flab">Regime</label>
+    <div class="chips"><button class="chip on" data-r="s4">s.4 CJA 1984</button><button class="chip" data-r="s30">s.30 OASA 1939</button><button class="chip" data-r="dta">s.2 DTA 1996</button><button class="chip" data-r="s50">s.50 CJA 2007</button></div>
+    <label class="flab"><input type="checkbox" id="restCut" checked> Apply rest-period suspension (midnight–08:00, s.4 only)</label>
+    <label class="flab">Manual suspension already used (mins) — medical, solicitor consult, rest not auto-counted</label>
+    <input type="number" id="susMin" class="fin" value="0" min="0" step="15">
+    <div id="clockOut"></div>
+  </div>
+  <div class="toolnote">Aid only — the member in charge governs the clock. Suspensions and their reasons must be recorded in the custody record. Verify every authorisation against the Act.</div>`;
+  let regime='s4';
+  const REG={
+   s4:{rest:true,steps:[['Initial detention','6','Member i/c'],['1st extension','6','Superintendent (→12h)'],['2nd extension','12','Chief Superintendent (→24h)']]},
+   s30:{rest:false,steps:[['Initial','24','On arrest'],['Extension','24','Chief Superintendent (→48h)'],['Further','24','District Court judge (→72h)']]},
+   dta:{rest:false,steps:[['Initial','6','Member i/c'],['Extension','18','Superintendent (→24h)'],['Extension','24','Chief Supt (→48h)'],['Court','72','Judge (→120h)'],['Court','48','Judge (→168h / 7 days)']]},
+   s50:{rest:false,steps:[['Initial','6','Member i/c'],['Extension','18','Superintendent (→24h)'],['Extension','24','Chief Supt (→48h)'],['Court','72','Judge (→120h)'],['Court','48','Judge (→168h)']]}
+  };
+  const fmt=ms=>new Date(ms).toLocaleString('en-IE',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  const draw=()=>{
+    const v=$('#dtStart').value,out=$('#clockOut');
+    if(!v){out.innerHTML='';return;}
+    const R=REG[regime];
+    let t=new Date(v).getTime();
+    const sus=(+$('#susMin').value||0)*60e3; if(sus)t+=sus;
+    const useRest=R.rest&&$('#restCut').checked;
+    let cum=0, html='<table class="clocktab"><tr><th>Stage</th><th>Clock expires</th><th>Authority</th></tr>';
+    for(const[st,hrs,auth]of R.steps){
+      let add=(+hrs)*3600e3;
+      // rest suspension: any part of window between 00:00-08:00 doesn't count (approximate — adds that overlap back)
+      if(useRest){
+        let probe=t, end=t+add, extra=0, guard=0;
+        while(probe<end+extra&&guard++<50){
+          const d=new Date(probe),hr=d.getHours();
+          if(hr>=0&&hr<8){extra+=3600e3;}
+          probe+=3600e3;
+        }
+        add+=extra;
+      }
+      t+=add;
+      html+=`<tr><td>${st}<br><small>+${hrs}h${useRest?' +rest':''}</small></td><td><b>${fmt(t)}</b></td><td>${auth}</td></tr>`;
+    }
+    out.innerHTML=html+'</table>';
+  };
+  ['dtStart','susMin','restCut'].forEach(id=>$('#'+id).addEventListener('input',draw));
+  $$('#results .chip').forEach(c=>c.addEventListener('click',()=>{regime=c.dataset.r;$$('#results .chip').forEach(x=>x.classList.toggle('on',x===c));draw();}));
+  view.scrollTop=0;
+}
+
+/* ---------- COURT-DAY MODE ---------- */
+function renderCourtDay(){
+  subView();
+  let html=`<h2 class="sec">⚖ Court day — all offline</h2><div class="quick">
+    <button class="qbtn" data-go="941">Cross-exam survival<small>V12 Part A</small></button>
+    <button class="qbtn" data-go="945">Law of evidence<small>objections & rules</small></button>
+    <button class="qbtn" data-go="975">ADVOKATE<small>your ID evidence</small></button>
+    <button class="qbtn" data-go="955">Inferences<small>proofs & preconditions</small></button>
+    <button class="qbtn" data-go="969">Your statement<small>refresh the structure</small></button>
+    <button class="qbtn" data-go="322">Disclosure<small>duty & pitfalls</small></button></div>`;
+  if(favs.length){html+='<h2 class="sec">Your saved pages</h2>';
+    favs.forEach(f=>{html+=`<button class="hit" data-go="${f.a}"><div class="h-title">${esc(f.title)}</div><div class="h-loc">${esc(f.label)}</div></button>`;});}
+  html+=`<h2 class="sec">Fresh law (needs signal)</h2>
+  <button class="hit" id="jfeed1"><div class="h-title">Latest Supreme & Appeal Court judgments</div><div class="h-loc">courts.ie — opens in browser</div></button>
+  <button class="hit" id="jfeed2"><div class="h-title">Search BAILII Irish cases on a topic</div><div class="h-loc">bailii.org — opens in browser</div></button>`;
+  $('#results').innerHTML=html;
+  $$('#results .qbtn,#results .hit[data-go]').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
+  $('#jfeed1').addEventListener('click',()=>window.open('https://www.courts.ie/judgments','_blank'));
+  $('#jfeed2').addEventListener('click',()=>{const t=prompt('Topic or case name:');if(t)window.open('https://www.bailii.org/cgi-bin/lucy_search_1.cgi?method=boolean&datehigh=&query='+encodeURIComponent(t)+'&mask_path=ie&datelow=&sort=rank&highlight=1','_blank');});
+  view.scrollTop=0;
+}
+
+/* ---------- BROWSE ---------- */
+function renderBrowse(){
+  view.innerHTML='<div class="tabroot" data-tab="browse" hidden></div><h2 class="sec">Browse the full reference<span class="sec-r">'+META.pages+' pages</span></h2><div id="tree"></div>';
+  const root=$('#tree'); META.tree.forEach(n=>root.appendChild(treeNode(n,0)));
+}
+function treeNode(n,depth){
+  const d=document.createElement('div'); d.className='tnode';
+  const row=document.createElement('button'); row.className='trow';
+  const kids=(n.children||[]);
+  row.innerHTML=`${kids.length?'<span class="caret">›</span>':'<span style="width:10px"></span>'}
+    <span class="tw">${esc(n.title)}${n.dated?' <span class="dated-dot">●</span>':''}</span><span class="tpg">${esc(n.label||'')}</span>`;
+  d.appendChild(row);
+  if(kids.length){
+    const kwrap=document.createElement('div'); kwrap.className='tkids';
+    kids.forEach(k=>kwrap.appendChild(treeNode(k,depth+1)));
+    d.appendChild(kwrap);
+    row.addEventListener('click',()=>{ if(d.classList.contains('open')){openPage(n.abs);} else d.classList.add('open'); });
+    // long-press alternative: second tap opens; add explicit open handled above. Also caret toggles:
+    row.querySelector('.caret').addEventListener('click',e=>{e.stopPropagation();d.classList.toggle('open');});
+  } else row.addEventListener('click',()=>openPage(n.abs));
+  return d;
+}
+
+/* ---------- INDEX (contents · topics · case law · statutes · A–Z) ---------- */
+let ixKind='topic';
+function renderIndex(){
+  if(ixKind==='contents')ixKind='topic';
+  const K=[['topic','Topics'],['case','Case law'],['statute','Statutes'],['all','All A–Z']];
+  view.innerHTML=`<div class="tabroot" data-tab="index" hidden></div>
+  <div class="ixtop"><div class="chips">${K.map(([k,l])=>`<button class="chip ${ixKind===k?'on':''}" data-k="${k}">${l}</button>`).join('')}</div></div>
+  <div class="alpharail" id="rail"></div><div id="ixlist"></div>`;
+  $$('.ixtop .chip').forEach(c=>c.addEventListener('click',()=>{ixKind=c.dataset.k;renderIndex();view.scrollTop=0;}));
+  if(ixKind==='case'){renderCases();return;}
+  const items=AZ.filter(e=>ixKind==='all'||e.k===ixKind);
+  const list=$('#ixlist'); let html='', letters=new Set(), cur='';
+  for(const e of items){
+    const L=(e.t[0]||'#').toUpperCase().replace(/[^A-Z]/,'#');
+    if(L!==cur){cur=L;letters.add(L);html+=`<div class="letterhead" id="L${L}">${L}</div>`;}
+    html+=`<button class="ixrow ${e.k}" data-a="${e.r[0].a}"><span class="term">${esc(e.t)}</span>
+      <div class="refs">${e.r.map(r=>`<span class="goref" data-a="${r.a}">${esc(r.l)}</span>`).join(' · ')}</div></button>`;
+  }
+  list.innerHTML=html||'<div class="empty">Nothing here.</div>';
+  $('#rail').innerHTML=[...letters].map(L=>`<button class="al" data-l="${L}">${L}</button>`).join('');
+  $$('.al').forEach(a=>a.addEventListener('click',()=>{const el=document.getElementById('L'+a.dataset.l);if(el)el.scrollIntoView();}));
+  list.querySelectorAll('.ixrow').forEach(b=>b.addEventListener('click',e=>{
+    const g=e.target.closest('.goref'); openPage(g?+g.dataset.a:+b.dataset.a);
+  }));
+}
+
+const ESSENTIALS={'dpp v jc':'Rewrote the exclusionary rule — inadvertent breach of rights no longer means automatic exclusion.','dpp v kenny':'The old strict exclusion rule — the world before JC; still cited constantly.','damache v dpp':'Search warrant issued by a Supt tied to the investigation = unconstitutional. Independence required.','dpp v gormley':'No interviewing after solicitor requested until access given — constitutional right.','dpp v doyle':'No constitutional right to have the solicitor IN the interview room — the counterpoint to Gormley.','christie v leachinsky':'You must tell a person WHY they are arrested, in ordinary language. Foundation of arrest law.','o\'callaghan':'Bail exists only to secure trial attendance — the foundation of all bail objections.','braddish v dpp':'Duty to seek out and PRESERVE evidence — lose the CCTV, lose the case.','dunne v dpp':'Extends Braddish — the preservation duty in action.','allan v united kingdom':'Covert questioning of a detainee via informant breaches the right to silence.','dpp v shaw':'Voluntariness and fundamental fairness — the confession admissibility test.','dpp v avadenei':'Technical defects don\'t automatically kill the prosecution — substance over form.','v casey (no 2)':'The identification warning — every ID case runs through Casey.','r v turnbull':'The UK ID guidelines that shaped ADVOKATE.','v cash':'Reasonable suspicion may rest on material that is itself inadmissible.','v quirke':'Computer/phone searches need specific authorisation in the warrant — get the wording right.'};
+let caseQ='';
+function caseSurname(n){
+  return n.toLowerCase().replace(/^(the\s)?(people\s\((dpp|ag)\)|dpp|the\sstate\s\([^)]+\)|attorney\sgeneral|ag|re|r|minister[a-z\s]*)\sv\s/,'');
+}
+function renderCases(){
+  const rail=$('#rail'), list=$('#ixlist');
+  list.insertAdjacentHTML('beforebegin',`<div class="searchbox" style="top:auto"><input id="cq" type="search" placeholder="Filter ${CASES.length} cases — name, citation, topic…" value="${esc(caseQ)}"></div>
+  <div class="chips catchips">${['All',...(DEEP&&Object.keys(DEEP).length?['📖 In depth']:[]),'⚠ Check first',...new Set(CASES.map(c=>c.cat))].map(c=>`<button class="chip ${c===(window.caseCat||'All')?'on':''}${c==='⚠ Check first'?' warnchip':''}${c==='📖 In depth'?' deepchip':''}" data-cc="${c}">${c}${c==='⚠ Check first'?' ('+CASES.filter(x=>x.warn).length+')':c==='📖 In depth'?' ('+CASES.filter(x=>deepOf(x.n)).length+')':''}</button>`).join('')}</div><button type="button" class="csall cl-open" id="clOpen" hidden></button>`);
+  $('#clOpen').addEventListener('click',()=>openCaseTable(window._clItems||[],window._clTitle||'library'));
+  if(!DEEP)loadDeep().then(()=>{ if(Object.keys(DEEP).length&&$('#cq'))renderIndex(); });
+  $$('.catchips .chip').forEach(ch=>ch.addEventListener('click',()=>{window.caseCat=ch.dataset.cc;renderIndex();}));
+  const draw=()=>{
+    const q=caseQ.trim().toLowerCase();
+    let essHtml='';
+    if(!q&&(!window.caseCat||window.caseCat==='All')){
+      const nn=n=>n.toLowerCase().replace(/^the\s+/,'').replace(/^people \((dpp|ag)\)/,'$1');
+      const seenE=new Set(); const ess=CASES.map(c=>{const k=Object.keys(ESSENTIALS).find(k=>nn(c.n).includes(k));if(!k||seenE.has(k))return null;seenE.add(k);return {c,why:ESSENTIALS[k]};}).filter(Boolean);
+      if(ess.length)essHtml='<h2 class="sec">★ The essentials — know these cold</h2>'+ess.map(e=>`<button class="hit ixhit esshit" data-n="${esc(e.c.n)}"><div class="h-title"><i>${esc(e.c.n)}</i> ${e.c.c[0]?'· '+esc(e.c.c[0]):''}${deepOf(e.c.n)?' <span class="deeppill">📖 in depth</span>':''}</div><div class="h-snip">${esc(e.why)}</div></button>`).join('')+'<h2 class="sec">Full library</h2>';
+    }
+    let items=CASES.filter(c=>!q||c.n.toLowerCase().includes(q)||c.c.join(' ').toLowerCase().includes(q)||(c.d||'').toLowerCase().includes(q)||((c.topic||'')+' '+(c.why||'')).toLowerCase().includes(q))
+      .slice().sort((a,b)=>caseSurname(a.n).localeCompare(caseSurname(b.n),'en',{sensitivity:'base'}));
+    if(window.caseCat==='📖 In depth'){ items=items.filter(c=>deepOf(c.n)); essHtml='<p class="warnintro deepintro">Cases written up in depth — the facts in full, the court’s reasoning, key lines, how later cases treated them and what they mean on the job.</p>'; }
+    else if(window.caseCat==='⚠ Check first'){ items=items.filter(c=>c.warn); essHtml='<p class="warnintro">Cases where your manual is wrong, or that couldn’t be confirmed. Open one to see what’s wrong and the pages it appears on — worth correcting in your volumes.</p>'; }
+    else if(window.caseCat&&window.caseCat!=='All')items=items.filter(c=>c.cat===window.caseCat);
+    { const ob=$('#clOpen'), cat=window.caseCat||'All', n=items.length; window._clItems=items;
+      window._clTitle=q?'“'+caseQ.trim()+'”':cat==='All'?'the whole library':cat==='📖 In depth'?'in depth':cat==='⚠ Check first'?'check first':cat;
+      if(ob){ ob.hidden=!n; ob.innerHTML=(window.GRI?GRI('table-3'):'▦ ')+'<span>'+esc(q?'Read these '+n+' as a table':cat==='All'?'Read the whole library as a table, by topic ('+n+')':'Read '+(cat==='📖 In depth'?'the in-depth cases':cat==='⚠ Check first'?'the “check first” cases':'“'+cat+'”')+' as a table ('+n+')')+'</span>'; } }
+    let html='', cur='', letters=new Set();
+    for(const c of items){
+      const L=(caseSurname(c.n)[0]||'#').toUpperCase().replace(/[^A-Z]/,'#');
+      if(L!==cur&&!q){cur=L;letters.add(L);html+=`<div class="letterhead" id="L${L}">${L}</div>`;}
+      html+=`<div class="cslot"><button class="ixrow case cshead"><span class="term">${esc(c.n)}</span>
+        <div class="refs">${deepOf(c.n)?'<span class="deeppill" title="Written up in depth">📖 in depth</span>':''}${c.chk?'<span class="chkpill" title="Checked summary">✓ checked</span>':c.warn?'<span class="warnpill" title="Couldn’t be confirmed — check before citing">⚠ check first</span>':''}<span class="catpill">${esc(c.cat||'General')}</span> ${c.c.filter(Boolean).length?esc(c.c.filter(Boolean).slice(0,2).join(' · ')):'cited in text'} · ${c.p.length?c.p.length+'pp':esc(c.court||'')+(c.y?' '+c.y:'')} ▾</div>
+        <div class="csdesc">${esc(clip(c.d||'',150))}</div></button>
+        <div class="csbody hidden">
+          ${!c.chk&&c.warn?'<div class="cs-warn">'+(window.GRI?GRI('triangle-alert'):'⚠')+'<span>'+esc(c.warn)+'</span></div>':''}
+          ${c.chk?`<button class="cssum" data-n="${esc(c.n)}"><b>Held</b> — ${esc((c.f&&c.f.held)||c.d||'')}${c.why?`<span><b>On the job</b> — ${esc(c.why)}</span>`:''}<em>Open the full summary ›</em></button>`:''}
+          ${c.s.map(sn=>`<button class="cssnip" data-a="${sn.a}"><b>${esc(pageLabel(sn.a))}</b> — ${esc(sn.t)}</button>`).join('')}
+          <div class="cspages">${c.p.map(p=>`<button class="cspg" data-a="${p}">${esc(pageLabel(p))}</button>`).join('')}</div>
+          <button class="csall" data-n="${esc(c.n)}">⌕ Every mention in full text</button>
+        </div></div>`;
+    }
+    list.innerHTML=essHtml+(html||'<div class="empty">No case matches.</div>');
+    list.querySelectorAll('.esshit').forEach(b=>b.addEventListener('click',()=>{caseQ=b.dataset.n;renderIndex();}));
+    rail.innerHTML=q?'':[...letters].map(L=>`<button class="al" data-l="${L}">${L}</button>`).join('');
+    rail.querySelectorAll('.al').forEach(a=>a.addEventListener('click',()=>{const el=document.getElementById('L'+a.dataset.l);if(el)el.scrollIntoView();}));
+    list.querySelectorAll('.cshead').forEach(h=>{
+      h.addEventListener('click',()=>h.nextElementSibling.classList.toggle('hidden'));
+      const nm=h.querySelector('.term');if(nm)nm.addEventListener('click',e=>{e.stopPropagation();openCase(nm.textContent);});
+    });
+    list.querySelectorAll('.cssnip,.cspg').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.a)));
+    list.querySelectorAll('.cssum').forEach(b=>b.addEventListener('click',()=>openCase(b.dataset.n)));
+    list.querySelectorAll('.csall').forEach(b=>b.addEventListener('click',()=>{
+      searchFor(b.dataset.n.replace(/^(The\s)?(People\s\((DPP|AG)\)|DPP)\sv\s/i,'').trim());
+    }));
+  };
+  draw();
+  const cq=$('#cq'); let t;
+  cq.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(()=>{caseQ=cq.value;draw();},150);});
+}
+
+/* ---------- TOOLS (session-only state, no case data) ---------- */
+const TOOLS=[
+ {id:'advokate',title:'ADVOKATE — identification',src:975,items:[
+  'A — Amount of time the witness had the suspect in view',
+  'D — Distance between witness and suspect',
+  'V — Visibility: light, weather, obstructions to sight',
+  'O — Obstruction: anything blocking the view, and for how long',
+  'K — Known or seen before? How, when, where',
+  'A — Any reason to remember this person',
+  'T — Time lapse between sighting and description',
+  'E — Errors or discrepancies between description and appearance']},
+ {id:'fivepart',title:'5-part statement structure',src:974,items:[
+  '1 — Introduction: who the witness is, capacity, how they came to be there',
+  '2 — Scene-setting: date, time, place, light, sobriety, vantage',
+  '3 — The incident: chronological account, points to prove covered',
+  '4 — Aftermath & impact: injuries, medical, fear, loss, effect',
+  '5 — Evidential anchors: ADVOKATE, exhibits, quotes, continuity']},
+ {id:'inference',title:'Inference interview aide — ss.18 / 19 / 19A CJA 1984',src:955,items:[
+  'Arrested and detained — offence carries 5+ years',
+  'Solicitor: reasonable opportunity to consult given',
+  'Ordinary caution administered first',
+  'Interview electronically recorded',
+  's.18 — object / substance / mark: specify it, state your belief, ask to account',
+  's.19 — presence at a place: specify place and time, state belief, ask to account',
+  's.19A — fact relied on in defence that was not mentioned when questioned',
+  'Special caution in ordinary language: offence, what inference may be drawn, effect of failure',
+  'Accused told a record is being made and given opportunity to consult solicitor before failure counts',
+  'Remember: inference corroborates only — no conviction on inference alone']}];
+TOOLS.push(
+ {id:'arrest',title:'Arrest — lawful essentials',src:40,items:[
+  'Power identified: statutory or common law — name it',
+  'Reasonable suspicion grounds noted (what you saw / heard / knew)',
+  'Suspect told they are under arrest',
+  'Told the reason in ordinary language (Christie v Leachinsky)',
+  'Caution administered and noted verbatim',
+  'Replies after caution recorded',
+  'Force used: minimum, proportionate, recorded',
+  'Custody record commenced on arrival']},
+ {id:'scene',title:'First at scene — preserve it',items:[
+  'Scene safe — casualties first, then preservation',
+  'Cordon set wider than you think you need',
+  'Single entry/exit route established',
+  'Scene log started: everyone in/out, times',
+  'Nothing touched, moved, or walked through',
+  'CCTV identified — request preservation NOW (it overwrites)',
+  'Witnesses identified and separated',
+  'Weather / perishable evidence protected',
+  'Notify: member i/c, SOCO, D/unit as required']},
+ {id:'warrant',title:'Search warrant — execution',src:42,items:[
+  'Warrant in date and for THIS premises — read it',
+  'Named member present as required',
+  'Announce, demand entry, show warrant',
+  'Copy given / shown to occupier',
+  'Search within scope of the warrant only',
+  'Seizures itemised contemporaneously',
+  'Exhibits: bagged, sealed, labelled, logged',
+  'Premises secured on departure; record condition']},
+ {id:'exhibit',title:'Exhibit seizure & continuity',src:945,items:[
+  'Photographed in situ before touching',
+  'Gloves / appropriate handling',
+  'Unique exhibit ref (initials + number)',
+  'Bagged and sealed at the scene',
+  'Label: what, where, when, who found',
+  'Every handover recorded — person, date, purpose',
+  'PEMS entry completed',
+  'Memo of finding in your statement']},
+ {id:'victim',title:'Victim first contact — 2017 Act',src:179,items:[
+  'Information on rights given at first contact',
+  'Needs / vulnerability assessment done',
+  'Special measures considered (screens, video-link, intermediary)',
+  'Letter of Rights / contact details provided',
+  'Updates: arrest, charge, bail — victim informed',
+  'VIS explained for sentence stage',
+  'Referral: support services offered']});
+const TOOLS_MENU=[
+ ['On the job',[
+  ['clock','timer','Detention clock','s.4 · s.30 · DTA 1996 · s.50 — extensions, excluded periods, alerts'],
+  ['gaol','users','Gaoler · cell checks','Cell board · buzz 2 min before each check · check log'],
+  ['patrol','walk','Proactive patrol','Where you walked and when — stops, street names, patrol log'],
+  ['firstaid','heart-pulse','Medical emergency','112/999 · CPR metronome · 22 conditions · incident log','red'],
+  ['nb','notebook-pen','Notebook entries','Every offence, search and incident · complaint-proof entry'],
+  ['rs','brain','Reasonable suspicion','Think it through · numbered grounds for your notebook'],
+  ['ptp','shield','Points to prove','20 offence cards — elements & arrest power'],
+  ['major','siren','Major incident','First response · golden hour'],
+  ['cautions','triangle-alert','Cautions & declarations','Caution wording · pre-caution questioning · declarations'],
+  ['caution','message-square-quote','Caution — when & case law','Questioning · statement declarations · key cases']]],
+ ['My work',[
+  ['tasks','square-check','Tasks','CCTV · arrests · deadlines · follow-ups · photograph a list'],
+  ['roster','calendar-days','My roster','Shift pattern · today & next tour · leave, court, swaps'],
+  ['notes','notebook-pen','Notes','Sketches · photos · checklists · lock'],
+  ['rec','mic','Voice recorder','Record with markers — kept on this phone'],
+  ['scan','scan-text','Document scanner','Flatten · clean up · multi-page PDF'],
+  ['pres','monitor','Present to TV','Photos & CCTV via Smart View, DeX or cast']]],
+ ['Paperwork',[
+  ['guides','file-text','Statement guides','What to capture, per offence'],
+  ['sten','layout-template','My stencils','Your templates — tap to copy'],
+  ['tpl','mail','Templates & forms','CCTV preservation · s.41 DP · passport · welfare'],
+  ['exhibits','clipboard-list','Exhibits builder','SMG1–99 · continuity · copy for report'],
+  ['cctv','cctv','CCTV preservation','Generate the request text'],
+  ['cctvst','file-pen','CCTV continuity statement','Print and fill in by pen · plain or tick boxes'],
+  ['checks','list-checks','Checklists','Scene · arrest · warrant · exhibits · interview · ID']]],
+ ['Law & guides',[
+  ['guides2','book-open','Deep guides','Searches · weapons · RTC · précis · missing person'],
+  ['searchp','user-search','Search of the person','Guided: power · grounds · what to say · what to record'],
+  ['weapons','swords','Weapons & knives','Offences · search · seizure'],
+  ['rtc','car-front','Traffic collision','Investigation guide'],
+  ['escooter','route','E-scooters','Status · charges · collisions'],
+  ['seizure','key','Seizure powers','Quick reference'],
+  ['lang','languages','Latin & acronyms','Legal terms · ABC · MMO · ADVOKATE · PEACE'],
+  ['latin','scroll','Latin & legal terms','Meaning & Garda use'],
+  ['acronyms','book-text','Acronyms','ABC · MMO · ADVOKATE …']]],
+ ['Live',[
+  ['judg','gavel','Judgments search','BAILII Ireland — Supreme · Appeal · High Court'],
+  ['courtlists','calendar-clock',"Court lists — who's on",'CCJ & all Dublin courts — official Legal Diary'],
+  ['wanted','user-search','Most wanted','Interpol · FBI · Europe · UK · wanted by Ireland — live']]],
+ ['Utilities',[
+  ['toolbox','toolbox','Toolbox','Ruler · measure · evidence camera · level · compass · torch · timers · QR']]],
+ ['Settings',[
+  ['display','palette','Look, theme & text size','Eleven looks · nine colour themes · light and dark · text size'],
+  ['sync','cloud','Sync across devices','Tasks · My roster · Saved — encrypted, in your own Google Drive'],
+  ['applock','lock','App lock','Username and password to open Assisting'],
+  ['aikey','sparkles','AI search','Your Anthropic key · what is sent · cost'],
+  ['about','info','About Assisting','Version · disclaimer · what stays on this phone']]]
+];
+function lrow(v,ic,t,sub,cls,attr){ return `<button class="lrow${cls?' '+cls:''}" ${attr||'data-v'}="${esc(v)}">${GRI(ic)}<span class="lt"><b>${esc(t)}</b>${sub?`<small>${esc(sub)}</small>`:''}</span>${GRI('chevron-right','chev')}</button>`; }
+function renderTools(){
+  view.innerHTML=`<div class="tabroot" data-tab="tools" hidden></div>`+TOOLS_MENU.map(([g,rows])=>`<h2 class="sec">${esc(g)}${g==='Live'?'<span class="sec-r">Needs signal</span>':''}</h2><div class="lgrp">${rows.map(r=>lrow(r[0],r[1],r[2],r[3],r[4])).join('')}</div>`).join('');
+  $$('#view .lrow[data-v]').forEach(b=>b.addEventListener('click',()=>{
+    const v=b.dataset.v;
+    if(v==='toolbox'){ if(window.openToolbox) openToolbox(); return; }
+    if(v==='patrol'){ if(window.openPatrol) openPatrol(); return; }
+    if(v==='cctvst'){ if(window.GRForms) GRForms.open('cctv'); return; }
+    if(v==='gaol'){ if(window.openGaol) openGaol(); return; }
+    if(v==='wanted'){ renderWanted(); return; }
+    if(v==='searchp'){ if(window.renderSearchPerson) window.renderSearchPerson(); return; }
+    if(v==='nb'){ if(window.renderNBLib) renderNBLib(); return; }
+    if(v==='rs'){ if(window.renderRS) renderRS(); return; }
+    if(v==='firstaid'){ if(window.openFirstAid) openFirstAid(); return; }
+    if(v==='tasks'){ if(window.openTasks) openTasks(); return; }
+    if(v==='roster'){ if(window.openRoster) openRoster(); return; }
+    if(v==='notes'){ if(window.openNotes) openNotes(); return; }
+    if(v==='rec'){ if(window.openRecorder) openRecorder(); return; }
+    if(v==='scan'){ if(window.openScanner) openScanner(); return; }
+    if(v==='pres'){ if(window.openPresent) openPresent(); return; }
+    if(v==='aikey'){ if(window.GRSearch) GRSearch.settings(); return; }
+    if(v==='about'){ renderAbout(); return; }
+    if(v==='display'){ displaySheet(); return; }
+    if(v==='sync'){ if(window.openSync) openSync(); return; }
+    if(v==='homelayout'){ homeEditOpen(); return; }
+    if(v==='applock'){ if(window.GRLock)GRLock.sheet(); return; }
+    if(v==='clock'){ if(window.openDetention){ openDetention(); return; } renderClock();}
+    else if(v==='ptp')renderPTP();
+    else if(v==='guides')renderGuides();
+    else if(v==='sten')renderStencils();
+    else if(v==='checks')renderChecklists();
+    else if(v==='major')renderMajor();
+    else if(v==='caution')renderCaution();
+    else if(v==='exhibits')renderExhibits();
+    else if(v==='cctv')renderCCTV();
+    else if(['weapons','searches','rtc','escooter','seizure'].includes(v))renderKBtopic(v);
+    else if(v==='latin')renderLatin();
+    else if(v==='acronyms')renderAcronyms();
+    else if(v==='cautions')renderCautions();
+    else if(v==='tpl')renderTemplates();
+    else if(v==='lang')renderLang();
+    else if(v==='guides2')renderDeep();
+    else if(v==='courtlists')renderCourtLists();
+    else renderJudgments();
+  }));
+  view.scrollTop=0;
+}
+function renderAbout(){
+  view.innerHTML=`<h2 class="sec">About Assisting</h2>
+  <div class="tool"><div class="gtxt"><b>Assisting</b> is an independent operational reference tool. It is <b>not an official Garda system</b> and is not endorsed by An Garda Síochána. Nothing in it is legal advice — verify current wording and follow direction from your member in charge.</div></div>
+  <div class="tool"><h3>What stays on this phone</h3><div class="gtxt">Your notes, tasks, roster, patrols, recordings, scans and saved pages are stored only on this phone. Nothing is uploaded. Clearing the app's site data deletes them.</div></div>
+  <div class="tool"><h3>What uses the internet</h3><div class="gtxt">Live cameras, news, radio, judgments, court lists, map tiles and street names need signal. AI search sends your question and the matching extracts from the app's reference content (never your own notes, tasks or patrols) to Anthropic, using your own key.</div></div>
+  <div class="tool"><h3>Version</h3><div class="gtxt">${esc(window.GRVER||'')}</div></div>`;
+  view.scrollTop=0;
+}
+function kbHead(t){return `<button class="chip" id="backT" style="margin-bottom:8px">‹ Tools</button><h2 class="sec">${esc(t)}</h2>`;}
+function cardHTML(c){return `<div class="tool"><h3>${esc(c.h)}</h3><div style="font-size:13.5px;line-height:1.55">${esc(c.body)}</div>`+(c.tag?'':'')+`</div>`;}
+function copyBtnHtml(txt,label){const id='cp'+Math.random().toString(36).slice(2,7);
+  setTimeout(()=>{const b=document.getElementById(id);if(b)b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(txt);b.textContent='✓ Copied';}catch(e){b.textContent='Copy failed';}});},0);
+  return `<button class="csall" id="${id}">⧉ ${label||'Copy'}</button>`;}
+function renderCaution(){
+  const K=KB.caution;
+  let h=kbHead('🗣 '+K.t)+`<div class="rbox note">${esc(K.intro)}</div>`;
+  h+=K.cards.map(c=>`<div class="tool"><h3>${esc(c.h)}</h3><div style="font-size:13.5px;line-height:1.55">${esc(c.body)}</div>${copyBtnHtml(c.body,'Copy text')}</div>`).join('');
+  h+='<h2 class="sec">Related case law — know before you caution</h2>';
+  h+=K.cases.map(c=>`<button class="hit" data-n="${esc(c.n)}"><div class="h-title"><i>${esc(c.n)}</i></div><div class="h-snip" style="color:var(--ink)">${esc(c.p)}</div></button>`).join('');
+  view.innerHTML=h;wireBack();
+  $$('#view .hit').forEach(b=>b.addEventListener('click',()=>{const c=CASES.find(x=>x.n===b.dataset.n);if(c)openCase(c.n);else searchFor(b.dataset.n);}));
+  view.scrollTop=0;
+}
+function renderKBtopic(v){
+  const K=KB[v];let h=kbHead((K.emoji||'')+' '+K.t);
+  if(K.intro)h+=`<div class="rbox note">${esc(K.intro)}</div>`;
+  if(K.cards)h+=K.cards.map(c=>`<div class="tool"><h3>${esc(c.h)}</h3><div style="font-size:13.5px;line-height:1.55">${esc(c.body)}</div></div>`).join('');
+  if(K.sections)h+=K.sections.map(sec=>`<div class="tool"><h3>${esc(sec.h)}</h3><ul class="rlist" style="color:var(--ink)">${sec.items.map(i=>'<li>'+esc(i)+'</li>').join('')}</ul></div>`).join('');
+  if(K.items)h+='<div class="tool">'+K.items.map(([a,b])=>`<div style="padding:8px 0;border-bottom:1px solid var(--navy3)"><b style="color:var(--gold)">${esc(a)}</b><div style="font-size:13.5px">${esc(b)}</div></div>`).join('')+'</div>';
+  view.innerHTML=h;wireBack();view.scrollTop=0;
+  nbBar(NBK[v],view);
+}
+function renderLatin(){
+  const K=KB.latin;let h=kbHead('📜 '+K.t)+`<div class="searchbox" style="position:static"><input id="lxq" type="search" placeholder="Filter terms…"></div><div id="lxl"></div>`;
+  view.innerHTML=h;wireBack();
+  const draw=q=>{q=(q||'').toLowerCase();
+    $('#lxl').innerHTML='<div class="tool">'+K.terms.filter(([a,b])=>!q||a.toLowerCase().includes(q)||b.toLowerCase().includes(q))
+      .map(([a,b])=>`<div style="padding:8px 0;border-bottom:1px solid var(--navy3)"><b style="color:var(--gold);font-style:italic">${esc(a)}</b><div style="font-size:13.5px">${esc(b)}</div></div>`).join('')+'</div>';};
+  draw();let t;$('#lxq').addEventListener('input',e=>{clearTimeout(t);t=setTimeout(()=>draw(e.target.value),120);});
+  view.scrollTop=0;
+}
+function renderAcronyms(){
+  const K=KB.acronyms;
+  view.innerHTML=kbHead('🔤 '+K.t)+'<div class="tool">'+K.items.map(([a,b])=>`<div style="padding:9px 0;border-bottom:1px solid var(--navy3)"><b style="color:var(--gold)">${esc(a)}</b><div style="font-size:13.5px">${esc(b)}</div></div>`).join('')+'</div>';
+  wireBack();view.scrollTop=0;
+}
+function renderPreserve(){ if(!window.GRPreserve){ toast&&toast('Reload the app to use this'); return; } GRPreserve.render(view,kbHead('📨 Preservation request'),()=>{ wireBack(); view.scrollTop=0; }); }
+function renderCCTV(){
+  view.innerHTML=kbHead('📧 CCTV preservation request')+`
+  <div class="tool">
+    <label class="flab">Premises / holder</label><input class="fin" id="cvHolder" placeholder="e.g. Centra, 12 Main St">
+    <label class="flab">Location searched on Google (optional)</label><input class="fin" id="cvSearch" placeholder="business name + area">
+    <button class="csall" id="cvGmap">🔎 Find contact on Google</button>
+    <label class="flab">Incident date & time</label><input class="fin" id="cvWhen" placeholder="28/06/2026, approx 03:30">
+    <label class="flab">Camera(s) / area of interest</label><input class="fin" id="cvArea" placeholder="front door + footpath">
+    <label class="flab">Your details</label><input class="fin" id="cvYou" placeholder="Garda [Name] [Reg], [Station], [tel]">
+    <label class="flab">PULSE / ref (optional)</label><input class="fin" id="cvRef" placeholder="incident ref">
+    <button class="csall" id="cvGen">Generate request</button>
+  </div>
+  <div id="cvOut"></div>
+  <div class="toolnote">Generates text only. Copy it onto your station headed paper and send it yourself. The parallel s.41B request to your district office must be raised through your own Garda email — this app cannot and must not send it for you.</div>`;
+  wireBack();
+  $('#cvGmap').addEventListener('click',()=>{const q=encodeURIComponent(($('#cvSearch').value||$('#cvHolder').value||'')+' contact');window.open('https://www.google.com/search?q='+q,'_blank');});
+  $('#cvGen').addEventListener('click',()=>{
+    const g=id=>($('#'+id).value||'').trim();
+    const body=`Re: Preservation and provision of CCTV — request under investigation${g('cvRef')?' (Ref: '+g('cvRef')+')':''}\n\nTo the occupier / data controller, ${g('cvHolder')||'[premises]'},\n\nAn Garda Síochána is investigating an incident that occurred on ${g('cvWhen')||'[date/time]'} in your vicinity. Your CCTV system may hold footage of evidential value covering ${g('cvArea')||'[area]'}.\n\nI request that you PRESERVE and do not overwrite or delete any CCTV footage for a period of at least two hours before and after the above time, and retain it pending formal collection. CCTV is routinely overwritten within days, so prompt preservation is essential.\n\nA member of An Garda Síochána will attend to view and, where appropriate, take possession of relevant footage. A formal data-access request will follow through the appropriate channel.\n\nPlease confirm preservation by contacting me.\n\n${g('cvYou')||'Garda [Name] [Reg], [Station], [tel]'}\nAn Garda Síochána`;
+    $('#cvOut').innerHTML='<div class="tool"><h3>Preservation request</h3><div style="font-size:13px;white-space:pre-wrap;line-height:1.5">'+esc(body)+'</div>'+copyBtnHtml(body,'Copy request')+'<button class="csall" id="cvDl">⬇ Download as Word</button></div>'
+      +'<div class="tool"><h3>Reminder — s.41B parallel step</h3><div style="font-size:13px;line-height:1.5">Raise the s.41B Data Protection Act 2018 request on your official Garda email and forward to the District Office for the Superintendent\'s signature. Do this yourself through Garda systems — never through this app.</div></div>';
+    const dl=$('#cvDl'); if(dl)dl.addEventListener('click',()=>downloadDoc('CCTV preservation request'+(g('cvHolder')?' — '+g('cvHolder'):''),body));
+    // rewire copy
+    const t=$('#cvOut'); t.scrollIntoView({behavior:'smooth'});
+  });
+  view.scrollTop=0;
+}
+function dictate(item,draw,save){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('Voice dictation not supported in this browser. Type instead.');return;}
+  const r=new SR();r.lang='en-IE';r.interimResults=false;
+  r.onresult=e=>{const t=e.results[0][0].transcript;item.desc=(item.desc?item.desc+' ':'')+t;save();draw();};
+  r.onerror=()=>{};
+  r.start();
+}
+
+function blocksHTML(bl){return bl.map(b=>`<div class="tool"><h3>${esc(b.h)}</h3><div class="gtxt">${esc(b.t).replace(/\n/g,'<br>')}</div></div>`).join('');}
+function copyBtn(id,txt){
+  setTimeout(()=>{const b=document.getElementById(id);if(!b)return;
+    b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(txt);const o=b.textContent;b.textContent='✓ Copied';setTimeout(()=>b.textContent=o,1600);}catch(e){b.textContent='Copy failed — long-press the text';}});},0);
+}
+function renderCautions(){
+  const C=OPS2.cautions,D=OPS2.declarations;
+  view.innerHTML=`<button class="chip" id="backT">‹ Tools</button><h2 class="sec">${esc(C.title)}</h2>${blocksHTML(C.blocks)}<h2 class="sec">${esc(D.title)}</h2><div id="decl"></div>`;
+  wireBack();
+  $('#decl').innerHTML=D.items.map((d,i)=>`<div class="cslot"><button class="ixrow cshead"><span class="term" style="font-style:normal;font-weight:700">${esc(d.n)}</span><div class="refs">▾</div></button><div class="csbody hidden"><div class="gtxt declbox">${esc(d.t).replace(/\n/g,'<br>')}</div><button class="csall" id="dc${i}">⧉ Copy</button></div></div>`).join('');
+  $$('#decl .cshead').forEach(h=>h.addEventListener('click',()=>h.nextElementSibling.classList.toggle('hidden')));
+  D.items.forEach((d,i)=>copyBtn('dc'+i,d.t));
+  view.scrollTop=0;
+}
+function renderTemplates(){
+  const cats=[...new Set(TPL.map(t=>t.cat))];
+  let h='<button class="chip" id="backT">‹ Tools</button>';
+  for(const c of cats){h+=`<h2 class="sec">${esc(c)}</h2>`;
+    TPL.forEach((t,i)=>{if(t.cat!==c)return;h+=`<button class="hit" data-i="${i}"><div class="h-title">${esc(t.t)}</div>${t.sub?`<div class="h-loc">${esc(t.sub)}</div>`:''}</button>`;});}
+  h+='<div class="toolnote">Fill the [BRACKETS] before sending. Anything needing a Superintendent signature goes via your official email to the District Office — never issue it under your own name.</div>';
+  view.innerHTML=h;wireBack();
+  $$('#view .hit').forEach(b=>b.addEventListener('click',()=>openTemplate(+b.dataset.i)));
+  view.scrollTop=0;
+}
+function openTemplate(i){
+  const t0=TPL[i], t=Object.assign({},t0,{b:reflow(t0.b)});
+  view.innerHTML=`<button class="chip" id="backT2">‹ Templates</button><h2 class="sec">${esc(t.t)}</h2>
+  ${t.sub?`<div class="tool"><h3>Subject</h3><div class="gtxt">${esc(t.sub)}</div><button class="csall" id="cs">⧉ Copy subject</button></div>`:''}
+  <div class="tool"><div class="gtxt tplbody">${paraHtml(esc(t.b))}</div></div>
+  <button class="csall" id="cb">⧉ Copy full text</button>
+  <button class="csall" id="dlw">⬇ Download as Word</button>
+  ${t.sub?'<button class="csall" id="mb">✉️ Open in email app</button>':''}`;
+  $('#backT2').addEventListener('click',renderTemplates);
+  copyBtn('cb',t.b); if(t.sub)copyBtn('cs',t.sub);
+  $('#dlw').addEventListener('click',()=>downloadDoc(t.t,t.b));
+  const mb=$('#mb'); if(mb)mb.addEventListener('click',()=>{window.location.href='mailto:?subject='+encodeURIComponent(t.sub)+'&body='+encodeURIComponent(t.b);});
+  view.scrollTop=0;
+}
+// Exhibit log: the list lives in memory for this session only (never stored); only the prefix is remembered.
+let EXH=[];
+let exhPrefix=(()=>{ try{ return localStorage.getItem('gr_exhpre')||'SMG'; }catch(e){ return 'SMG'; } })();
+function saveExh(){ /* session only by design — nothing written to the phone */ }
+function renderExhibits(){
+  const rec=('webkitSpeechRecognition' in window)||('SpeechRecognition' in window);
+  view.innerHTML=`<button class="chip" id="backT">‹ Tools</button><h2 class="sec">📦 Exhibit log — session only</h2>
+  <div class="tool">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <input id="pre" value="${esc(exhPrefix)}" style="width:74px;padding:9px;border-radius:8px;border:1px solid var(--navy3);background:var(--navy);color:var(--gold);font-weight:800;text-align:center">
+      <span style="color:var(--ink-dim);font-size:13px">next: <b style="color:var(--gold)">${esc(exhPrefix)}${EXH.length+1}</b></span>
+    </div>
+    <textarea id="edesc" rows="3" placeholder="What it is · where found · when · by whom" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--navy3);background:var(--navy);color:var(--ink);font-size:14px"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      ${rec?'<button class="csall" id="mic" style="flex:1;margin:0">🎤 Speak it</button>':''}
+      <button class="csall" id="addE" style="flex:1;margin:0">+ Add exhibit</button>
+    </div>
+  </div><div id="elist"></div>
+  ${EXH.length?'<button class="csall" id="copyAll">⧉ Copy exhibit schedule</button><button class="toolreset" id="clrE">Clear all</button>':''}
+  <div class="toolnote">Session-only — cleared when you close the app. Never a substitute for PEMS or your notebook.</div>`;
+  wireBack();
+  $('#pre').addEventListener('change',e=>{exhPrefix=(e.target.value||'SMG').toUpperCase().trim();localStorage.setItem('gr_exhpre',exhPrefix);renderExhibits();});
+  $('#elist').innerHTML=EXH.map((x,i)=>`<div class="cslot"><div class="ixrow" style="display:flex;gap:10px;align-items:flex-start"><b style="color:var(--gold)">${esc(exhPrefix)}${i+1}</b><span style="flex:1;font-size:14px">${esc(x.d)}<div class="refs">${esc(x.t)}</div></span><button class="unsave" data-i="${i}" style="width:36px;height:36px;font-size:15px">✕</button></div></div>`).join('');
+  $$('#elist .unsave').forEach(b=>b.addEventListener('click',()=>{EXH.splice(+b.dataset.i,1);saveExh();renderExhibits();}));
+  $('#addE').addEventListener('click',()=>{const d=$('#edesc').value.trim();if(!d)return;
+    EXH.push({d,t:new Date().toLocaleString('en-IE',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})});saveExh();renderExhibits();});
+  const ca=$('#copyAll'); if(ca)copyBtn('copyAll',EXH.map((x,i)=>exhPrefix+(i+1)+' — '+x.d).join('\n'));
+  const cl=$('#clrE'); if(cl)cl.addEventListener('click',()=>{if(confirm('Clear all exhibits?')){EXH=[];saveExh();renderExhibits();}});
+  const mic=$('#mic');
+  if(mic)mic.addEventListener('click',()=>{
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const r=new SR();r.lang='en-IE';r.interimResults=false;
+    mic.textContent='🔴 Listening…';
+    r.onresult=e=>{const ta=$('#edesc');ta.value=(ta.value?ta.value+' ':'')+e.results[0][0].transcript;mic.textContent='🎤 Speak it';};
+    r.onerror=()=>{mic.textContent='🎤 Mic unavailable — type it';};
+    r.onend=()=>{if(mic.textContent==='🔴 Listening…')mic.textContent='🎤 Speak it';};
+    r.start();
+  });
+  view.scrollTop=0;
+}
+function renderLang(){
+  const L=OPS2.latin,A=OPS2.acronyms;
+  view.innerHTML=`<button class="chip" id="backT">‹ Tools</button><div class="searchbox" style="position:static"><input id="lqq" type="search" placeholder="Find a term… res gestae, ABC, ADVOKATE"></div><div id="langout"></div>`;
+  wireBack();
+  const draw=q=>{
+    q=(q||'').toLowerCase();
+    const lat=L.items.filter(x=>!q||(x.t+x.m+x.u).toLowerCase().includes(q));
+    const ac=A.items.filter(x=>!q||(x.t+x.m).toLowerCase().includes(q));
+    let h='';
+    if(ac.length)h+=`<h2 class="sec">${esc(A.title)}</h2>`+ac.map(x=>`<div class="cslot"><div class="ixrow"><b style="color:var(--gold)">${esc(x.t)}</b><div class="csdesc" style="color:var(--ink)">${esc(x.m)}</div></div></div>`).join('');
+    if(lat.length)h+=`<h2 class="sec">${esc(L.title)}</h2>`+lat.map(x=>`<div class="cslot"><div class="ixrow"><b style="color:var(--gold);font-style:italic">${esc(x.t)}</b><div class="csdesc" style="color:var(--ink)">${esc(x.m)}</div><div class="refs">Use: ${esc(x.u)}</div></div></div>`).join('');
+    $('#langout').innerHTML=h||'<div class="empty">No match.</div>';
+  };
+  draw();let t;$('#lqq').addEventListener('input',e=>{clearTimeout(t);t=setTimeout(()=>draw(e.target.value),140);});
+  view.scrollTop=0;
+}
+function renderDeep(g){
+  const G=[['searches',OPS2.searches],['weapons',OPS2.weapons],['rtc',OPS2.rtc],['precis',OPS2.precis],['missing',OPS2.missing],['exhibitsHelp',OPS2.exhibitsHelp]];
+  if(!g){
+    view.innerHTML='<button class="chip" id="backT">‹ Tools</button><h2 class="sec">📚 Deep guides</h2><div class="toolmenu">'
+      +G.map(([k,v])=>`<button class="tmenu" data-g="${k}"><b>${esc(v.title)}</b></button>`).join('')
+      +`<button class="tmenu" data-g="door"><b>${esc(OPS2.door.title)}</b></button></div>`;
+    wireBack();
+    $$('#view .tmenu').forEach(b=>b.addEventListener('click',()=>renderDeep(b.dataset.g)));
+    view.scrollTop=0;return;
+  }
+  if(g==='door'){
+    const D=OPS2.door;
+    view.innerHTML=`<button class="chip" id="backD">‹ Deep guides</button><h2 class="sec">${esc(D.title)}</h2>`
+      +D.items.map((it,i)=>{const on=toolState['dd'+i];return `<div class="ck ${on?'done':''}" data-k="dd${i}"><div class="box">${on?'✓':''}</div><div class="lb">${esc(it)}</div></div>`;}).join('')
+      +'<button class="csall" id="cpq">⧉ Copy questionnaire</button>';
+    $('#backD').addEventListener('click',()=>renderDeep());
+    $$('#view .ck').forEach(c=>c.addEventListener('click',()=>{const k=c.dataset.k;toolState[k]=!toolState[k];
+      c.classList.toggle('done',toolState[k]);c.querySelector('.box').textContent=toolState[k]?'✓':'';}));
+    copyBtn('cpq',D.items.map((x,i)=>(i+1)+'. '+x).join('\n'));
+    view.scrollTop=0;return;
+  }
+  const V=OPS2[g];
+  view.innerHTML=`<button class="chip" id="backD">‹ Deep guides</button><h2 class="sec">${esc(V.title)}</h2>${blocksHTML(V.blocks)}`;
+  $('#backD').addEventListener('click',()=>renderDeep());
+  nbBar(NBK[g],view);
+  view.scrollTop=0;
+}
+let rdScale=parseFloat(localStorage.getItem('gr_rdscale')||'1');
+function applyRdScale(){const fs=((document.documentElement.classList.contains('rd-roomy')?16.5:14.5)*rdScale).toFixed(1)+'px';rdBody.style.fontSize=fs;rdBody.style.setProperty('--rdfs',fs);localStorage.setItem('gr_rdscale',String(rdScale));}
+(function pinch(){
+  let d0=null,s0=1;
+  const dist=e=>Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  document.addEventListener('touchstart',e=>{if(e.target.closest&&e.target.closest('.rd-body')&&e.touches.length===2){d0=dist(e);s0=rdScale;}},{passive:true});
+  document.addEventListener('touchmove',e=>{if(d0&&e.touches.length===2){rdScale=Math.min(2.2,Math.max(0.75,s0*(dist(e)/d0)));applyRdScale();}},{passive:true});
+  document.addEventListener('touchend',()=>{ if(d0&&book.on)bookRelayout(); d0=null;},{passive:true});
+})();
+function wireBack(){const b=$('#backT');if(b)b.addEventListener('click',()=>{ if(window.grBack)grBack(); else{setTab('tools');render();} });}
+function renderChecklists(){
+  const GRP=[['On scene',['scene','warrant','exhibit','arrest']],
+   ['Custody & interview',['inference']],['Statements & identification',['advokate','fivepart','victim']]];
+  view.innerHTML=`<button class="chip" id="backT" style="margin-bottom:8px">‹ Tools</button>
+  <div class="searchbox" style="position:static"><input id="tq" type="search" placeholder="Find a checklist… warrant, scene, ADVOKATE"></div><div id="toolList"></div>`;
+  wireBack();
+  const draw=q=>{
+    q=(q||'').toLowerCase();let out='';
+    for(const[g,ids]of GRP){
+      const ts=TOOLS.filter(t=>ids.includes(t.id)&&(!q||t.title.toLowerCase().includes(q)||t.items.join(' ').toLowerCase().includes(q)));
+      if(!ts.length)continue;
+      out+=`<h2 class="sec">${g}</h2>`;
+      for(const t of ts){
+        const done=t.items.filter((_,i)=>toolState[t.id+i]).length;
+        out+=`<div class="cslot"><button class="ixrow cshead"><span class="term" style="font-style:normal;font-weight:700">${esc(t.title)}</span>
+        <div class="refs">${done?done+'/'+t.items.length+' · ':''}${t.items.length} steps ▾</div></button><div class="csbody ${q?'':'hidden'}">`;
+        t.items.forEach((it,i)=>{const on=toolState[t.id+i];
+          out+=`<div class="ck ${on?'done':''}" data-t="${t.id}" data-i="${i}"><div class="box">${on?'✓':''}</div><div class="lb">${esc(it)}</div></div>`;});
+        out+=`${t.src?`<button class="csall srcbtn" data-a="${t.src}">Open source pages (${esc(pageLabel(t.src))})</button>`:''}
+        <button class="toolreset" data-t="${t.id}" data-n="${t.items.length}">Reset</button></div></div>`;
+      }
+    }
+    out+='<div class="toolnote">Ticks are session-only — nothing stored, nothing sent.</div>';
+    $('#toolList').innerHTML=out;
+    $$('#toolList .cshead').forEach(h=>h.addEventListener('click',()=>h.nextElementSibling.classList.toggle('hidden')));
+    $$('#toolList .ck').forEach(c=>c.addEventListener('click',()=>{const k=c.dataset.t+c.dataset.i;toolState[k]=!toolState[k];
+      c.classList.toggle('done',toolState[k]);c.querySelector('.box').textContent=toolState[k]?'✓':'';}));
+    $$('#toolList .toolreset').forEach(b=>b.addEventListener('click',()=>{for(let i=0;i<+b.dataset.n;i++)delete toolState[b.dataset.t+i];draw($('#tq').value);}));
+    $$('#toolList .srcbtn').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.a)));
+  };
+  draw();let tm;$('#tq').addEventListener('input',e=>{clearTimeout(tm);tm=setTimeout(()=>draw(e.target.value),150);});
+}
+/* ---------- JUDGMENTS: BAILII Ireland search ----------
+   BAILII runs an anti-bot check that stops apps loading its pages, so the search is built here and the results open on bailii.org. */
+const BL_COURTS=[['ie/cases','All Irish courts'],['ie/cases/IESC','Supreme Court'],['ie/cases/IECA','Court of Appeal'],['ie/cases/IEHC','High Court'],['ie/cases/IECCA','Court of Criminal Appeal (to 2014)']];
+let blCourt='ie/cases', blSort='rank';
+function bailiiURL(q,court,sort){
+  return 'https://www.bailii.org/cgi-bin/lucy_search_1.cgi?method=boolean&query='+encodeURIComponent(q)
+    +(court===''?'':'&mask_path='+(court||'ie/cases'))+'&datelow=&datehigh=&sort='+(sort==='date'?'date':'rank')+'&highlight=1';
+}
+/* a case's own neutral citation ([2015] IESC 31) — BAILII's page addresses for these changed over the years, so the link
+   searches BAILII for the citation as an exact phrase: the judgment itself comes up first, then the cases that cite it */
+function caseNeutral(c){ const m=/\[(\d{4})\]\s*(IESC|IECA|IEHC|IECCA)\s*(\d+)\b/.exec((c.c||[]).join(' ')+' '+(c.n||'')); return m?{y:m[1],ct:m[2],n:m[3],s:'['+m[1]+'] '+m[2]+' '+m[3]}:null; }
+// BAILII's titles spell the State side many ways (DPP, D.P.P., Director of Public Prosecutions, The People (at the suit of…)),
+// so for those cases search for the other party's name as a phrase; initials (DPP v JC) become "J C" to match "J.C."
+function bailiiName(n){ n=String(n||'').replace(/\s*\((19|20)\d\d\)$/,'').replace(/[’‘]/g,"'").trim();
+  const st='(?:The\\s+)?(?:People|DPP|D\\.P\\.P\\.|AG|A\\.G\\.|Attorney[- ]General|Director of Public Prosecutions|Ireland|Minister\\b.*|Commissioner\\b.*|Governor\\b.*)';
+  const a=new RegExp('^'+st+'(?:\\s*\\([^)]*\\))?\\s+v\\.?\\s+(.+)$','i').exec(n), b=a?null:new RegExp('^(.+?)\\s+v\\.?\\s+(?:'+st+'|(?:the\\s+)?(?:'+ECHR_ST+'))$','i').exec(n);
+  let x=(a?a[1]:b?b[1]:'').replace(/\s*\(No\.?\s*\d+\)\s*$/i,'').trim(); if(!x)return n;
+  if(/^[A-Z]{1,4}$/.test(x))x=x.split('').join(' ');
+  return '"'+x.replace(/"/g,'')+'"'; }
+function bailiiCiteURL(nc){ return bailiiURL('"'+nc.y+' '+nc.ct+' '+nc.n+'"','ie/cases/'+nc.ct,'rank'); }
+const ECHR_ST='UK|United Kingdom|Belgium|Bulgaria|Turkey|France|Germany|Italy|Spain|Russia|Poland|Netherlands|Austria|Switzerland|Sweden|Norway|Finland|Denmark|Greece|Portugal|Romania|Croatia|Slovakia|Slovenia|Hungary|Czech Republic|Moldova|Ukraine|Georgia|Armenia|Azerbaijan|Latvia|Lithuania|Estonia|Malta|Cyprus|Luxembourg|Iceland|Liechtenstein|Monaco|San Marino|Andorra|Montenegro|Serbia|Albania|North Macedonia|Bosnia and Herzegovina';
+// which of BAILII's collections to search: Irish courts, the European Court of Human Rights, or everything (English and other cases)
+function caseJur(c){ const cit=(c.c||[]).join(' ')+' '+(c.court||''), n=String(c.n||'').replace(/\s*\((19|20)\d\d\)$/,'');
+  const hr=/E\.?H\.?R\.?R|\bECHR\b|European Court of Human Rights/i.test(cit)||new RegExp('\\sv\\.?\\s+(the\\s+)?('+ECHR_ST+')$','i').test(n);
+  const abroad=/England|Wales|House of Lords|Privy Council|United Kingdom|Northern Ireland|Scotland|Canada|Australia|New Zealand|United States/i.test(c.court||'');   // e.g. "Court of Appeal (England & Wales)"
+  const ie=!!caseNeutral(c)||/\b(I\.?R\.?|I\.?L\.?R\.?M\.?|IESC|IECA|IEHC|IECCA|IECC|Frewen)\b/.test(cit)||(!abroad&&/^(High|Supreme|Court of (Criminal )?Appeal|Special Criminal|Central Criminal)/.test(c.court||''));
+  if(hr)return ie?'all':'echr';   // both an Irish and a Strasbourg citation: search everything
+  if(ie)return 'ie';
+  if(abroad||/\b(AC|KB|QB|WLR|All ER|Cr\.? ?App\.? ?R|Crim\.? ?LR|UKHL|UKSC|EWCA|EWHC|UKPC|NICA|SCR|CLR|HCA|U\.S\.)\b/.test(cit)||/^R v /.test(n)||/Justice of the European Union/.test(c.court||''))return 'all';
+  return 'ie'; }
+function blRecent(){ try{ const r=JSON.parse(localStorage.getItem('gr_bl_recent')||'[]'); return Array.isArray(r)?r:[]; }catch(e){ return []; } }
+function openBailii(q,court,sort){
+  q=String(q||'').trim(); if(!q)return false;
+  try{ const r=blRecent().filter(x=>String(x).toLowerCase()!==q.toLowerCase()); r.unshift(q); localStorage.setItem('gr_bl_recent',JSON.stringify(r.slice(0,8))); }catch(e){}
+  window.open(bailiiURL(q,court||blCourt,sort||blSort),'_blank','noopener');
+  return true;
+}
+window.openBailii=openBailii;
+const BL_BROWSE=[['newspaper','Recent Irish decisions','Everything added to BAILII lately','https://www.bailii.org/recent-accessions-ie.html'],
+  ['landmark','Supreme Court','Judgments by year','https://www.bailii.org/ie/cases/IESC/'],
+  ['scale','Court of Appeal','Civil and criminal appeals since 2014','https://www.bailii.org/ie/cases/IECA/'],
+  ['gavel','High Court','Judgments by year','https://www.bailii.org/ie/cases/IEHC/'],
+  ['scroll','Court of Criminal Appeal','Older criminal appeals, up to 2014','https://www.bailii.org/ie/cases/IECCA/'],
+  ['book-open','Courts.ie judgments','Official Courts Service site, newest first','https://www.courts.ie/judgments']];
+function bailiiScreen(q0){
+  const rec=blRecent();
+  view.innerHTML=`<button class="chip" id="backT">‹ Tools</button>
+  <h2 class="sec" data-t="1">Judgments — BAILII Ireland</h2>
+  <div class="sec-sub">Search Irish judgments · results open on bailii.org</div>
+  <form class="bl" id="blForm" autocomplete="off">
+    <label class="bl-box">${GRI('search')}<input id="blq" type="search" enterkeyhint="search" placeholder="Case name, topic or citation…" value="${esc(q0||'')}"></label>
+    <div class="bl-l">Court</div>
+    <div class="chips bl-c">${BL_COURTS.map(([k,l])=>`<button type="button" class="chip${k===blCourt?' on':''}" data-c="${k}">${esc(l)}</button>`).join('')}</div>
+    <div class="bl-l">Order</div>
+    <div class="chips bl-s"><button type="button" class="chip${blSort==='rank'?' on':''}" data-s="rank">Best match</button><button type="button" class="chip${blSort==='date'?' on':''}" data-s="date">Newest first</button></div>
+    <button class="bl-go" type="submit">${GRI('search')}<span>Search BAILII</span>${GRI('external-link')}</button>
+  </form>
+  <div class="bl-tip">Tips: put an “exact phrase” in quotes · AND, OR, NOT work · a citation like [2017] IESC 77 finds that judgment · a party name finds the case.</div>
+  ${rec.length?`<h2 class="sec" data-t="1">Recent searches<span class="sec-r"><button type="button" class="sx-clr" id="blClr">Clear</button></span></h2><div class="lgrp">${rec.map(x=>`<button type="button" class="lrow bl-r" data-q="${esc(x)}">${GRI('history')}<span class="lt"><b>${esc(x)}</b></span>${GRI('external-link','chev')}</button>`).join('')}</div>`:''}
+  <h2 class="sec" data-t="1">Browse the newest</h2>
+  <div class="lgrp">${BL_BROWSE.map(([ic,t,sb,u])=>`<button type="button" class="lrow bl-u" data-u="${u}">${GRI(ic)}<span class="lt"><b>${esc(t)}</b><small>${esc(sb)}</small></span>${GRI('external-link','chev')}</button>`).join('')}</div>
+  <div class="toolnote">BAILII doesn't allow apps to load its pages, so results open in your browser. Free · needs signal.</div>`;
+  wireBack();
+  const qi=$('#blq');
+  $$('.bl-c .chip').forEach(c=>c.addEventListener('click',()=>{ blCourt=c.dataset.c; $$('.bl-c .chip').forEach(x=>x.classList.toggle('on',x===c)); }));
+  $$('.bl-s .chip').forEach(c=>c.addEventListener('click',()=>{ blSort=c.dataset.s; $$('.bl-s .chip').forEach(x=>x.classList.toggle('on',x===c)); }));
+  $('#blForm').addEventListener('submit',ev=>{ ev.preventDefault(); const q=qi.value.trim(); if(!q){ qi.focus(); return; } qi.blur(); openBailii(q); setTimeout(()=>{ if(document.getElementById('blForm'))bailiiScreen(q); },300); });
+  $$('.bl-r').forEach(b=>b.addEventListener('click',()=>{ qi.value=b.dataset.q; openBailii(b.dataset.q); }));
+  $$('.bl-u').forEach(b=>b.addEventListener('click',()=>window.open(b.dataset.u,'_blank','noopener')));
+  const cl=$('#blClr'); if(cl)cl.addEventListener('click',()=>{ try{ localStorage.removeItem('gr_bl_recent'); }catch(e){} bailiiScreen(qi.value); });
+  view.scrollTop=0;
+}
+function renderJudgments(q){ bailiiScreen(typeof q==='string'?q:''); }
+/* ---------- most wanted: official public lists, fetched live (nothing is stored on the phone) ---------- */
+const WL_TABS=[['ie','Wanted by Ireland'],['irl','Irish nationals'],['red','Interpol Red Notices'],['fbi','FBI'],['eu','Europe'],['uk','UK']];
+const WL_LINKS={
+  ie:[['Interpol — Red Notices (search by country)','https://www.interpol.int/How-we-work/Notices/Red-Notices/View-Red-Notices']],
+  irl:[['Interpol — Red Notices','https://www.interpol.int/How-we-work/Notices/Red-Notices/View-Red-Notices']],
+  red:[['Interpol — Red Notices','https://www.interpol.int/How-we-work/Notices/Red-Notices/View-Red-Notices'],['Interpol — Yellow Notices (missing people)','https://www.interpol.int/How-we-work/Notices/Yellow-Notices/View-Yellow-Notices']],
+  fbi:[['FBI — Ten Most Wanted','https://www.fbi.gov/wanted/topten'],['FBI — all wanted notices','https://www.fbi.gov/wanted']],
+  eu:[["Europe's Most Wanted (EU police network ENFAST)",'https://eumostwanted.eu/'],['Interpol — Red Notices','https://www.interpol.int/How-we-work/Notices/Red-Notices/View-Red-Notices']],
+  uk:[['National Crime Agency — Most Wanted','https://www.nationalcrimeagency.gov.uk/most-wanted-search'],['Crimestoppers UK — Most Wanted','https://crimestoppers-uk.org/give-information/most-wanted']]};
+const WL_NAT={IE:'Ireland',GB:'United Kingdom',US:'United States',FR:'France',DE:'Germany',ES:'Spain',IT:'Italy',NL:'Netherlands',BE:'Belgium',PL:'Poland',LT:'Lithuania',LV:'Latvia',RO:'Romania',BG:'Bulgaria',PT:'Portugal',AL:'Albania',RU:'Russia',UA:'Ukraine',TR:'Türkiye',NG:'Nigeria',BR:'Brazil',CN:'China',IN:'India',PK:'Pakistan',MA:'Morocco',DZ:'Algeria',CO:'Colombia',MX:'Mexico',GE:'Georgia',RS:'Serbia',HR:'Croatia',BA:'Bosnia and Herzegovina',CZ:'Czechia',SK:'Slovakia',HU:'Hungary',SE:'Sweden',NO:'Norway',DK:'Denmark',FI:'Finland',AT:'Austria',CH:'Switzerland',GR:'Greece',EE:'Estonia',MD:'Moldova',BY:'Belarus',AE:'UAE',ZA:'South Africa'};
+const wlMem={};
+function renderWanted(){
+  let cur=(()=>{try{return localStorage.getItem('gr_wanted_tab')||'ie';}catch(e){return 'ie';}})();
+  view.innerHTML=`<button class="chip" id="backT">‹ Tools</button><h2 class="sec">Most wanted</h2>
+  <div class="sec-sub">Official public lists, live · needs signal</div>
+  <div class="chips wl-c">${WL_TABS.map(([k,l])=>`<button type="button" class="chip${k===cur?' on':''}" data-k="${k}">${esc(l)}</button>`).join('')}</div>
+  <div id="wlBody"></div>
+  <p class="wl-note">Shown straight from the official notices — nothing is saved on this phone. A notice is not grounds for arrest on its own: confirm on PULSE and through the Garda international liaison / Interpol office before acting, and never rely on a photo match alone.</p>`;
+  wireBack(); view.scrollTop=0;
+  view.querySelectorAll('.wl-c .chip').forEach(b=>b.addEventListener('click',()=>{ cur=b.dataset.k; try{localStorage.setItem('gr_wanted_tab',cur);}catch(e){}
+    view.querySelectorAll('.wl-c .chip').forEach(x=>x.classList.toggle('on',x===b)); draw(); }));
+  const links=k=>'<div class="wl-links">'+WL_LINKS[k].map(([t,u])=>`<button type="button" class="wl-link" data-u="${esc(u)}">${GRI('external-link')}<span>${esc(t)}</span></button>`).join('')+'</div>';
+  const wire=()=>{ const wb=$('#wlBody'); if(!wb)return; wb.querySelectorAll('[data-u]').forEach(b=>b.addEventListener('click',()=>window.open(b.dataset.u,'_blank','noopener'))); };
+  const age=d=>{ const m=String(d||'').match(/^(\d{4})(?:\/(\d\d)\/(\d\d))?/); if(!m)return ''; const b=new Date(+m[1],(+m[2]||1)-1,+m[3]||1); return Math.floor((Date.now()-b)/31557600000)+' yrs'; };
+  const tc=s=>String(s||'').toLowerCase().replace(/(^|[\s'-])\p{L}/gu,x=>x.toUpperCase());
+  async function getJSON(u){ const ac=new AbortController(); const t=setTimeout(()=>ac.abort(),12000);
+    try{ const r=await fetch(u,{signal:ac.signal,headers:{Accept:'application/json'}}); if(!r.ok)throw new Error('HTTP '+r.status); return await r.json(); } finally{ clearTimeout(t); } }
+  async function draw(){
+    const k=cur, B=$('#wlBody'); if(!B)return;
+    if(k==='eu'||k==='uk'){ B.innerHTML='<p class="wl-sub">'+(k==='eu'?'Europe’s Most Wanted is run by the EU’s fugitive-tracking police network. It has no public data feed, so it opens on its own site.':'The UK lists have no public data feed, so they open on their own sites.')+'</p>'+links(k); wire(); return; }
+    B.innerHTML='<div class="wl-load"><span class="sx-spin"></span> Loading the live list…</div>';
+    try{
+      let rows=wlMem[k];
+      if(!rows){
+        if(k==='fbi'){ const j=await getJSON('https://api.fbi.gov/wanted/v1/list?pageSize=40&page=1');
+          rows=(j.items||[]).map(x=>({img:(x.images&&x.images[0]&&(x.images[0].thumb||x.images[0].original))||'',n:x.title||'',sub:[x.subjects&&x.subjects.join(', '),x.reward_text].filter(Boolean).join(' · '),d:String(x.description||'').replace(/<[^>]+>/g,' ').trim(),u:x.url||'https://www.fbi.gov/wanted'})); }
+        else { const q=k==='ie'?'arrestWarrantCountryId=IE&':k==='irl'?'nationality=IE&':''; const j=await getJSON('https://ws-public.interpol.int/notices/v1/red?'+q+'resultPerPage=160&page=1');
+          rows=((j._embedded&&j._embedded.notices)||[]).map(x=>({img:(x._links&&x._links.thumbnail&&x._links.thumbnail.href)||'',n:tc((x.forename?x.forename+' ':'')+(x.name||'')),
+            sub:[age(x.date_of_birth),(x.nationalities||[]).map(c=>WL_NAT[c]||c).join(', ')].filter(Boolean).join(' · '),d:'',u:'https://www.interpol.int/How-we-work/Notices/Red-Notices/View-Red-Notices#'+String(x.entity_id||'').replace('/','-')})); }
+        wlMem[k]=rows; }
+      if(!rows.length){ B.innerHTML='<p class="wl-sub">No notices on this list right now.</p>'+links(k); wire(); return; }
+      B.innerHTML='<p class="wl-sub">'+rows.length+' notice'+(rows.length===1?'':'s')+' · tap one for the official notice</p><div class="wl-grid">'+rows.map(r=>`<button type="button" class="wl-card" data-u="${esc(r.u)}">${r.img?`<img src="${esc(r.img)}" alt="" loading="lazy" referrerpolicy="no-referrer">`:'<span class="wl-noimg">'+GRI('user')+'</span>'}<b>${esc(r.n)}</b>${r.sub?`<small>${esc(r.sub)}</small>`:''}${r.d?`<em>${esc(r.d.slice(0,120))}</em>`:''}</button>`).join('')+'</div>'+links(k);
+      wire();
+    }catch(e){ B.innerHTML='<p class="wl-sub">Couldn’t load the live list — no signal, or the site didn’t allow it from the app. Open the official list instead:</p>'+links(k); wire(); }
+  }
+  draw();
+}
+window.renderWanted=renderWanted;
+function renderCourtLists(){
+  const C=[
+   ['⚖️ Supreme Court','https://legaldiary.courts.ie/supreme-court'],
+   ['🏛️ Court of Appeal','https://legaldiary.courts.ie/court-of-appeal'],
+   ['🏛️ High Court','https://legaldiary.courts.ie/high-court'],
+   ['⚖️ Central Criminal Court (CCJ)','https://legaldiary.courts.ie/central-criminal-court'],
+   ['🏛️ Circuit Court (Civil & Criminal)','https://legaldiary.courts.ie/circuit-court'],
+   ['🏛️ District Court','https://legaldiary.courts.ie/district-court'],
+   ['📋 General notices','https://legaldiary.courts.ie/general-notices'],
+  ];
+  view.innerHTML=`<button class="chip" id="backT" style="margin-bottom:8px">‹ Tools</button>
+   <h2 class="sec">🗓️ Court lists — who's on today</h2>
+   <div class="tool"><div class="gtxt">The official Legal Diary — every Dublin court's daily list, parties and judges. Updated <b>5.00pm daily, Mon–Fri</b> for the next sitting day. Opens in your browser (the live lists load there).</div></div>
+   ${C.map(([n,u])=>`<a class="oslink" href="${u}" target="_blank" rel="noopener">${n} ↗</a>`).join('')}
+   <a class="oslink" href="https://legaldiary.courts.ie/download" target="_blank" rel="noopener" style="border-color:var(--gold);color:var(--gold)">⬇️ Download today's diary (PDF / Word) ↗</a>
+   <div class="toolnote">CCJ (Parkgate St) houses the Central Criminal Court and the Circuit Criminal Court — check both. Live scraping isn't reliable here, so these open the authoritative source directly.</div>`;
+  wireBack();
+}
+
+/* ---------- SAVED ---------- */
+function renderSaved(){
+  let html='<div class="tabroot" data-tab="saved" hidden></div><h2 class="sec">Saved sections<span class="sec-r">'+favs.length+'</span></h2>';
+  if(!favs.length)html+='<div class="empty">Nothing saved yet. Open any page and tap ☆ to keep it here.<br>Only the page reference is stored — never case data.</div>';
+  html+='<div class="lgrp">'+favs.map((f,i)=>{ const parts=String(f.title).split(' › '), t=parts.pop(), sub=f.label+(parts.length?' · '+parts[parts.length-1]:'');
+    return `<div class="savedrow">${lrow(f.a,'bookmark',t,sub,'','data-go')}<button class="unsave" data-i="${i}" aria-label="Remove">${GRI('x')}</button></div>`; }).join('')+'</div>';
+  view.innerHTML=html;
+  $$('.savedrow .lrow').forEach(b=>b.addEventListener('click',()=>openPage(+b.dataset.go)));
+  $$('.unsave').forEach(b=>b.addEventListener('click',()=>{favs.splice(+b.dataset.i,1);saveFavs();renderSaved();}));
+}
+function saveFavs(){localStorage.setItem(FAVKEY,JSON.stringify(favs)); if(window.grTouch)grTouch('favs');}
+window.grFavsReload=()=>{ try{ favs=JSON.parse(localStorage.getItem(FAVKEY)||'[]'); }catch(e){} if(tab==='saved'&&!document.body.classList.contains('subview'))try{ renderSaved(); }catch(e){} };
+function toggleFav(){
+  const i=favs.findIndex(f=>f.a===curPage);
+  if(i>=0)favs.splice(i,1); else favs.push({a:curPage,title:titleFor(curPage),label:pageLabel(curPage)});
+  saveFavs(); $('#rdStar').textContent=favs.some(f=>f.a===curPage)?'★':'☆';
+}
+
+/* ---------- read aloud: the page in the phone's own voice (pause, stop, speed) ----------
+   Android's pause/resume is unreliable, so pausing stops the voice and resuming starts the current sentence again. */
+const TTS={on:false,paused:false,q:[],i:0,rate:+(localStorage.getItem('gr_tts_rate')||1)||1};
+function ttsVoice(){ let v=[]; try{ v=speechSynthesis.getVoices()||[]; }catch(e){} return v.find(x=>/^en[-_]IE/i.test(x.lang))||v.find(x=>/^en[-_]GB/i.test(x.lang)&&x.localService)||v.find(x=>/^en[-_]GB/i.test(x.lang))||v.find(x=>/^en/i.test(x.lang))||null; }
+function ttsChunks(t){ t=String(t||'').replace(/\s+/g,' ').trim(); const out=[], re=/[^.!?;:]+[.!?;:]*\s*/g; let m, cur='';
+  while((m=re.exec(t))){ const x=m[0]; if(cur&&(cur+x).length>220){ out.push(cur.trim()); cur=''; } if(x.length>220){ for(let i=0;i<x.length;i+=200)out.push(x.slice(i,i+200)); continue; } cur+=x; }
+  if(cur.trim())out.push(cur.trim()); return out; }
+function ttsSpeak(){ if(!TTS.on||TTS.paused)return; if(TTS.i>=TTS.q.length){ ttsStop(); return; }
+  const u=new SpeechSynthesisUtterance(TTS.q[TTS.i]), v=ttsVoice(); if(v){ u.voice=v; u.lang=v.lang; } else u.lang='en-IE'; u.rate=TTS.rate;
+  u.onend=()=>{ if(!TTS.on||TTS.paused)return; TTS.i++; ttsSpeak(); };
+  u.onerror=e=>{ if(!TTS.on||TTS.paused||(e&&(e.error==='interrupted'||e.error==='canceled')))return; TTS.i++; ttsSpeak(); };
+  try{ speechSynthesis.speak(u); }catch(e){} ttsPaint(); }
+function ttsStart(){ if(!('speechSynthesis' in window)){ if(window.grToast)grToast('This browser can’t read aloud'); return; }
+  const t=(rdBody.innerText||'').trim(); if(!t){ if(window.grToast)grToast('Nothing to read on this page'); return; }
+  try{ speechSynthesis.cancel(); }catch(e){} TTS.q=ttsChunks(t); TTS.i=0; TTS.on=true; TTS.paused=false; ttsSpeak(); }
+function ttsStop(){ if(!TTS.on&&!document.getElementById('ttsBar'))return; TTS.on=false; TTS.paused=false; try{ speechSynthesis.cancel(); }catch(e){} ttsPaint(); }
+function ttsPause(){ if(!TTS.on)return; TTS.paused=!TTS.paused; try{ speechSynthesis.cancel(); }catch(e){} if(!TTS.paused)ttsSpeak(); ttsPaint(); }
+function ttsPaint(){ const b=$('#rdListen'); if(b){ b.classList.toggle('on',TTS.on); b.setAttribute('aria-pressed',String(TTS.on)); }
+  let bar=document.getElementById('ttsBar');
+  if(!TTS.on){ if(bar)bar.remove(); return; }
+  if(!bar){ bar=document.createElement('div'); bar.id='ttsBar'; bar.setAttribute('role','group'); bar.setAttribute('aria-label','Read aloud'); reader.appendChild(bar);
+    bar.addEventListener('click',e=>{ const k=e.target.closest('[data-tts]'); if(!k)return; const a=k.dataset.tts;
+      if(a==='pp')ttsPause(); else if(a==='stop')ttsStop(); else if(a==='rate'){ const R=[1,1.25,1.5,0.85]; TTS.rate=R[(R.indexOf(TTS.rate)+1)%R.length]||1; try{ localStorage.setItem('gr_tts_rate',String(TTS.rate)); }catch(_){} if(!TTS.paused){ try{ speechSynthesis.cancel(); }catch(_){} ttsSpeak(); } ttsPaint(); } }); }
+  const h='<button type="button" data-tts="pp" aria-label="'+(TTS.paused?'Carry on reading':'Pause')+'">'+GRI(TTS.paused?'play':'pause')+'</button><span class="tts-t"><b>'+(TTS.paused?'Paused':'Reading aloud')+'</b><small>'+Math.min(TTS.i+1,TTS.q.length)+' of '+TTS.q.length+'</small></span>'
+    +'<button type="button" data-tts="rate" class="tts-r" aria-label="Reading speed">'+(TTS.rate===1?'1×':TTS.rate+'×')+'</button><button type="button" data-tts="stop" aria-label="Stop reading">'+GRI('square')+'</button>';
+  if(bar._h!==h){ bar._h=h; bar.innerHTML=h; } }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden'&&TTS.on&&!TTS.paused){ /* keep going — Android may carry on with the screen off */ } });
+
+/* ---------- READER ---------- */
+function openPage(abs){ if(!(abs>=1&&abs<=META.pages)){ if(window.grToast)grToast('That page is no longer in the app'); try{ if(+localStorage.getItem('gr_lastpage')>META.pages)localStorage.removeItem('gr_lastpage'); }catch(e){} return; } if(TTS.on)ttsStop(); if(!window._pz){window._pz=1;setTimeout(pinchZoom,0);} 
+  try{localStorage.setItem('gr_lastpage',String(abs));}catch(e){}
+  try{pushRecent({k:'page',id:abs,t:titleFor(abs).split(' › ').pop(),s:pageLabel(abs)});}catch(e){}
+  $('#rdPrev').style.visibility='';$('#rdNext').style.visibility='';$('#rdJump').style.visibility='';
+  const star0=$('#rdStar'); star0.onclick=null; star0.textContent=favs.some(f=>f.a===curPage)?'★':'☆';
+  curPage=Math.min(Math.max(1,abs),META.pages);
+  const txt=pageText(curPage);
+  reader.classList.remove('hidden'); reader.setAttribute('aria-hidden','false');
+  { const tp=titleFor(curPage).split(' › '), last=tp.pop(); $('#rdTitle').innerHTML=(tp.length?'<small class="rd-path">'+esc(tp.join(' › '))+'</small>':'')+esc(last); }
+  $('#rdPage').textContent=pageLabel(curPage)+'  ·  p.'+curPage+' of '+META.pages;
+  $('#rdStar').textContent=favs.some(f=>f.a===curPage)?'★':'☆';
+  const flag=$('#rdFlag');
+  if(isDated(curPage)){flag.textContent='⚠ 2007 manual — law and procedure may be superseded. Verify before relying.';flag.classList.remove('hidden');}
+  else flag.classList.add('hidden');
+  if(txt===null){rdBody.textContent='This part is still downloading — one moment (or reconnect once to finish caching).';return;}
+  curDoc={title:titleFor(curPage).split(' › ').pop()+' — '+pageLabel(curPage),text:stripMd(txt)};
+  rdBody.innerHTML=formatPage(stripMd(txt));
+  applyRdScale(); updateDlBtn();
+  rdBody.querySelectorAll('.xref').forEach(x=>x.addEventListener('click',()=>openPage(+x.dataset.a)));
+  rdBody.scrollTop=0;
+}
+function pinchZoom(){
+  const el=rdBody; let base=parseFloat(localStorage.getItem('gr_zoom')||'1');
+  el.style.fontSize=(base*100)+'%';
+  let d0=0,b0=base;
+  el.addEventListener('touchstart',e=>{if(e.touches.length===2){d0=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);b0=base;}},{passive:true});
+  el.addEventListener('touchmove',e=>{if(e.touches.length===2&&d0){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);base=Math.min(2.2,Math.max(0.7,b0*d/d0));el.style.fontSize=(base*100)+'%';}},{passive:true});
+  el.addEventListener('touchend',()=>{if(d0){localStorage.setItem('gr_zoom',base.toFixed(2));d0=0;}});
+}
+/* ---------- Book reading: long texts in pages, like a Kindle ----------
+   Swipe or tap the right/left edge to turn the page; tap the middle to hide the bars. At the end of a manual page
+   the next tap carries on into the next page. On by default for long reading; the book button switches it. */
+const book={on:false,page:0,pages:1,goEnd:false,raf:0};
+function bookPref(){ try{ return localStorage.getItem('gr_book'); }catch(e){ return null; } }
+function bookWanted(){ return bookPref()==='1'; }        // on unless switched off — short texts are simply one page
+function bookToggle(){ const on=!book.on; try{ localStorage.setItem('gr_book',on?'1':'0'); }catch(e){} bookApply(); if(typeof toast==='function')toast(on?'Book reading on — swipe or tap the edges to turn pages':'Book reading off — scroll as normal'); }
+function bookStride(){ return rdBody.clientWidth; }
+function bookApply(){
+  if(reader.classList.contains('hidden'))return;
+  const on=bookWanted(), b=$('#rdBook');
+  book.on=on; reader.classList.toggle('book',on); reader.classList.remove('bare');
+  if(b){ b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false'); }
+  if(!on){ rdBody.style.removeProperty('--bw'); rdBody.scrollLeft=0; const pi=$('#bkInd'); if(pi)pi.hidden=true; return; }
+  rdBody.querySelectorAll('details').forEach(d=>{ d.open=true; });
+  const end=book.goEnd; book.goEnd=false; bookLayout(end?1e9:0); }
+function bookLayout(goPage){
+  const cs=getComputedStyle(rdBody), pl=parseFloat(cs.paddingLeft)||0, pr=parseFloat(cs.paddingRight)||0;
+  rdBody.style.setProperty('--bw',Math.max(120,rdBody.clientWidth-pl-pr)+'px'); rdBody.style.setProperty('--bg',(pl+pr)+'px');
+  const st=bookStride(); book.pages=Math.max(1,Math.round(rdBody.scrollWidth/st));
+  book.page=Math.max(0,Math.min(book.pages-1,goPage|0)); rdBody.scrollLeft=book.page*st; bookPaint();
+  // the reading font arrives a moment later and re-flows the text: count the pages again then
+  requestAnimationFrame(()=>bookMeasure(goPage)); setTimeout(()=>bookMeasure(goPage),400); if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>bookMeasure(goPage)); }
+function bookMeasure(goPage){ if(!book.on)return; const st=bookStride(), n=Math.max(1,Math.round(rdBody.scrollWidth/st));
+  if(n===book.pages)return; book.pages=n; if(goPage>=1e9)book.page=n-1; else if(book.page>n-1)book.page=n-1; rdBody.scrollLeft=book.page*st; bookPaint(); }
+function bookRelayout(){ if(!book.on)return; const r=book.pages>1?book.page/(book.pages-1):0; bookLayout(0); bookLayout(Math.round(r*(book.pages-1))); }
+function bookPaint(){
+  let pi=$('#bkInd'); if(!pi){ reader.insertAdjacentHTML('beforeend','<div id="bkInd" class="bk-ind"></div>'); pi=$('#bkInd'); }
+  pi.hidden=!book.on; pi.textContent=(book.page+1)+' / '+book.pages;
+  const bar=$('#rdProg'); if(bar)bar.style.width=(book.pages>1?(book.page/(book.pages-1)*100):100)+'%'; }
+function bookTurn(dir){
+  const st=bookStride(), np=book.page+dir, manual=$('#rdNext')&&$('#rdNext').style.visibility!=='hidden';
+  if(np<0){ if(manual&&curPage>1){ book.goEnd=true; openPage(curPage-1); } return; }
+  if(np>=book.pages){ if(manual&&curPage<META.pages)openPage(curPage+1); else if(typeof toast==='function')toast('End'); return; }
+  book.page=np; rdBody.scrollTo({left:np*st,behavior:'smooth'}); bookPaint(); }
+function bookWire(){
+  let x0=0,y0=0,t0=0,moved=false;
+  rdBody.addEventListener('touchstart',e=>{ if(!book.on||e.touches.length!==1)return; x0=e.touches[0].clientX; y0=e.touches[0].clientY; t0=Date.now(); moved=false; },{passive:true});
+  rdBody.addEventListener('touchend',e=>{ if(!book.on||!t0)return; const t=e.changedTouches[0], dx=t.clientX-x0, dy=t.clientY-y0; t0=0;
+    if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3){ moved=true; bookTurn(dx<0?1:-1); } },{passive:true});
+  rdBody.addEventListener('click',e=>{ if(!book.on||moved){ moved=false; return; }
+    if(e.target.closest('a,button,summary,input,.xref,.cite,.caseref,.statref'))return;
+    const r=rdBody.getBoundingClientRect(), fx=(e.clientX-r.left)/r.width;
+    if(fx<0.3)bookTurn(-1); else if(fx>0.7)bookTurn(1); else reader.classList.toggle('bare'); });
+  rdBody.addEventListener('keydown',e=>{ if(!book.on)return; if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){ e.preventDefault(); bookTurn(1); } else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); bookTurn(-1); } });
+  new MutationObserver(()=>{ cancelAnimationFrame(book.raf); book.raf=requestAnimationFrame(bookApply); }).observe(rdBody,{childList:true});
+  addEventListener('resize',()=>{ if(book.on)bookRelayout(); });
+}
+function closeReader(){ttsStop();$('#rdPrev').style.visibility='';$('#rdNext').style.visibility='';$('#rdJump').style.visibility='';reader.classList.add('hidden');reader.setAttribute('aria-hidden','true');}
+function jumpPrompt(){
+  const v=prompt('Go to: printed page (e.g. 272), absolute p.N (e.g. p1219), or V12:8 / SG:3 / ST:6 / PB:2');
+  if(!v)return;
+  const s=v.trim();
+  let m=s.match(/^(SG|ST|PB|V12):?(\d+)$/i);
+  if(m){const base={SG:143,ST:968,PB:985,V12:937}[m[1].toUpperCase()];openPage(base+ +m[2]);return;}
+  m=s.match(/^p\.?\s*(\d+)$/i); if(m){openPage(+m[1]);return;}
+  m=s.match(/^(\d+)$/);
+  if(m){const p=+m[1];const abs=printedToAbs(p);openPage(abs);return;}
+}
+function printedToAbs(p){
+  // labels map holds 'Pg N' -> find
+  for(const[a,l]of Object.entries(META.labels))if(l==='Pg '+p)return +a;
+  return Math.min(14+p,META.pages);
+}
+let curDoc=null;
+// every downloadable document: a real Word file (.docx) — the title, then the text line for line in a ruled box
+/* ---------- structured documents (guides and stencils with tables, callouts, checklists) ---------- */
+function rbInline(t,o){ o=o||{};
+  const seg=(str,f)=>{ let h=o.link?linkify(str):esc(str);
+    if(o.ph)h=h.replace(/(\[[^\]\n]{1,90}\]|_{4,})/g,'<mark class="ph">$1</mark>');
+    f=f||''; if(f.indexOf('u')>=0)h='<u>'+h+'</u>'; if(f.indexOf('i')>=0)h='<i>'+h+'</i>'; if(f.indexOf('b')>=0)h='<b>'+h+'</b>'; return h; };
+  return Array.isArray(t)?t.map(r=>seg(String(r[0]),r[1])).join(''):seg(String(t==null?'':t),''); }
+function renderBlocks(B,o){ o=o||{}; let h='', open=false, first=true;
+  const cell=v=>rbInline(v,o).replace(/\n/g,'<br>');
+  const close=()=>{ if(open){ h+='</div></details>'; open=false; } };
+  for(const b of B||[]){
+    if(b.h1!=null){ if(o.sections){ close(); h+='<details class="rsec"'+(first?' open':'')+'><summary><span class="rs-txt">'+esc(b.h1)+'</span></summary><div class="rsecb">'; open=true; first=false; } else h+='<h2 class="rb-h1">'+esc(b.h1)+'</h2>'; }
+    else if(b.h2!=null)h+='<h3 class="rb-h2">'+rbInline(b.h2,o)+'</h3>';
+    else if(b.h3!=null)h+='<h4 class="rb-h3">'+rbInline(b.h3,o)+'</h4>';
+    else if(b.p!=null)h+='<p class="rb-p'+(b.al==='right'?' r':b.al==='center'?' c':'')+(b.small?' sm':'')+'">'+rbInline(b.p,o)+'</p>';
+    else if(b.note!=null)h+='<p class="rb-p sm">'+rbInline(b.note,o)+'</p>';
+    else if(b.ul||b.dl)h+='<ul class="rlist'+(b.dl?' rb-dl':'')+'">'+(b.ul||b.dl).map(li=>'<li>'+rbInline(li,o)+'</li>').join('')+'</ul>';
+    else if(b.chk)h+='<ul class="rb-chk" aria-label="'+esc(b.chk.head||'Checklist')+' — tap to tick (not saved)">'+b.chk.items.map(li=>'<li role="checkbox" aria-checked="false" tabindex="0"><i></i><span>'+rbInline(li,o)+'</span></li>').join('')+'</ul>';
+    else if(b.box){ const x=b.box; h+='<div class="rb-box '+(x.tone==='warn'?'warn':'info')+'">'+(x.t?'<b class="rb-bt">'+esc(x.t)+'</b>':'')+(x.p||[]).map(p=>'<p>'+rbInline(p,o)+'</p>').join('')+(x.ul&&x.ul.length?'<ul class="rlist">'+x.ul.map(li=>'<li>'+rbInline(li,o)+'</li>').join('')+'</ul>':'')+'</div>'; }
+    else if(b.hdr)h+='<div class="rb-hdr"><div>'+(b.hdr.l||[]).map(l=>rbInline(l,o)).join('<br>')+'</div><div>'+(b.hdr.r||[]).map(l=>rbInline(l,o)).join('<br>')+'</div></div>';
+    else if(b.table){ const t=b.table, hd=t.head&&t.head.some(x=>x), st=hd&&t.head.length>=3;   // 3+ columns stack into cards on a phone
+      const plain=v=>Array.isArray(v)?v.map(r=>r[0]).join(''):String(v==null?'':v), sum=(t.cols||[]).reduce((a,c)=>a+c,0);
+      const cg=t.cols&&sum&&t.cols.length===(t.head||t.rows[0]).length?'<colgroup>'+t.cols.map(c=>'<col style="width:'+(c/sum*100).toFixed(1)+'%">').join('')+'</colgroup>':'';
+      h+='<div class="rb-tw"><table class="rb-t'+(t.first?' first':'')+(st?' stack':'')+(cg?' fx':'')+'">'+cg+(hd?'<thead><tr>'+t.head.map(c=>'<th>'+cell(c)+'</th>').join('')+'</tr></thead>':'')
+        +'<tbody>'+t.rows.map(r=>'<tr>'+r.map((c,i)=>'<td'+(st&&plain(t.head[i])?' data-l="'+esc(plain(t.head[i]))+'"':'')+'>'+cell(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>'; }
+    else if(b.gap)h+='<div class="rb-gap"></div>';
+  }
+  close(); return h; }
+function wireBlocks(root){ root.querySelectorAll('.rb-chk li').forEach(li=>{ const tg=()=>{ const on=!li.classList.contains('on'); li.classList.toggle('on',on); li.setAttribute('aria-checked',on); };
+  li.addEventListener('click',tg); li.addEventListener('keydown',e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); tg(); } }); }); }
+function downloadBlocks(d){
+  if(!window.GRDocs){ if(typeof toast==='function')toast('Download isn’t available — reload the app'); return; }
+  const name=GRDocs.safeName(d.title)+'.docx';
+  try{ GRDocs.save(GRDocs.docx({title:d.title,notitle:!!d.notitle,footer:d.notitle?false:undefined,blocks:d.blocks}),name); if(typeof toast==='function')toast('Saved '+name+' to your downloads'); }
+  catch(e){ if(typeof toast==='function')toast('Couldn’t make the Word file on this phone'); }
+}
+function downloadDoc(title,text){
+  if(!window.GRDocs){ if(typeof toast==='function')toast('Download isn’t available — reload the app'); return; }
+  const name=GRDocs.safeName(title)+'.docx';
+  try{ GRDocs.save(GRDocs.textDoc(title,text),name); if(typeof toast==='function')toast('Saved '+name+' to your downloads'); }
+  catch(e){ if(typeof toast==='function')toast('Couldn’t make the Word file on this phone'); }
+}
+function formatPage(txt){
+  txt=txt.replace(/\*{1,}/g,'');
+  // strip running headers
+  let lines=txt.split('\n').filter(l=>!/^Garda Investigation Techniques\b/.test(l.trim()));
+  // reflow: join hard-wrapped lines
+  const joined=[];
+  for(let raw of lines){
+    const t=raw.trim();
+    if(!t){joined.push('');continue;}
+    const prev=joined.length?joined[joined.length-1]:'';
+    const bullet=/^[•▪◦·–\-\*]\s+/.test(t)||/^\(?[a-z0-9ivx]{1,3}[\)\.]\s+[A-Za-z]/.test(t);
+    const label=/^[A-Z][\w\s\/()'’&,–-]{1,42}:\s+\S/.test(t);
+    if(prev&&!bullet&&!label&&!/[.!?:;]$/.test(prev)&&(prev.length>60||/^[a-z0-9]/.test(t))){
+      joined[joined.length-1]=prev+' '+t;
+    } else joined.push(t);
+  }
+  let html='',secOpen=false,firstHead=true,para=[],list=null;
+  const flushP=()=>{if(para.length){
+    // break giant blobs at sentence boundaries every ~3 sentences
+    const full=para.join(' ').replace(/\s+/g,' ');
+    const sents=[];{let cur='';for(let i=0;i<full.length;i++){cur+=full[i];
+      if('.!?'.includes(full[i])&&full[i+1]===' '&&/[A-Z"“(]/.test(full[i+2]||'')){sents.push(cur);cur='';i++;}}
+      if(cur.trim())sents.push(cur);}
+    for(let i=0;i<sents.length;i+=3)html+='<p>'+linkify(sents.slice(i,i+3).join(' ').trim())+'</p>';   // the space after each full stop was being lost here
+    para=[];}};
+  const flushL=()=>{if(list){html+='<ul class="rlist">'+list.map(x=>'<li>'+linkify(x)+'</li>').join('')+'</ul>';list=null;}};
+  const closeSec=()=>{flushP();flushL();if(secOpen){html+='</div></details>';secOpen=false;}};
+  const isHead=t=>{
+    if(t.length<3||t.length>110)return 0;
+    if(/^(Chapter|Part|Section|Volume|Appendix)\s+[\dA-Z]/i.test(t)&&!/[.;]$/.test(t))return 1;
+    if(/^\d+(\.\d+)+\s+\S/.test(t)&&!/[.;,]$/.test(t))return 1;
+    if(t===t.toUpperCase()&&/[A-Z]{3}/.test(t)&&!/[.;]$/.test(t)&&t.length<80)return 1;
+    if(/^[A-Z][A-Za-z\s\/()'’&,–-]{1,38}$/.test(t)&&t.split(' ').length<=5&&!/[.;,]$/.test(t))return 2;
+    return 0;
+  };
+  for(const t of joined){
+    if(!t){flushP();flushL();continue;}
+    const h=isHead(t);
+    if(h===1){closeSec();
+      html+='<details class="rsec"'+(firstHead?' open':'')+'><summary>'+linkify(t)+'</summary><div class="rsecb">';
+      secOpen=true;firstHead=false;continue;}
+    if(h===2){flushP();flushL();html+='<div class="rsub">'+linkify(t)+'</div>';continue;}
+    const box=t.match(/^(NOTE|WARNING|CAUTION|TIP|PRACTICAL|KEY POINT|IMPORTANT|REMEMBER|PRACTICE|GOLDEN RULE)\b/i);
+    if(box){flushP();flushL();html+='<div class="rbox '+(/(WARN|CAUTION|IMPORTANT)/i.test(box[1])?'warn':'note')+'">'+linkify(t)+'</div>';continue;}
+    const lm=t.match(/^([A-Z][\w\s\/()'’&,–-]{1,42}):\s+(\S.*)/);
+    if(lm&&lm[1].split(' ').length<=6){flushP();flushL();html+='<div class="ddef"><b>'+linkify(lm[1])+':</b> '+linkify(lm[2])+'</div>';continue;}
+    const bm=t.match(/^[•▪◦·–\-\*]\s+(.*)/)||(/^\(?[a-z0-9ivx]{1,3}[\)\.]\s+[A-Za-z]/.test(t)?[,t]:null);
+    if(bm){flushP();if(!list)list=[];list.push(bm[1]||t);continue;}
+    flushL();para.push(t);
+  }
+  closeSec();flushP();flushL();
+  return html;
+}
+// a source written as [https://…] in a guide becomes a small link chip (BAILII, Act, Courts.ie…) that opens in the browser
+function srcLink(u){ let host=''; try{ host=new URL(u).hostname.replace(/^(www\d?|ww2)\./,''); }catch(e){}
+  const lab=/bailii\.org/.test(host)?'BAILII':/irishstatutebook|revisedacts|lawreform/.test(host)?'Act':/courts\.ie/.test(host)?'Courts.ie':/vlex/.test(host)?'vLex':/oireachtas/.test(host)?'Oireachtas':/dppireland/.test(host)?'DPP':/garda\.ie/.test(host)?'garda.ie':(host.split('.').slice(-2).join('.')||'link');
+  return '<a class="srcl" href="'+esc(u)+'" target="_blank" rel="noopener" title="'+esc(u)+'">'+esc(lab)+'</a>'; }
+function linkify(txt){
+  const U=[]; txt=String(txt).replace(/\[(https?:\/\/[^\]\s]+)\]/g,(m,u)=>{ U.push(u); return '\u0001'+(U.length-1)+'\u0002'; });
+  let h=esc(txt);
+  h=h.replace(/\bp\.\s?(\d{1,4})\b/g,(m,n)=>+n<=META.pages?`<span class="xref" data-a="${n}">${m}</span>`:m);
+  h=h.replace(/\b(V12|SG|ST|PB):(\d{1,2})\b/g,(m,k,n)=>{const base={SG:143,ST:968,PB:985,V12:937}[k];return `<span class="xref" data-a="${base+ +n}">${m}</span>`;});
+  h=h.replace(/\bPage\s(\d{1,3})\b/g,(m,n)=>`<span class="xref" data-a="${printedToAbs(+n)}">${m}</span>`);
+  h=h.replace(/\b(Facts|Held|Issue|Ruling|Test|Rule|Why it matters|Practice point|The point)(\s*[:—–])/g,'<b>$1</b>$2');
+  h=h.replace(/\b(s\.?\s?\d+[A-Z]?(?:\(\d+\))?(?:\s(?:of the\s)?[A-Z][A-Za-z\s]{2,40}Act\s(?:19|20)\d{2})?)/g,'<b class="statref">$1</b>');
+  h=h.replace(/\b([A-Z][A-Za-z\'’\-]+(?:\s\([A-Z]{2,3}\))?\sv\.?\s[A-Z][A-Za-z\'’\-]+(?:\s[A-Z][A-Za-z\'’\-]+)?)/g,'<i class="caseref">$1</i>');
+  if(U.length)h=h.replace(/\u0001(\d+)\u0002/g,(m,i)=>srcLink(U[+i]));
+  return h;
+}
+function stripMd(t){return String(t).replace(/\*{1,3}|_{2,}|^#+\s/gm,'');}
+function clip(t,n){ t=String(t); if(t.length<=n)return t; t=t.slice(0,n); const i=t.lastIndexOf(' '); return (i>n*0.6?t.slice(0,i):t).replace(/[\s,;:.—-]+$/,'')+'…'; }
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ---------- always-on 24h clock + date (covert HUD) — fills every .hudclock ---------- */
+(function(){
+  const DAYS=['SUN','MON','TUE','WED','THU','FRI','SAT'], MON=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const p=n=>String(n).padStart(2,'0');
+  function tick(){
+    const d=new Date(), t=p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+    const ds=DAYS[d.getDay()]+' '+p(d.getDate())+' '+MON[d.getMonth()]+' '+d.getFullYear();
+    const hm=t.slice(0,5);
+    document.querySelectorAll('.hudclock').forEach(el=>{
+      const f=el.dataset.f;
+      const h=f==='line'?'<b>'+hm+'</b> · '+ds : f==='hm'?'<b>'+hm+'</b>' : f==='t'?hm : f==='d'?ds : f==='sec'?'<b>'+t+'</b><small>'+ds+'</small>'
+        : '<b>'+hm+'</b><small>'+(f==='noyear'?ds.slice(0,-5):ds)+'</small>';
+      if(el._h!==h){el.innerHTML=h;el._h=h;}
+    });
+    document.querySelectorAll('.hd-cd[data-end]').forEach(el=>{ const s=Math.max(0,Math.floor((+el.dataset.end-Date.now())/1000)), v=p(Math.floor(s/3600))+':'+p(Math.floor(s%3600/60))+':'+p(s%60); if(el.textContent!==v)el.textContent=v; });
+  }
+  tick(); setInterval(tick,250); window.grHudTick=tick;   // 4×/s so new screens never show a blank clock
+  window.grToast=function(m){let t=document.getElementById('osToast');if(!t){t=document.createElement('div');t.id='osToast';document.body.appendChild(t);}
+    t.textContent=m;t.className='show';clearTimeout(t._h);t._h=setTimeout(()=>t.className='',3200);};
+})();
+
+/* ---------- phone Back button → previous screen (closes the top layer; never drops you out mid-task) ---------- */
+(function(){
+  const vis=el=>!!el&&!el.classList.contains('hidden')&&getComputedStyle(el).display!=='none';
+  const clk=sel=>{const b=document.querySelector(sel); if(b){b.click(); return true;} return false;};
+  function closeTop(){
+    if(document.getElementById('boot'))return true;                       // opening screen: stay put
+    if(window.lockBack&&window.lockBack())return true;                     // lock screen or its settings
+    if(homeEdit){ homeEditDone(); return true; }                            // customising Home: Back = Done
+    if(window.frmBack&&window.frmBack())return true;                      // print-and-fill form → closed
+    { const d=document.getElementById('dsp'); if(d&&!d.classList.contains('hidden')){ d.classList.add('hidden'); return true; } }
+    for(const id of ['mStory','mTV','mRadio']){ const el=document.getElementById(id); if(vis(el)){ el.querySelector('.m-x').click(); return true; } }
+    if(window.faBack&&window.faBack())return true;                        // first aid: step/CPR → list → closed
+    if(window.prsBack&&window.prsBack())return true;                      // present to TV: blank → show → grid → closed
+    if(window.scnBack&&window.scnBack())return true;                      // scanner: sheet → crop/enhance → pages → camera → closed
+    if(window.recBack&&window.recBack())return true;                      // recorder: sheet → player → list → closed
+    if(window.detBack&&window.detBack())return true;                      // detention clock: desk → sheet → clock → list → closed
+    if(window.gaolBack&&window.gaolBack())return true;                    // gaoler: desk → sheet → closed
+    if(window.ppBack&&window.ppBack())return true;                        // proactive patrol: pocket → sheet → detail → list → closed
+    if(window.synBack&&window.synBack())return true;                        // sync settings
+    if(window.rteBack&&window.rteBack())return true;                      // emergency route: search results → turns → closed
+    if(window.tskBack&&window.tskBack())return true;                      // tasks: sheet → editor → list → closed
+    if(window.rstBack&&window.rstBack())return true;                      // roster: sheet → wizard step → main → closed
+    if(window.ntsBack&&window.ntsBack())return true;
+    if(window.tbxBack&&window.tbxBack())return true;                      // toolbox: tool → grid → closed
+    const reel=document.getElementById('osReel');
+    if(vis(reel)){ const gv=document.getElementById('reelGridView');
+      if(gv&&gv.classList.contains('hidden'))clk('#reelGridBtn'); else clk('#reelClose'); return true; }   // reel → list → closed
+    if(vis(document.getElementById('dccList'))) return clk('#dclClose');
+    const osint=document.getElementById('osint');
+    if(vis(osint)){ if(window.osPhotoOpen&&window.osPhotoOpen()){ window.osPhotoClose(); return true; }
+      const p=document.getElementById('osPanel');
+      if(vis(p)){ if(!clk('#osPanel #ospClose'))p.classList.add('hidden'); return true; }
+      if(window.closeOSINT){ closeOSINT(); return true; } }
+    if(window.tourBack&&window.tourBack())return true;
+    if(window.rtBack&&window.rtBack())return true;
+    if(window.proSheetBack&&window.proSheetBack())return true;
+    if(!reader.classList.contains('hidden')){ closeReader(); return true; }
+    if(window.GRSP&&GRSP.back&&GRSP.back())return true;                      // search of the person: back through the questions
+    if(window.GRSearch&&GRSearch.back&&GRSearch.back())return true;          // search: key sheet → AI thread
+    if(vcur){                                                               // sub-view → the screen before it → the tab
+      if(vstack.length){ const p=vstack.pop(); vcur=null; const fn=window[p.f]; if(typeof fn==='function'){ fn.apply(null,p.a); view.scrollTop=p.y||0; } return true; }
+      vcur=null; render(); return true; }
+    if(OLD_TABS.includes(tab)){ setTab('folders'); render(); view.scrollTop=0; return true; }
+    if(tab==='search'&&lastQuery){ lastQuery=''; render(); view.scrollTop=0; return true; }
+    if(tab!=='today'){ goHome(); return true; }
+    if(view.scrollTop>40){ view.scrollTo({top:0,behavior:'smooth'}); return true; }
+    return false;
+  }
+  window.grBack=()=>closeTop();
+  try{ history.replaceState({gr:'base'},''); history.pushState({gr:'guard'},''); }catch(e){}
+  let armed=false, leaving=false;
+  addEventListener('popstate',()=>{
+    if(leaving)return;
+    if(closeTop()){ armed=false; history.pushState({gr:'guard'},''); return; }
+    if(!armed){ armed=true; history.pushState({gr:'guard'},''); if(window.grToast)grToast('Press back again to exit'); setTimeout(()=>{armed=false;},2500); return; }
+    leaving=true; history.back();                                          // second Back within 2.5 s → close the app
+  });
+})();

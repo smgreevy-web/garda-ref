@@ -1,0 +1,516 @@
+/* Assisting — Search tab. One box for everything in the app: instant offline results (search-worker.js) and AI answers
+   from Claude that search the app themselves, cite what they used and ask for the facts they need.
+   Never searched or sent: your notes, tasks, patrols, recordings, roster, scans. The API key stays on this phone. */
+(function(){
+'use strict';
+const W=window, D=document;
+const KEY='gr_apikey', MKEY='gr_ai_model', RKEY='gr_srecent', TKEY='gr_ai_thread';
+const MODELS=['claude-sonnet-5','claude-sonnet-4-6'];
+const API='https://api.anthropic.com/v1/messages';
+const e=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const I=(n,c)=>W.GRI?W.GRI(n,c):'';
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(_){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(_){}}};
+const getKey=()=>{ try{ return (localStorage.getItem(KEY)||'').trim(); }catch(_){ return ''; } };
+
+/* ---------- what the app can do: indexed alongside the reference content ---------- */
+const APP_HELP=[
+ ['patrol','Proactive patrol — record where you walked','Proactive patrol records your foot patrol by GPS with exact times: the route on a map, street names, every stop (where you stood still), distance, and a patrol log you can copy into your notebook or PULSE, or save as a GPX file. Start patrol, keep the app open; pocket mode keeps the screen on but dark. Phone locked or screen off: a web app cannot read GPS with the screen locked, so install the Assisting GPS companion app (Android): set it up from Proactive patrol → Set up Assisting GPS (download assisting-gps.apk, install it, tap Connect). It then starts and stops with Start patrol and Finish, records in the background with a notification while the phone is locked, and sends the whole route back into Assisting when you finish; Fill gaps brings in what it has so far. Pauses you set in Assisting are left out. Nothing is uploaded. Alternatively record with the free GPS Logger app and import the GPX track (share it to Assisting, or Import in patrol settings); Assisting merges it with your patrol and fills the gaps. Export a patrol to share it: open a saved patrol → Excel · Word · GPX. The Excel spreadsheet lists the timeline (times, durations, places), stops, notes and every GPS point; the Word document has the timeline as a table. Every place is given three ways — decimal latitude/longitude (WGS84, the format GPS and TETRA radios use), degrees and decimal minutes, and Irish Transverse Mercator (ITM) easting/northing for OSi maps.'],
+ ['gaol','Gaoler — cell checks','Gaoler cell board: place a prisoner in a cell, choose the check interval (every 15, 30 or 60 minutes, or constant observation), mark drink or drugs (prompts the 2-hour review), and Assisting buzzes 2 minutes before each check is due and again if it is overdue, with a distinctive vibration per cell. Tap Checked on the alert, the notification or the cell; desk mode lets you hold to check. Every check is logged with the time, including late checks.'],
+ ['det','Detention clock','Detention clock for s.4 Criminal Justice Act 1984, s.30 Offences Against the State Act 1939, s.2 Criminal Justice (Drug Trafficking) Act 1996 and s.50 Criminal Justice Act 2007: enter when detention started and it works out when each period expires, extensions and who authorises them, rest periods and excluded time, with alerts before each deadline. The member in charge governs the clock.'],
+ ['route','Emergency route — directions to a call','Emergency route: the most direct way to a call. Say it — tap the microphone (or “Say where the call is”) and say the address or place; a clear match is routed straight away and read out, with the other matches one tap away. You can also say “nearest Garda station” (from the stations list, works without searching), “nearest hospital” (a list, nearest first — check it has an A&E), “cancel”, “next turn”, “re-route” or “voice off”. Speaking needs signal; without it, use the microphone on your keyboard. Or type an address or place, paste coordinates from the job (lat, long), or tap the map. Once the route is found the screen switches to the driving view, like Google Maps: a big green banner with the next turn, the distance to it and the street (“Then” shows the turn after), a tilted map that turns with you so the way ahead is up (tap the compass for north up), the route ahead in blue and behind you in grey, and the minutes, distance and arrival time at the bottom. Touch the map to look around — Re-centre goes back; the route button shows the whole route; the list button shows every turn; ✕ leaves the driving view and Start brings it back. If it picked the wrong place, “Not this place?” under the banner shows the other matches. The route may use any road or lane and ignores one-way streets and turn bans; in the overview it’s shown in red beside the normal route (grey) and the straight line, with the distance and direction as the crow flies and an arrow that points at the call — tap the arrow to use the phone’s compass. Voice guidance reads the direct route out as you drive — “in 300 metres, turn right onto…”, the turn itself as you reach it, “off the route” (it then finds a new route from where you are) and “you have arrived”; the banner over the map shows the next turn and the distance (tap it to hear it again). Tap the speaker at the top to mute it or turn it back on, Say the next turn repeats it, and Read all the turns out reads the whole list. It uses the phone’s own voice and works while this screen is open. Turn by turn lists every turn; Re-route from here starts again from where you are. Google Maps: paste a Google Maps link or copied coordinates as the destination (short maps.app.goo.gl links don’t carry the location — press and hold the spot in Google Maps and copy its coordinates instead). Navigate in Google Maps opens the call in the Google Maps app, straight there or along the direct route with up to 3 stops where it differs from the normal route — Google still obeys one-way streets. Google Maps works on CarPlay and Android Auto. Apple Maps and Waze are there too. Assisting itself can’t run on CarPlay. Needs signal and location; the screen stays on while it’s open. Nothing is saved. Use the direct route only for an emergency response as the law and Garda policy allow, and check every turn.'],
+ ['sync','Sync across devices — tasks on your phone and computer','Sync across devices: keep your tasks (with all their steps and sub-steps), My roster and Saved sections the same on your phone and your computer. Tools → Settings → Sync across devices. It uses your own Google account: the app keeps one file in its own hidden folder in your Google Drive (appDataFolder — it doesn’t show in Drive and other apps can’t read it). Everything is encrypted on your device first (AES-256-GCM) with a passphrase only you know — Google only holds scrambled data, and without the passphrase nobody can open it. Set up once: 1) make a free Google OAuth client ID (Google Cloud console — enable the Google Drive API, consent screen in Testing with yourself as a test user, scope drive.appdata, a Web application client with this site as the authorised JavaScript origin) and paste it in; 2) sign in with Google; 3) make up a sync passphrase (on your other devices, enter the same one). Then Sync now, or let it sync by itself after changes while you’re signed in (Google sign-in lasts about an hour; then one tap signs in again). The newer change to a task wins; deleted tasks stay deleted. Looks, text size and Home layout stay per device. The sync button on Tasks shows if it’s up to date.'],
+ ['tasks','Tasks — to-do list','Tasks: a to-do list for CCTV collection, statements, calls, arrests, court and deadlines. Due dates move off weekends and public holidays for legal limits. Completing a task offers follow-ups (e.g. after an arrest: detention clock, statements). Turn a list into tasks: tap the scan button in Tasks, then take a photo of a handwritten list, or choose several screenshots or photos from your gallery (for example screenshots of your phone’s notes app — long scrolling screenshots are cut into readable parts), or type the list in. Claude reads the images with your API key; you check each task before it is added. Images are not kept. On Home, tasks show as a compact list with a symbol for each type, the due time and a red flag if urgent — tap one to open it. Types have sub-types with their own symbols — enquiries (house-to-house, shops, SPSV / taxi licence, tracing someone…), files (charged court file, for directions, traffic, sudden death, missing person, youth diversion, domestic abuse…), road traffic, victim care and admin. Steps and sub-steps: break a task into steps, and any step into smaller steps — up to six levels deep, for big jobs like a court file. Tap ⋯ on a step to add sub-steps, give it a type (which offers that type’s usual steps as its sub-steps), its own time of day — when it can be done: business hours, early morning, lunchtime, evening, nights or your own times (a step follows the step above it, and in the end the task, unless you change it; it can remind you when its time opens) — its own date and reminder, a note, or move it (up, down, under the step above, out a level). How urgent: tell a task where the case is at — investigating, file for the DPP, with the DPP, charged (with the next court date), summons or traffic file (with the date of the offence, for the 6-month limit) — and whether the suspect has been interviewed. Each step then gets an urgency — Low, Normal, High or Critical — worked out from the dates that bind it (its own, the step above, the task, the court date, the summons limit, CCTV overwrite) and the case (with the DPP puts steps on hold; suspect not interviewed puts the interview up). In a step’s ⋯ add the person’s availability — easy to get, only certain times, hard to reach (goes up a level) or going away (that date becomes a deadline) — or set the urgency yourself. The list puts the most urgent tasks first and shows the most urgent step you can do now. Can do now lists a task when any step still to do is inside its time, and the task says which step you can do now; with My roster set up, a step’s next chance on duty in its time can be planned with one tap. Tap a step to change its wording; while typing, Enter adds the next step and the bar above the keyboard moves it in or out. Ticking a step with sub-steps ticks them all (with Undo), and it ticks itself when they are all done. Full screen shows the whole plan: open any step on its own, hide finished steps, collapse or expand all, paste a whole list (lines starting with - or -- become sub-steps), copy the plan, or have Claude suggest steps with your API key (only the title is sent). Step dates show on the task, in Due today, on My roster and in calendar files. Roster: with My roster set up, pick one of your next tours as the deadline (it reminds you at the start of the tour), see when you are off on a deadline day and move it to your last tour before, and see the next tour that falls inside a task’s time window. The roster calendar shows how many tasks are on each day. Place: type a shop or business and tap Find to get its phone, email and opening hours from OpenStreetMap, or ask Claude to search the web with your API key. Email it to me sends a task or the whole list to your own email; Add to calendar saves a calendar file with the reminders. Categories: tap a category (Statement, CCTV…) to see those jobs and, under them, every sub job given that category inside other jobs — tick them off or open them there. Updating the app on the same site keeps your list — nothing to copy. Moving to a new version somewhere else, or another phone: in the old one, Tasks → Share → Move to a new version or phone (copies everything exactly — steps, sub jobs, notes, urgency, case stage, done jobs and My roster); in the new one, tap Paste your list (on an empty list, or the add-a-list button at the top) — it all comes back as it was in one tap, nothing to re-sort. A list copied from an older version (Share → Copy the list) is recognised too and added in one tap, with its categories, dates, times of day, places, notes and steps; jobs already there are left out, with any new steps added to them. Excel: share button → Excel — every job and sub job with its category, urgency, dates and when it can be done, to email to yourself.'],
+ ['roster','My roster','Roster: your shift pattern, today and your next tour, leave, court dates, swaps and overtime. Tap a day to set your detail for it — car, beat, station, files, court, event or operation, escort or guard, training — and Tasks → My days plans your jobs around it.'],
+ ['mydays','My days — your detail and what to do','My days (Tasks → My days, or a day in My roster → Plan my days): your run of working days from My roster — for example Early, Early, Night, Night. Set your detail for each day: car, beat, station, files, court and so on, or half and half (say files until 13:00, then the car). It shows where you are — day 2 of 4, how long is left — and suggests which of your jobs to do on each day and roughly when: jobs that need you out (collecting CCTV, house calls, house-to-house) go in car or beat time while shops are open or people are home; calls to businesses in business hours; desk work (files, PULSE, emails) on files or station; statements when people are home, or on station when they can come in to you; night checks on nights; a court date on its day. Most urgent first, earliest day that suits, with a rough amount of time for your own jobs on each detail. Sub jobs (a statement inside a CCTV job) are planned on their own. Anything that won’t fit says why — for example it needs business hours and you’re on nights. Tick a job done or tap it to open it. Suggestions only — calls and your Sergeant come first.'],
+ ['notes','Notes','Notes like Samsung Notes: text, sketches, photos, checklists, and a lock. Long-press a note to pin, move, colour or delete it; save a note as a Word document from its menu. Kept on this phone only.'],
+ ['rec','Voice recorder','Voice recorder with markers you can tap during a recording; crash-safe; recordings stay on this phone.'],
+ ['scan','Document scanner','Document scanner: photograph pages, flatten and clean them, save a multi-page PDF to the phone.'],
+ ['pres','Present to TV','Present to TV: show photos and CCTV clips on a TV through Smart View, DeX or casting.'],
+ ['map','Map','Map: Garda stations and districts, traffic and city cameras, Dublin City Council CCTV locations, a Street View pin, drawing and measuring, and a photos layer.'],
+ ['cams','Live cameras','Live cameras: street cameras around Fitzgibbon Street and Mountjoy, every M50 camera by junction, Dublin Port, and motorways. The first few live cameras play straight away on the selection screen; tap one for full screen. A stream that is down shows OFFLINE, and the full-screen view offers Open on YouTube. Needs signal.'],
+ ['firstaid','Medical emergency — first aid','Medical emergency: call 112/999, describe what you see by typing or speaking, and get big step-by-step first aid for 22 conditions with a CPR metronome, timers and an incident log.'],
+ ['toolbox','Toolbox','Toolbox: torch, spirit level, inclinometer, compass, ruler, measure, speedometer, location, stopwatch, timer, counter, sound level, magnifier, mirror, QR and barcode scanner, NFC reader, converter, calculator, evidence camera, vibration meter, phone status.'],
+ ['search','Search and AI answers','Search: one box searches the whole app offline — manual, case law, guides, offence cards, templates, stencils, first aid and tools. Ask AI gives a smart answer from the app\'s content with sources, and asks for details when they change the answer. Needs signal and your Anthropic API key (Tools → AI search).'],
+ ['saved','Saved pages','Saved: tap the star on any manual page to keep it in the Saved tab.'],
+ ['textsize','Look, theme and text size','Look, theme and text size: tap Aa at the top, or Tools → Settings → Theme & text size. Looks change the whole style of the app, on the phone and on a computer: Classic (clean cards, with nine colour themes to choose from), Editorial (paper and serif type — Home reads like a briefing, in light or dark), Glass (Dublin at night behind frosted cards, with a greeting — add your first name), Command (dark HUD with a live countdown of your tour), Bento (a grid of widgets, a colour for each area, light or dark), Duty board (hi-vis yellow on black with big buttons for gloves and bright sun), Red light (the whole screen in dim red to keep your night vision — photos, maps and cameras too), Material (Android style, light or dark), Notebook (ruled paper and typewriter type), Swiss (bold type on a strict grid) and Terminal (green screen, just for fun). Light, dark or match the phone for the looks that have both. Red light after dark switches the app to Red light from sunset to sunrise in Dublin and back to your look by day. In the looks, Home starts with Today: your tour, the time left and the tasks for it. Nine colour themes (Classic look). Light: Ivory (warm paper), Daylight (maximum contrast for bright sun), Sepia (soft and warm, long reads) and Mist & indigo (cool grey). Dark: Slate, Graphite & teal, Navy & brass, Forest & sage, and Midnight & amber (true black, gentle at night). The theme carries through every screen — tools, cameras, notes, patrol, the reader and news; only camera and video views stay dark. Four text sizes. Pinch to zoom while reading.'],
+ ['book','Book reading — page by page','Book reading: long pages in the reader open like a Kindle, one page at a time. Swipe left or right, or tap the right or left edge, to turn the page; tap the middle to hide the bars. The page number is at the bottom and a text-size change re-flows the book. Turn it off (or back on) with the book button at the top of the reader.'],
+ ['listen','Read aloud — listen to a page or guide','Read aloud: in the reader (any manual page, guide, stencil or template) tap the speaker at the top and the phone reads the page out in its own voice. A bar at the bottom lets you pause and carry on, change the speed (1×, 1.25×, 1.5× or slower) or stop. It stops when you close the page or open another. Uses the phone’s text-to-speech, so it works offline once the phone has an English voice. The Emergency route also reads its directions out (see Emergency route).'],
+ ['home','Customise Home','Customise Home: tap Customise Home at the bottom of the Home screen (or Tools → Settings → Home screen). Drag a box by its grip to move it, tap the eye to hide it or bring it back, Reset to start again, Done to finish. Recent has its own Hide button. Hidden boxes stay listed in Customise Home so you can bring them back.'],
+ ['lock','App lock — username and password','App lock: Tools → Settings → App lock. Choose a username and password; Assisting asks for them when it opens and again after time away (as soon as you leave, or after 1, 5, 15 or 60 minutes). The password is stored only as a one-way hash and cannot be recovered — if it is forgotten, the only way back in is to erase Assisting’s saved data (your notes, tasks and settings). It stops someone opening Assisting; it does not encrypt what is stored, so keep using the notes lock and your screen lock.'],
+ ['docs','Downloads — Word and Excel files','Downloads: every download is a real Word (.docx) or Excel (.xlsx) file that opens in Word, Google Docs or Sheets. Templates and stencils (s.41 notice, interview plan, CCTV request and the rest) download as Word documents laid out like the typed form in a box; the CCTV continuity statement (Tools → CCTV continuity statement, My stencils, or the button in a CCTV task) is a two-page form to print and fill in by pen, plain or with tick boxes — print it from the phone, or send or save it as a PDF or a Word file to print or type into at work; notes can be saved as Word; patrols export to Excel, Word and GPX. Files are saved to the phone or shared — nothing is uploaded.'],
+ ['judg','Judgments search — BAILII Ireland','Judgments search: search Irish judgments on BAILII by case name, topic, phrase or neutral citation; pick a court (Supreme Court, Court of Appeal, High Court, Court of Criminal Appeal) and best match or newest first. Results open on bailii.org in the browser because BAILII blocks apps from loading its pages. Also links to recent Irish decisions and Courts.ie judgments. Needs signal.'],
+ ['exhibits','Exhibits builder','Exhibits builder: number exhibits (SMG1, SMG2…), describe them by voice or typing, and copy the schedule for your report. Session only.'],
+ ['cctvreq','CCTV preservation request','CCTV preservation request: fills in a preservation letter for a business, plus the s.41B Data Protection Act reminder.'],
+ ['wanted','Most wanted — Interpol, FBI, Europe, UK','Most wanted: Tools → Most wanted. Live from the official lists: Interpol Red Notices wanted by Ireland, Interpol notices for Irish nationals, all Interpol Red Notices, and the FBI list; Europe’s Most Wanted and the UK lists (National Crime Agency, Crimestoppers) open on their own sites. Nothing is saved on the phone. A notice alone is not grounds for arrest — confirm on PULSE and through the Garda international liaison / Interpol office.'],
+ ['fakecall','Fake call and Pomodoro timer','Fake call: Toolbox → Fake call. Pick a caller name and when it should ring (5 seconds to 5 minutes); the phone shows a real-looking incoming call screen, rings and vibrates, and you can answer and act out the call to get out of a situation. Keep Assisting open until it rings. Pomodoro: Toolbox → Pomodoro — focus for 25 minutes, then a 5-minute break, with a long break every fourth time (or 45/15, 50/10).'],
+ ['news','News, radio and TV','Live news (Sky News, RTÉ), Irish radio stations, need-to-know Garda and crime news ranked for urgency, a Dublin inner city news strip (Dublin 1, 2, 3, 7 and 8 — local papers such as DublinLive, Dublin People and Dublin Inquirer plus national stories that name the area, newest first). Each strip shows the top stories — tap View all for the full list. Follow-up stories about the same event are grouped under one story, so the same news is not repeated. Needs signal.']
+];
+const TOOLBOX=[['torch','Torch','Torch, flashlight, SOS strobe'],['level','Spirit level','Level, flat surface'],['angle','Inclinometer','Angle, slope'],['compass','Compass','Bearing, direction, north'],
+ ['ruler','Ruler','Measure small objects on screen'],['measure','Measure','Measure distance with the camera, evidence photo'],['speed','Speedometer','GPS speed'],['location','Location','Coordinates, address, grid reference'],
+ ['stopwatch','Stopwatch','Time an event'],['timer','Timer','Countdown'],['counter','Counter','Tally, count people'],['sound','Sound level','Decibels, noise complaint'],['magnifier','Magnifier','Zoom, read small print'],
+ ['mirror','Mirror','Front camera mirror'],['scanner','QR / barcode','Scan QR code or barcode'],['nfc','NFC reader','Read NFC tag or card'],['converter','Converter','Units, speed, distance'],
+ ['calculator','Calculator','Sums'],['pomodoro','Pomodoro','Focus timer — 25 minutes on, 5 off, long break every fourth'],['fakecall','Fake call','Fake incoming call to get out of a situation'],['camera','Evidence camera','Photos with time and location stamp'],['vibro','Vibration meter','Vibration'],['device','Phone status','Battery, signal, storage']];
+function extraDocs(){
+  const out=[];
+  APP_HELP.forEach(([id,t,x])=>out.push({k:'app',p:'app:'+id,t,l:'App feature',x,o:{k:'app',v:id},w:3}));
+  TOOLBOX.forEach(([id,t,x])=>out.push({k:'tool',p:'tb:'+id,t:t+' (Toolbox)',l:'Toolbox',x,o:{k:'tool',id},w:3}));
+  try{ const fa=W.GRFirstAid&&GRFirstAid.content(); if(fa)fa.conditions.forEach(c=>{
+    const L=a=>(a||[]).map(x=>x.text).join('\n');
+    const steps=c.variants?c.variants.map(v=>v.label+':\n'+v.steps.map(s=>'- '+s.text).join('\n')).join('\n\n'):(c.steps||[]).map(s=>'- '+s.text).join('\n');
+    out.push({k:'fa',p:'fa:'+c.id,t:c.title,l:'First aid · '+(c.subtitle||''),
+      x:['Also called: '+(c.keywords||[]).join(', '),'Recognise:\n'+L(c.recognise),'Steps:\n'+steps,'Don’t:\n'+L(c.dont),'Call 112 when:\n'+L(c.call112When)].join('\n\n').slice(0,4000),o:{k:'fa',id:c.id},w:3}); }); }catch(_){}
+  return out;
+}
+
+/* ---------- worker ---------- */
+let wk=null, wInfo=null, wErr=null, rid=0, prog=null;
+const waiters=new Map(), readyCbs=[];
+function worker(){
+  if(wk||wErr)return wk;
+  try{ wk=new Worker('search-worker.js'); }catch(err){ wErr=String(err&&err.message||err); return null; }
+  wk.onmessage=ev=>{ const m=ev.data||{};
+    if(m.t==='prog'){ prog=m; paintPrep(); return; }
+    if(m.t==='ready'){ wInfo=m.info; prog=null; readyCbs.splice(0).forEach(f=>f()); paintPrep(); return; }
+    const w=waiters.get(m.id); if(!w)return; waiters.delete(m.id);
+    if(m.t==='err')w.rej(new Error(m.e)); else w.res(m.r); };
+  wk.onerror=ev=>{ wErr=(ev&&ev.message)||'search worker failed'; waiters.forEach(w=>w.rej(new Error(wErr))); waiters.clear(); paintPrep(); };
+  wk.postMessage({t:'init',extra:extraDocs()});
+  return wk;
+}
+function call(msg){ return new Promise((res,rej)=>{ const w=worker(); if(!w){rej(new Error(wErr||'no worker'));return;}
+  const go=()=>{ const id=++rid; waiters.set(id,{res,rej}); w.postMessage(Object.assign({id},msg)); };
+  if(wInfo)go(); else readyCbs.push(go); }); }
+
+/* ---------- state ---------- */
+const FILTERS=[['all','All'],['manual','Manual'],['cases','Case law'],['guides','Guides'],['offences','Offences'],['forms','Forms'],['app','App & first aid']];
+const TYPE={page:['book-open','Manual'],az:['list','Index'],case:['scale','Case law'],guide:['book-marked','Guide'],off:['shield','Offence card'],sg:['file-text','Statement guide'],
+  tpl:['mail','Template'],nb:['notebook-pen','Notebook entry'],sten:['layout-template','Stencil'],kb:['book-text','Quick reference'],ops2:['book-text','Quick reference'],major:['siren','Checklist'],
+  fa:['heart-pulse','First aid'],tool:['wrench','Toolbox'],app:['smartphone','App']};
+const S={q:'',filter:'all',res:null,shown:20,seq:0,keyAsk:null,ai:null};
+try{ const t=JSON.parse(sessionStorage.getItem(TKEY)||'null'); if(t&&t.turns)S.ai=t; }catch(_){}
+const saveThread=()=>{ try{ sessionStorage.setItem(TKEY,JSON.stringify(S.ai)); }catch(_){} };
+let V=null;   // the view element while the Search tab is showing
+const on=()=>V&&D.body.contains(V)&&V.querySelector('.tabroot[data-tab="search"]');
+
+/* ---------- render ---------- */
+function render(view,opt){
+  V=view; worker();
+  S.home=opt&&typeof opt.home==='function'?opt.home:null;
+  if(opt&&typeof opt.q==='string'&&opt.q!==S.q){ S.q=opt.q; S.res=null; S.shown=20; }
+  view.innerHTML=`<div class="tabroot" data-tab="search" hidden></div>
+  <div class="sx-top${S.home?' home':''}${S.q.trim()?'':' noq'}">
+    <div class="sx-box">${I('search')}<input id="q" type="search" placeholder="Search or ask anything…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" value="${e(S.q)}">
+      <button type="button" class="sx-clear" aria-label="Clear"${S.q?'':' hidden'}>${I('x')}</button></div>
+    <div class="chips sx-f">${FILTERS.map(([k,l])=>`<button type="button" class="chip${S.filter===k?' on':''}" data-f="${k}">${l}<span class="sx-n"></span></button>`).join('')}</div>
+  </div>
+  <div id="sxPrep" class="sx-prep" hidden></div>
+  <div id="aiBox"></div>
+  <div id="results"></div>`;
+  const q=view.querySelector('#q'); let t=null;
+  q.addEventListener('input',()=>{ S.q=q.value; try{ lastQuery=S.q; }catch(_){}
+    view.querySelector('.sx-clear').hidden=!S.q; view.querySelector('.sx-top').classList.toggle('noq',!S.q.trim()); clearTimeout(t); t=setTimeout(run,140); });
+  q.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); q.blur(); remember(S.q); run(); } });
+  view.querySelector('.sx-clear').addEventListener('click',()=>{ S.q=''; q.value=''; try{ lastQuery=''; }catch(_){} view.querySelector('.sx-clear').hidden=true; view.querySelector('.sx-top').classList.add('noq'); run(); q.focus(); });
+  view.querySelectorAll('.sx-f .chip').forEach(c=>c.addEventListener('click',()=>{ S.filter=c.dataset.f; S.shown=20;
+    view.querySelectorAll('.sx-f .chip').forEach(x=>x.classList.toggle('on',x===c)); run(); }));
+  paintPrep(); paintAI(); run();
+}
+function paintPrep(){
+  if(!on())return; const el=V.querySelector('#sxPrep'); if(!el)return;
+  if(wErr){ el.hidden=false; el.textContent='Search engine failed to start ('+wErr+'). Restart the app.'; return; }
+  if(wInfo||!S.q.trim()){ el.hidden=true; if(wInfo&&S.q&&!S.res)run(); return; }
+  el.hidden=false; el.innerHTML=`<i class="sx-spin"></i>Preparing search${prog?` · ${Math.round(prog.d/prog.n*100)}%`:'…'}`;
+}
+async function run(){
+  if(!on())return;
+  const box=V.querySelector('#results'); const q=S.q.trim();
+  if(q.length<2){ S.res=null; paintCounts(null); if(S.home){ if(!box.querySelector('.homeq'))S.home(box); } else paintEmpty(box); return; }
+  const seq=++S.seq;
+  if(!wInfo){ box.innerHTML=aiCard(q); wireAICard(box); return; }
+  let r; try{ r=await call({t:'q',q,filter:S.filter,n:200}); }catch(err){ box.innerHTML='<div class="empty">Search failed: '+e(err.message)+'</div>'; return; }
+  if(seq!==S.seq||!on())return;
+  S.res=r; paintRes(box);
+}
+function aiCard(q){
+  if(S.ai&&S.ai.turns.length&&S.ai.turns[0].q.toLowerCase()===String(q).toLowerCase())return '';
+  return `<button type="button" class="sx-ai" id="sxAsk">${I('sparkles')}<span class="lt"><b>Ask AI</b><span class="sx-aq">“${e(q)}”</span>
+    <small>Smart answer from the app's content, with sources — asks for details if they matter</small></span>${I('chevron-right','chev')}</button>`;
+}
+function wireAICard(box){ const b=box.querySelector('#sxAsk'); if(b)b.addEventListener('click',()=>{ remember(S.q); ask(S.q.trim(),'ask'); }); }
+/* judgments beyond the app: one row that runs the same words on BAILII Ireland (opens in the browser) */
+function blRow(){
+  const q=S.q.trim(); if(q.length<3||!(S.filter==='all'||S.filter==='cases')||typeof W.openBailii!=='function')return '';
+  return `<div class="lgrp sx-blg"><button type="button" class="lrow sx-bl">${I('gavel')}<span class="lt"><b>Search judgments for “${e(q)}”</b><small>BAILII Ireland · all Irish courts · opens in your browser</small></span>${I('external-link','chev')}</button></div>`;
+}
+function wireBl(box){ const b=box.querySelector('.sx-bl'); if(b)b.addEventListener('click',()=>{ remember(S.q); W.openBailii(S.q.trim(),'ie/cases','rank'); }); }
+/* "Did you know?" — useful parts of the app, one at a time. Moves on by itself every 6 s (not if the phone asks for reduced motion); swipe or tap. */
+const DYK=[
+ ['roster','1f4c5','Your roster, any day','Core, Non-core and DDU for Units A–D, January 2025 to December 2028 — and what every unit is on today.'],
+ ['tasks','23f0','Deadlines before they pass','Today shows the summons time limit and CCTV overwrite dates under “Running out”.'],
+ ['proofs','2705','Does the statement meet the proofs?','Tick each proof it covers — anything missing is flagged before you copy.'],
+ ['clock','1f6aa','Detention clock','Deadlines, extensions and excluded periods for each prisoner, with an alert before each one.'],
+ ['rights','1f310','Point to your language','Hand the phone over: 30 languages in their own script, so you ask for the right interpreter.'],
+ ['essentials','2696-fe0f','Is it still the law?','Every case shows its court and year, whether it still stands, and when it was last checked.'],
+ ['searchp','1f50e','Search of the person','Power, grounds, what to say and what to record — step by step.'],
+ ['gaol','1f514','Cell checks that remind you','The cell board buzzes before each check is due.'],
+ ['firstaid','1f691','Medical emergency, no signal needed','A CPR metronome and 22 conditions, all offline.'],
+ ['scan','1f5a8-fe0f','Scan paper to PDF','Documents saved to this phone only — never uploaded.'],
+ ['camall','1f4f9','Live cameras','Street cameras for the district, the M50 and Dublin Port.'],
+ ['','1f399-fe0f','Dictate instead of typing','Every text box has Dictate — and a reminder never to enter names, dates of birth or PULSE numbers.']];
+let dykT=null;
+function wireDyk(box){
+  const root=box.querySelector('.dyk'); if(!root)return; const tr=root.querySelector('.dyk-track'), cards=[...tr.children], dots=[...root.querySelectorAll('.dyk-dots i')];
+  let i=0; const reduce=W.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const go=k=>{ i=(k+cards.length)%cards.length; tr.style.transform='translateX('+(-i*100)+'%)'; dots.forEach((d,j)=>d.classList.toggle('on',j===i)); cards.forEach((c,j)=>c.tabIndex=j===i?0:-1); };
+  const tick=()=>{ clearTimeout(dykT); if(reduce)return; dykT=setTimeout(()=>{ if(!D.body.contains(root))return; if(D.visibilityState==='visible')go(i+1); tick(); },6000); };
+  cards.forEach(c=>c.addEventListener('click',()=>{ const id=c.dataset.it; if(id&&W.GRPro)GRPro.run(id); else { const q=V.querySelector('#q'); if(q)q.focus(); } }));
+  let sx=null; root.addEventListener('touchstart',ev=>{ sx=ev.touches[0].clientX; clearTimeout(dykT); },{passive:true});
+  root.addEventListener('touchend',ev=>{ if(sx==null)return; const dx=ev.changedTouches[0].clientX-sx; sx=null; if(Math.abs(dx)>40)go(i+(dx<0?1:-1)); tick(); },{passive:true});
+  go(0); tick();
+}
+function paintEmpty(box){
+  const rec=ls.get(RKEY,[]), ai=ls.get('gr_ai_recent',[]).map(x=>String(x&&x.q||x)).filter(Boolean), seen=ls.get('gr_recent',[]).slice(0,5);
+  const n=wInfo&&wInfo.counts||{};
+  box.innerHTML=`<div class="sx-intro">
+    <div class="sx-ih">${I('sparkles')}<b>Ask in your own words</b></div>
+    <p>Type a question or a topic. You’ll get the best matches, the tools to open, and questions to ask next — no signal needed.</p>
+    <div class="sx-ex">${['Can I search a car for drugs without a warrant?','How long can I detain someone arrested under s.4?','What do I need to prove for a s.6 public order offence?','How do I object to bail for a repeat burglar?','How do I record a patrol with the phone locked?'].map(x=>`<button type="button" class="sx-exq">${e(x)}</button>`).join('')}</div>
+  </div>
+  ${(rec.length||ai.length)?`<h2 class="sec">Recent searches<span class="sec-r"><button type="button" class="sx-clr">Clear</button></span></h2><div class="sx-rchips">${ai.slice(0,4).map(x=>`<button type="button" class="sx-rc sx-reask" data-q="${e(x)}">${I('sparkles')}<span>${e(x)}</span></button>`).join('')}${rec.filter(x=>!ai.some(a=>a.toLowerCase()===x.toLowerCase())).map(x=>`<button type="button" class="sx-rc sx-rec" data-q="${e(x)}">${I('history')}<span>${e(x)}</span></button>`).join('')}</div>`:''}
+  ${seen.length?`<h2 class="sec">Recently viewed</h2><div class="lgrp">${seen.map(r=>`<button type="button" class="lrow sx-seen" data-k="${e(r.k)}" data-id="${e(String(r.id))}">${I(r.k==='case'?'scale':r.k==='tool'?'toolbox':r.k==='guide'?'book-open':'file-text')}<span class="lt"><b>${e(r.t)}</b><small>${e(r.s||'')}</small></span>${I('chevron-right','chev')}</button>`).join('')}</div>`:''}
+  <div class="pro sx-dyk"><div class="p-sec"><b>Did you know?</b></div><div class="dyk" role="region" aria-roledescription="carousel" aria-label="Things the app can do"><div class="dyk-track">${DYK.map((d,i)=>`<button type="button" class="dyk-card" data-it="${d[0]}" aria-label="${e(d[2])}" ${i?'tabindex="-1"':''}>${W.GRPro?GRPro.icon(d[1],52):''}<span><b>${e(d[2])}</b><small>${e(d[3])}</small><em>${d[0]?'Open ›':''}</em></span></button>`).join('')}</div><div class="dyk-dots">${DYK.map((_,i)=>`<i class="${i?'':'on'}"></i>`).join('')}</div></div>
+  <p class="sx-cov">Searches ${(n.page||992).toLocaleString('en-IE')} manual pages, ${(W.CASES_N||n.case||558)} cases, ${((n.guide||15)+(n.ops2||11)+(n.kb||8))} guides, ${((n.off||20)+(n.sg||11))} offence cards, ${((n.tpl||8)+(n.sten||12))} templates and ${((n.app||0)+(n.tool||0))||53} tools. Your own notes, tasks and roster are never sent anywhere.</p></div>`;
+  wireDyk(box);
+  box.querySelectorAll('.sx-exq').forEach(b=>b.addEventListener('click',()=>{ S.q=b.textContent; S.filter='all'; V.querySelectorAll('.sx-f .chip').forEach(x=>x.classList.toggle('on',x.dataset.f==='all')); const q=V.querySelector('#q'); if(q)q.value=S.q; V.querySelector('.sx-clear').hidden=false; remember(S.q); run(); }));
+  box.querySelectorAll('.sx-rec').forEach(b=>b.addEventListener('click',()=>{ S.q=b.dataset.q; const q=V.querySelector('#q'); if(q)q.value=S.q; V.querySelector('.sx-clear').hidden=false; run(); }));
+  box.querySelectorAll('.sx-reask').forEach(b=>b.addEventListener('click',()=>{ S.q=b.dataset.q; const q=V.querySelector('#q'); if(q)q.value=S.q; V.querySelector('.sx-clear').hidden=false; run(); setTimeout(()=>ask(S.q,'ask'),300); }));
+  box.querySelectorAll('.sx-seen').forEach(b=>b.addEventListener('click',()=>{ const k=b.dataset.k,id=b.dataset.id; if(k==='case'&&W.openCase)openCase(id); else if(k==='tool'&&W.GRPro)GRPro.run(id); else if(k==='guide'&&W.openGuide3)openGuide3(id); else if(W.openPage)openPage(+id); }));
+  const c=box.querySelector('.sx-clr'); if(c)c.addEventListener('click',()=>{ ls.set(RKEY,[]); ls.set('gr_ai_recent',[]); paintEmpty(box); });
+  paintCounts(null);
+}
+function remember(q){ q=String(q||'').trim(); if(q.length<3)return; const r=ls.get(RKEY,[]).filter(x=>x.toLowerCase()!==q.toLowerCase()); r.unshift(q); ls.set(RKEY,r.slice(0,6)); }
+function paintCounts(c){ if(!on())return; V.querySelectorAll('.sx-f .chip').forEach(ch=>{ const n=ch.querySelector('.sx-n'); if(n)n.textContent=c&&c[ch.dataset.f]!=null?' '+c[ch.dataset.f]:''; }); }
+function hl(txt,terms){
+  let h=e(txt); if(!terms||!terms.length)return h;
+  const re=new RegExp('\\b('+terms.filter(t=>t.length>1).map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')+')[a-z]*','gi');
+  return h.replace(re,'<mark>$&</mark>');
+}
+function paintRes(box){
+  const r=S.res; paintCounts(r.counts);
+  let h=aiCard(S.q.trim());
+  if(!r.items.length){ h+=`<div class="empty">Nothing in the app matches “${e(S.q)}”${S.filter!=='all'?' in this filter':''}. Try fewer or different words${S.filter!=='all'?', or the All filter':''} — or ask AI.</div>`+blRow(); box.innerHTML=h; wireAICard(box); wireBl(box); return; }
+  if(S.filter==='all'&&W.GRAsk)h+=GRAsk.block(r.items,S.q.trim());
+  h+=`<h2 class="sec">${S.filter==='all'?'Best matches':e(FILTERS.find(f=>f[0]===S.filter)[1])}<span class="sec-r">${r.total} result${r.total===1?'':'s'}</span></h2><div class="lgrp">`;
+  r.items.slice(0,S.shown).forEach((it,i)=>{ const T=TYPE[it.k]||['circle-dot',''];
+    h+=`<button type="button" class="lrow sr" data-i="${i}">${I(T[0])}<span class="lt"><b>${e(it.t)}</b><small class="sr-l"><span class="sr-k">${e(T[1])}</span>${it.l?' · '+e(it.l):''}${it.dated?' · <span class="sr-old">verify — 2007</span>':''}</small>${it.snip&&it.k!=='az'?`<span class="sr-snip">${hl(it.snip,r.terms)}</span>`:''}</span></button>`; });
+  h+='</div>';
+  if(r.items.length>S.shown)h+=`<button type="button" class="sx-more">Show more (${r.items.length-S.shown})</button>`;
+  h+=blRow();
+  box.innerHTML=h; wireAICard(box); wireBl(box);
+  box.querySelectorAll('.sr').forEach(b=>b.addEventListener('click',()=>{ remember(S.q); openItem(r.items[+b.dataset.i].o); }));
+  const m=box.querySelector('.sx-more'); if(m)m.addEventListener('click',()=>{ S.shown+=30; paintRes(box); });
+  box.querySelectorAll('.as-go').forEach(b=>b.addEventListener('click',()=>{ remember(S.q); openItem(r.items[+b.dataset.i].o); }));
+  box.querySelectorAll('.as-next button').forEach(b=>b.addEventListener('click',()=>{ S.q=b.textContent; S.shown=20; const q=V.querySelector('#q'); if(q)q.value=S.q; try{ lastQuery=S.q; }catch(_){} V.querySelector('.sx-clear').hidden=false; V.querySelector('.sx-top').classList.remove('noq'); remember(S.q); run(); V.scrollTop=0; }));
+}
+
+/* ---------- open anything ---------- */
+function openItem(o){
+  if(!o)return;
+  try{
+    switch(o.k){
+      case 'page': openPage(o.a); break;
+      case 'case': openCase(o.n); break;
+      case 'guide': openGuide3(o.id); break;
+      case 'nb': if(W.renderNB)W.renderNB(o.id); break;
+      case 'off': renderOffence(o.i); break;
+      case 'sg': renderGuides(o.g); break;
+      case 'tpl': openTemplate(o.i); break;
+      case 'sten': openStencil(o.i); break;
+      case 'major': renderMajor(); break;
+      case 'kb': if(o.v==='caution')renderCaution(); else if(o.v==='latin')renderLatin(); else if(o.v==='acronyms')renderAcronyms(); else renderKBtopic(o.v); break;
+      case 'ops2': if(o.v==='cautions'||o.v==='declarations')renderCautions(); else if(o.v==='latin'||o.v==='acronyms')renderLang(); else renderDeep(o.v); break;
+      case 'fa': if(W.openFirstAid)openFirstAid(o.id); break;
+      case 'tool': if(W.openTool)openTool(o.id); break;
+      case 'app': openApp(o.v); break;
+    }
+  }catch(err){ if(W.grToast)grToast('Could not open that: '+err.message); }
+}
+function openApp(v){
+  const f={patrol:'openPatrol',gaol:'openGaol',det:'openDetention',tasks:'openTasks',roster:'openRoster',notes:'openNotes',rec:'openRecorder',scan:'openScanner',
+    pres:'openPresent',map:'openOSINT',firstaid:'openFirstAid',toolbox:'openToolbox',route:'openRoute',sync:'openSync'}[v];
+  if(f&&typeof W[f]==='function'){ W[f](); return; }
+  if(v==='news'&&W.GRMedia){ GRMedia.openTV('sky'); return; }
+  if(v==='cams'&&W.openCamReel){ openCamReel(0,null,true); return; }
+  if(v==='exhibits'){ renderExhibits(); return; }
+  if(v==='cctvreq'){ renderCCTV(); return; }
+  if(v==='saved'){ setTab('saved'); render2(); return; }
+  if(v==='search'){ W.renderAISettings(); return; }
+  if(v==='textsize'&&typeof W.displaySheet==='function'){ W.displaySheet(); return; }
+  if(v==='listen'){ if(W.grToast)W.grToast('Open any page or guide, then tap the speaker at the top'); return; }
+  if(v==='home'&&typeof W.homeEditOpen==='function'){ W.homeEditOpen(); return; }
+  if(v==='wanted'&&typeof W.renderWanted==='function'){ W.renderWanted(); return; }
+  if(v==='fakecall'&&typeof W.openTool==='function'){ W.openTool('fakecall'); return; }
+  if(v==='lock'&&W.GRLock){ W.GRLock.sheet(); return; }
+  if(v==='judg'&&typeof W.renderJudgments==='function'){ W.renderJudgments(); return; }
+}
+function render2(){ if(typeof W.render==='function')W.render(); }
+
+/* ---------- AI ---------- */
+const SYSTEM=`You are the research assistant inside Assisting, an independent offline reference app (not an official Garda system) used by a serving Garda — an Irish police officer in Dublin. You answer questions about Irish criminal law, Garda powers and procedure, evidence, case law, statements and paperwork, first aid, and how to use the app's own tools.
+
+How to work:
+1. You are given numbered SOURCES retrieved from the app. If they don't clearly answer the question, call search_app with up to 3 short keyword queries (statute names, section numbers, legal terms — e.g. "s.23 Misuse of Drugs Act search vehicle"). You may search at most twice per question.
+2. Then call respond.
+
+Rules for the answer:
+- Lead with the direct answer in one or two sentences, then the key points (powers, conditions, time limits, what to say or record). Short paragraphs and "- " bullets; **bold** only for key terms. Usually 80–250 words.
+- Base every legal point on the sources and cite them inline like [4] or [2][7]. Never cite a source that doesn't support the point.
+- Never invent section numbers, time limits, penalties, case names or quotations. If the sources don't cover something, say so plainly ("Not covered in your app"); you may add general knowledge only if it is labelled "General knowledge — verify".
+- If the right answer depends on facts you don't have (e.g. the person's age, where it happened, which offence, time already in custody, consent, whether there's a warrant), still give the best general answer AND ask up to 3 short clarifying questions, each with 2–5 tap-able answer options. Only ask questions whose answers would change the advice.
+- When the officer answers your questions, give the specific answer for those facts.
+- For questions about using the app, name the feature to open and say how.
+- For an urgent medical or danger situation, put "Call 112/999" first.
+- This is a reference, not legal advice; the app already shows that, so don't add disclaimers.`;
+const TOOLS=[
+ {name:'search_app',description:'Search everything in the Assisting app again — manual, case law, guides, offence cards, templates, first aid and app features. Returns new numbered sources.',
+  input_schema:{type:'object',properties:{queries:{type:'array',items:{type:'string'},minItems:1,maxItems:3,description:'Short keyword queries, e.g. "s.4 CJA 1984 detention extension", "DPP v JC exclusionary rule".'}},required:['queries']}},
+ {name:'respond',description:'Give the answer to show the officer.',
+  input_schema:{type:'object',properties:{
+   answer:{type:'string',description:'The answer. Plain text with light markdown: short paragraphs, "- " bullets, **bold** for key terms. Cite sources inline as [n].'},
+   confidence:{type:'string',enum:['high','medium','low'],description:'high = the sources directly answer it; medium = partly; low = they barely cover it.'},
+   questions:{type:'array',maxItems:3,description:'Clarifying questions, only when the facts would change the answer.',items:{type:'object',properties:{q:{type:'string'},options:{type:'array',items:{type:'string'},minItems:2,maxItems:5}},required:['q','options']}},
+   follow_ups:{type:'array',maxItems:3,items:{type:'string'},description:'Up to 3 short, useful next questions the officer might ask.'},
+   sources_used:{type:'array',items:{type:'integer'},description:'Numbers of the sources the answer relies on.'}},
+   required:['answer','confidence','sources_used']}}];
+
+function newThread(){ return {turns:[],msgs:[],srcs:{},n:0,busy:false,pending:[]}; }
+function srcBlock(list){
+  return list.map(s=>{ const T=TYPE[s.k]||['',s.k];
+    return `[${s.n}] ${T[1]} — ${s.t}${s.l?' · '+s.l:''}${s.dated?' (2007 manual — may be out of date)':''}\n${s.text}`; }).join('\n\n');
+}
+function addSources(list){ const A=S.ai; const out=[];
+  for(const s of list){ if(Object.values(A.srcs).some(x=>x.key===s.key))continue; const n=++A.n; const src=Object.assign({n},s); A.srcs[n]=src; out.push(src); }
+  return out; }
+const sentKeys=()=>Object.values(S.ai.srcs).map(s=>s.key);
+
+async function ask(q,kind,answers){
+  q=String(q||'').trim(); if(!q)return;
+  if(!getKey()){ S.keyAsk={q,kind,answers}; paintAI(); scrollAI(); return; }
+  if(!navigator.onLine){ toastAI('AI needs signal — the offline results below still work.'); return; }
+  if(!S.ai||kind==='ask')S.ai=newThread();
+  const A=S.ai; if(A.busy)return;
+  const snap={m:A.msgs.length,n:A.n,keys:Object.keys(A.srcs),pending:(A.pending||[]).slice()};
+  try{ const ar=ls.get('gr_ai_recent',[]).filter(x=>String(x.q||x).toLowerCase()!==q.toLowerCase()); ar.unshift({q,t:Date.now()}); ls.set('gr_ai_recent',ar.slice(0,8)); }catch(_){}
+  const turn={q,kind,status:'Searching the app…',res:null,err:null,sources:[],answers:answers||null,t:Date.now()};
+  A.turns.push(turn); A.busy=true; paintAI(); scrollAI(true);
+  try{
+    const ctxQ=kind==='ask'?q:[A.turns[0].q,q==='(answers)'?'':q,answers?answers.map(x=>x.a).join(' '):''].join(' ');
+    const found=await call({t:'ctx',q:ctxQ,extra:[],exclude:sentKeys(),budget:kind==='ask'?13000:8000});
+    const fresh=addSources(found); turn.sources=fresh.map(s=>s.n);
+    let text='';
+    if(kind==='clarify'&&answers)text='MY ANSWERS TO YOUR QUESTIONS:\n'+answers.map(x=>'- '+x.q+' → '+x.a).join('\n')+(q&&q!=='(answers)'&&!(answers.length===1&&answers[0].a===q)?'\nMore detail: '+q:'')+'\n\nGive the answer for these facts.';
+    else if(kind==='follow')text='FOLLOW-UP QUESTION: '+q;
+    else text='QUESTION: '+q;
+    text+=fresh.length?'\n\nSOURCES FROM THE APP:\n'+srcBlock(fresh):'\n\n(No new sources matched — use the earlier sources or call search_app.)';
+    const content=(A.pending||[]).map(id=>({type:'tool_result',tool_use_id:id,content:'Shown to the officer.'}));
+    A.pending=[];
+    content.push({type:'text',text});
+    A.msgs.push({role:'user',content});
+    turn.status=`Reading ${fresh.length} source${fresh.length===1?'':'s'}…`; paintAI();
+    let searches=0;
+    for(let round=0;round<4&&!turn.res;round++){
+      const r=await api(A.msgs,searches>=2||round>=3);
+      A.msgs.push({role:'assistant',content:r.content});
+      const tu=(r.content||[]).filter(x=>x.type==='tool_use');
+      const resp=tu.find(x=>x.name==='respond');
+      if(resp){ turn.res=clean(resp.input); A.pending=tu.map(x=>x.id); break; }
+      if(!tu.length)throw new Error('No answer came back — try again.');
+      const results=[];
+      for(const call1 of tu){
+        if(call1.name!=='search_app'){ results.push({type:'tool_result',tool_use_id:call1.id,content:'Unknown tool.'}); continue; }
+        searches++;
+        const qs=(call1.input&&Array.isArray(call1.input.queries)?call1.input.queries:[]).slice(0,3).map(String);
+        turn.status='Searching: '+qs.join(' · '); paintAI();
+        let more=[]; for(const sq of qs){ try{ const f=await call({t:'ctx',q:sq,extra:[],exclude:sentKeys().concat(more.map(m=>m.key)),budget:Math.floor(9000/Math.max(1,qs.length))}); more=more.concat(f); }catch(_){} }
+        const added=addSources(more); turn.sources=turn.sources.concat(added.map(x=>x.n));
+        results.push({type:'tool_result',tool_use_id:call1.id,content:added.length?'NEW SOURCES:\n'+srcBlock(added):'No new sources found for those terms. Answer from what you have.'});
+        turn.status=`Reading ${added.length} more source${added.length===1?'':'s'}…`; paintAI();
+      }
+      A.msgs.push({role:'user',content:results});
+    }
+    if(!turn.res)throw new Error('No answer came back — try again.');
+  }catch(err){
+    turn.err=String(err&&err.message||err); if(err&&err.key){ /* bad key: ask again next time */ }
+    A.msgs.length=snap.m; A.pending=snap.pending;                                   // roll back so a retry is a clean request
+    for(const k of Object.keys(A.srcs))if(!snap.keys.includes(k))delete A.srcs[k]; A.n=snap.n; turn.sources=[];
+  }
+  turn.status=''; A.busy=false; saveThread(); paintAI(); scrollAI(true);
+  if(on()&&S.res)paintRes(V.querySelector('#results'));
+}
+function clean(x){ x=x||{};
+  const arr=a=>Array.isArray(a)?a:[];
+  return {answer:String(x.answer||''),confidence:['high','medium','low'].includes(x.confidence)?x.confidence:'medium',
+    questions:arr(x.questions).filter(q=>q&&q.q).slice(0,3).map(q=>({q:String(q.q),options:arr(q.options).map(String).slice(0,5)})),
+    follow_ups:arr(x.follow_ups).map(String).slice(0,3),sources_used:arr(x.sources_used).map(n=>+n).filter(n=>n>0)}; }
+async function api(msgs,forceRespond){
+  const key=getKey(); if(!key)throw new Error('No API key.');
+  let models=MODELS.slice(); const pref=localStorage.getItem(MKEY); if(pref&&models.includes(pref))models=[pref].concat(models.filter(m=>m!==pref));
+  let lastErr=null;
+  for(const model of models){
+    for(let attempt=0;attempt<2;attempt++){
+      const ac=new AbortController(); const to=setTimeout(()=>ac.abort(),75000);
+      let r, d;
+      try{
+        const body={model,max_tokens:1800,system:[{type:'text',text:SYSTEM,cache_control:{type:'ephemeral'}}],tools:TOOLS,
+          tool_choice:forceRespond?{type:'tool',name:'respond'}:{type:'any'},messages:withCache(msgs)};
+        r=await fetch(API,{method:'POST',signal:ac.signal,headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)});
+        d=await r.json().catch(()=>({}));
+      }catch(err){ clearTimeout(to); lastErr=new Error(err&&err.name==='AbortError'?'The AI took too long — try again.':'No connection to the AI — check signal.'); if(attempt===0){ await sleep(1200); continue; } throw lastErr; }
+      clearTimeout(to);
+      if(r.ok){ try{ localStorage.setItem(MKEY,model); }catch(_){} return d; }
+      const et=d&&d.error&&d.error.type||'', em=d&&d.error&&d.error.message||('HTTP '+r.status);
+      if(r.status===401||et==='authentication_error'){ const err=new Error('Your API key was rejected. Check it in Tools → AI search.'); err.key=1; throw err; }
+      if(r.status===404||et==='not_found_error'||/model/i.test(em)&&r.status===400){ lastErr=new Error(em); break; }   // try the next model
+      if(/credit balance/i.test(em))throw new Error('Your Anthropic account is out of credit — top up at console.anthropic.com.');
+      if(r.status===429)throw new Error('Too many requests right now — wait a minute and try again.');
+      if((r.status===529||r.status>=500)&&attempt===0){ await sleep(1500); continue; }
+      throw new Error(em);
+    }
+  }
+  throw lastErr||new Error('AI unavailable.');
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function withCache(msgs){   // cache the conversation so follow-ups only pay for what's new
+  const m=JSON.parse(JSON.stringify(msgs)); const last=m[m.length-1];
+  if(last&&Array.isArray(last.content)&&last.content.length){ last.content[last.content.length-1].cache_control={type:'ephemeral'}; }
+  return m;
+}
+
+/* ---------- AI rendering ---------- */
+function md(txt,known){
+  const lines=String(txt||'').replace(/\r/g,'').split('\n'); let h='', list=false;
+  const inline=s=>e(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/(?:\[(\d{1,3})\])+/g,m=>{
+    return m.match(/\d{1,3}/g).map(n=>known[n]?`<button type="button" class="cite" data-n="${n}">${n}</button>`:'').join(''); });
+  for(const raw of lines){ const t=raw.trim();
+    if(!t){ if(list){h+='</ul>';list=false;} continue; }
+    const b=t.match(/^(?:[-•*]|\d+[.)])\s+(.*)/);
+    if(b){ if(!list){h+='<ul>';list=true;} h+='<li>'+inline(b[1])+'</li>'; continue; }
+    if(list){h+='</ul>';list=false;}
+    const hd=t.match(/^#{1,4}\s+(.*)/); if(hd){ h+='<p class="ai-h">'+inline(hd[1])+'</p>'; continue; }
+    h+='<p>'+inline(t)+'</p>';
+  }
+  if(list)h+='</ul>'; return h;
+}
+function paintAI(){
+  if(!on())return; const box=V.querySelector('#aiBox'); if(!box)return;
+  if(S.keyAsk){ box.innerHTML=keyCard(); wireKey(box); return; }
+  const A=S.ai; if(!A||!A.turns.length){ box.innerHTML=''; return; }
+  let h='<div class="ai-thread">';
+  A.turns.forEach((t,ti)=>{
+    const lastTurn=ti===A.turns.length-1;
+    h+=`<div class="ai-q">${t.kind==='clarify'&&t.answers?`<span class="ai-qk">Your answers</span>${t.answers.map(a=>e(a.a)).join(' · ')}${t.q&&t.q!=='(answers)'?' · '+e(t.q):''}`:(t.kind==='follow'?'<span class="ai-qk">Follow-up</span>':'')+e(t.kind==='clarify'?'':t.q)}</div>`;
+    h+='<div class="ai-a">';
+    if(t.status)h+=`<div class="ai-status"><i class="sx-spin"></i>${e(t.status)}</div>`;
+    if(t.err)h+=`<div class="ai-err">${I('triangle-alert')}<span>${e(t.err)}</span>${lastTurn?'<button type="button" class="ai-retry">Try again</button>':''}</div>`;
+    if(t.res){ const R=t.res;
+      h+=`<div class="ai-body">${md(R.answer,A.srcs)}</div>`;
+      const used=[...new Set(R.sources_used.filter(n=>A.srcs[n]))];
+      h+=`<div class="ai-meta"><span class="ai-conf ${R.confidence}">${R.confidence==='high'?'Well covered':R.confidence==='low'?'Thinly covered — check the sources':'Partly covered'}</span><span>${used.length} source${used.length===1?'':'s'} cited</span></div>`;
+      if(lastTurn&&R.questions.length){
+        h+=`<div class="ai-clar"><div class="ai-ch">${I('circle-help')}<b>To be more accurate</b></div>`+R.questions.map((qq,qi)=>`<div class="ai-cq" data-qi="${qi}"><div class="ai-cqt">${e(qq.q)}</div><div class="ai-opts">${qq.options.map((o,oi)=>`<button type="button" class="ai-opt" data-qi="${qi}" data-oi="${oi}">${e(o)}</button>`).join('')}</div></div>`).join('')+
+          `<div class="ai-more"><input class="ai-extra" type="text" placeholder="Or add details in your own words…" enterkeyhint="send"><button type="button" class="ai-upd" disabled>Update answer</button></div></div>`;
+      }
+      if(used.length)h+=`<div class="ai-src"><div class="ai-sh">Sources</div>${used.map(n=>srcRow(A.srcs[n])).join('')}</div>`;
+      const other=t.sources.filter(n=>!used.includes(n)&&A.srcs[n]);
+      if(other.length)h+=`<details class="ai-also"><summary>Also searched · ${other.length}</summary>${other.map(n=>srcRow(A.srcs[n])).join('')}</details>`;
+      if(lastTurn&&R.follow_ups.length&&!R.questions.length)h+=`<div class="ai-fu">${R.follow_ups.map(f=>`<button type="button" class="ai-fuq">${I('corner-down-left')}<span>${e(f)}</span></button>`).join('')}</div>`;
+    }
+    h+='</div>';
+  });
+  if(!A.busy)h+=`<div class="ai-ask"><input class="ai-fin" type="text" placeholder="Ask a follow-up…" enterkeyhint="send"><button type="button" class="ai-send" aria-label="Send">${I('send')}</button></div>`;
+  h+=`<div class="ai-foot"><span>AI can be wrong — check the sources before you rely on it.</span><button type="button" class="ai-new">${I('rotate-ccw')}New question</button></div></div>`;
+  box.innerHTML=h; wireAI(box);
+}
+function srcRow(s){ const T=TYPE[s.k]||['circle-dot',''];
+  return `<button type="button" class="ai-s" data-n="${s.n}"><span class="ai-sn">${s.n}</span><span class="lt"><b>${e(s.t)}</b><small>${e(T[1])}${s.l?' · '+e(s.l):''}${s.dated?' · verify — 2007':''}</small></span>${I('chevron-right','chev')}</button>`; }
+function wireAI(box){
+  const A=S.ai;
+  box.querySelectorAll('.cite,.ai-s').forEach(b=>b.addEventListener('click',()=>{ const s=A.srcs[b.dataset.n]; if(s)openItem(s.o); }));
+  const picks={};
+  const upd=box.querySelector('.ai-upd'), extra=box.querySelector('.ai-extra');
+  const nQ=box.querySelectorAll('.ai-cq').length;
+  const submit=()=>{ const t=A.turns[A.turns.length-1], R=t.res; if(!R)return;
+    const answers=Object.entries(picks).map(([qi,oi])=>({q:R.questions[qi].q,a:R.questions[qi].options[oi]}));
+    const x=(extra&&extra.value||'').trim(); if(!answers.length&&!x)return;
+    ask(x||'(answers)','clarify',answers.length?answers:[{q:'Details',a:x}]); };
+  box.querySelectorAll('.ai-opt').forEach(b=>b.addEventListener('click',()=>{ const qi=b.dataset.qi;
+    picks[qi]=+b.dataset.oi; box.querySelectorAll('.ai-opt[data-qi="'+qi+'"]').forEach(x=>x.classList.toggle('on',x===b));
+    if(upd)upd.disabled=false;
+    if(nQ===1&&!(extra&&extra.value.trim()))submit(); }));
+  if(extra){ extra.addEventListener('input',()=>{ if(upd)upd.disabled=!extra.value.trim()&&!Object.keys(picks).length; });
+    extra.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); submit(); } }); }
+  if(upd)upd.addEventListener('click',submit);
+  box.querySelectorAll('.ai-fuq').forEach(b=>b.addEventListener('click',()=>ask(b.textContent.trim(),'follow')));
+  const fin=box.querySelector('.ai-fin'), send=box.querySelector('.ai-send');
+  const go=()=>{ const v=(fin&&fin.value||'').trim(); if(v)ask(v,'follow'); };
+  if(fin)fin.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); go(); } });
+  if(send)send.addEventListener('click',go);
+  const nw=box.querySelector('.ai-new'); if(nw)nw.addEventListener('click',()=>{ S.ai=null; saveThread(); paintAI(); if(S.res)paintRes(V.querySelector('#results')); else run(); const q=V.querySelector('#q'); if(q){ q.focus(); } });
+  const rt=box.querySelector('.ai-retry'); if(rt)rt.addEventListener('click',()=>{ const t=A.turns.pop(); if(A.turns.length===0)S.ai=null; ask(t.q,A.turns.length?t.kind:'ask',t.answers); });
+}
+function scrollAI(top){ if(!on())return; const box=V.querySelector('#aiBox'); if(!box)return;
+  requestAnimationFrame(()=>{ const qs=box.querySelectorAll(top?'.ai-q':'.ai-clar'); const el=qs[qs.length-1]||box; const hd=V.querySelector('.sx-top'), off=(hd?hd.offsetHeight:60)+4; const y=el.getBoundingClientRect().top-V.getBoundingClientRect().top+V.scrollTop-off; V.scrollTo({top:Math.max(0,y),behavior:'smooth'}); }); }
+function toastAI(m){ if(W.grToast)grToast(m); }
+
+/* ---------- API key ---------- */
+function keyCard(){
+  return `<div class="ai-key"><div class="ai-ch">${I('key-round')}<b>Connect AI answers</b></div>
+  <p>Paste your Anthropic API key. It's kept only on this phone and is sent only to Anthropic, with your question and the matching extracts from the app.</p>
+  <input class="ai-keyin" type="password" placeholder="sk-ant-…" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <div class="ai-kerr" hidden></div>
+  <div class="ai-krow"><button type="button" class="ai-ksave">Save &amp; ask</button><button type="button" class="ai-kcancel">Cancel</button></div>
+  <small>Create a key at console.anthropic.com → API keys. Each answer costs roughly 1–3 cents of your API credit.</small></div>`;
+}
+function wireKey(box){
+  const inp=box.querySelector('.ai-keyin'), err=box.querySelector('.ai-kerr');
+  const save=()=>{ const k=inp.value.trim();
+    if(!/^sk-ant-[\w-]{20,}$/.test(k)){ err.hidden=false; err.textContent='That doesn’t look like an Anthropic key — it starts sk-ant-.'; return; }
+    try{ localStorage.setItem(KEY,k); }catch(_){}
+    const p=S.keyAsk; S.keyAsk=null; paintAI(); if(p)ask(p.q,p.kind,p.answers); };
+  box.querySelector('.ai-ksave').addEventListener('click',save);
+  inp.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); save(); } });
+  box.querySelector('.ai-kcancel').addEventListener('click',()=>{ S.keyAsk=null; paintAI(); });
+  setTimeout(()=>inp.focus(),50);
+}
+function renderAISettings(){
+  const view=D.getElementById('view'); const k=getKey();
+  view.innerHTML=`<h2 class="sec">AI search</h2>
+  <div class="tool"><h3>Your key</h3><div class="gtxt">${k?`Saved on this phone: <b>sk-ant-…${e(k.slice(-4))}</b>`:'No key saved yet.'}</div>
+    <input class="fin ai-setin" type="password" placeholder="${k?'Paste a new key to replace it':'sk-ant-…'}" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="ai-kerr" hidden></div>
+    <div class="ai-krow"><button type="button" class="ai-ksave">Save key</button>${k?'<button type="button" class="ai-kdel">Remove key</button>':''}</div></div>
+  <div class="tool"><h3>What is sent</h3><div class="gtxt">Only when you tap Ask AI: your question and the matching extracts from the app's reference content (manual, case law, guides, offence cards, templates, first aid, app help) go to Anthropic over an encrypted connection. Your notes, tasks, patrols, recordings, scans and roster are never sent. Don't type names or personal details of members of the public into a question.</div></div>
+  <div class="tool"><h3>Cost & model</h3><div class="gtxt">Uses ${e(localStorage.getItem(MKEY)||MODELS[0])}. Each answer costs roughly 1–3 cents from your Anthropic API credit; follow-ups in the same thread cost less. Photo → tasks uses the same key.</div></div>
+  <div class="tool"><h3>Accuracy</h3><div class="gtxt">Answers come from the app's own content and cite it — tap a number to check the source. AI can still be wrong or out of date. It is a reference, not legal advice; verify current law and follow direction from your member in charge.</div></div>`;
+  view.scrollTop=0;
+  const inp=view.querySelector('.ai-setin'), err=view.querySelector('.ai-kerr');
+  view.querySelector('.ai-ksave').addEventListener('click',()=>{ const v=inp.value.trim();
+    if(!/^sk-ant-[\w-]{20,}$/.test(v)){ err.hidden=false; err.textContent='That doesn’t look like an Anthropic key — it starts sk-ant-.'; return; }
+    try{ localStorage.setItem(KEY,v); }catch(_){} toastAI('Key saved on this phone'); renderAISettings(); });
+  const del=view.querySelector('.ai-kdel'); if(del)del.addEventListener('click',()=>{ try{ localStorage.removeItem(KEY); }catch(_){} toastAI('Key removed'); renderAISettings(); });
+}
+W.renderAISettings=renderAISettings;
+
+/* ---------- back button ---------- */
+function back(){
+  if(!on())return false;
+  if(S.keyAsk){ S.keyAsk=null; paintAI(); return true; }
+  if(S.ai&&S.ai.turns.length&&!S.ai.busy){ S.ai=null; saveThread(); paintAI(); return true; }
+  return false;
+}
+
+W.GRSearch={render,back,settings:()=>W.renderAISettings(),ask:(q)=>{ S.q=q; ask(q,'ask'); },
+  _state:()=>S,_info:()=>wInfo,_call:call,_md:md,_worker:worker};
+/* build the index in the background shortly after start-up, so the first search is instant */
+W.addEventListener('load',()=>setTimeout(()=>{ try{ worker(); }catch(_){} },2500));
+})();

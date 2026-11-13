@@ -1,0 +1,157 @@
+{
+"cautions":{
+ "title":"⚠️ Cautions, declarations & pre-caution questioning",
+ "blocks":[
+ {"h":"The ordinary caution (Judges' Rules)","t":"\"You are not obliged to say anything unless you wish to do so, but whatever you say will be taken down in writing and may be given in evidence.\"\n\nGive it the moment you have grounds to suspect this person of an offence and you intend to question them about it. Note the exact time. Ask: \"Do you understand that caution?\" — record the answer verbatim."},
+ {"h":"The special caution (inference — ss.18/19/19A CJA 1984)","t":"Only in detention, offence carrying 5+ years, after reasonable opportunity to consult a solicitor, electronically recorded. In ordinary language you must tell them: (1) the offence being investigated; (2) the specific object/substance/mark, or the place, or the fact now relied on; (3) that you believe it may be attributable to their participation; (4) that a court may draw an inference from a failure to account; (5) that the failure may be treated as corroboration; (6) that a record is being made. Then ask them to account. No conviction on inference alone."},
+ {"h":"Before caution — what you can lawfully ask","t":"Pre-caution questioning is limited to establishing whether an offence occurred and who was involved — NOT to eliciting admissions from someone you already suspect. Legitimate pre-caution questions: identity and address; what happened; are you injured; whose vehicle is this; who owns this property; are you the driver (s.107 RTA demand); accounting for presence. The moment answers turn a person from witness into suspect, STOP, caution, then continue. Questioning on after suspicion crystallises risks the whole interview."},
+ {"h":"Doing it delicately — the practical method","t":"Open, neutral, non-accusatory: \"Tell me what happened here from the start.\" Let them talk; do not interrupt. Use open funnels — TED: Tell me, Explain, Describe. Never suggest the answer. Never promise anything (an inducement destroys voluntariness). Never say \"it'll be easier for you if…\" Do not raise your voice or lean in — oppression is judged on the whole circumstances, not just words. When suspicion forms, caution and say plainly: \"I'm now cautioning you because I suspect you of X.\" Record the time you cautioned and why. That timestamp is what defence will attack."},
+ {"h":"Voluntary cautioned statement — the process","t":"1. Caution given and understood — note the time.\n2. Tell them they may write it themselves, or you may write it as they say it.\n3. If you write it: write their words, not yours. No leading, no tidying up, no legal phrasing.\n4. Read it back to them, or invite them to read it.\n5. Invite them to correct, alter or add anything — record any changes and have them initialled.\n6. They sign the declaration at the head/foot. If they refuse to sign, record the refusal and the reason.\n7. You sign as the member who took it. Witnessing member signs too if present.\n8. Note the start and finish times. Note any breaks, refreshments, complaints."},
+ {"h":"Case law you must know before you caution","t":"People (DPP) v Shaw — voluntariness and oppression: the test is whether the will was overborne.\nDPP v Gormley — admissions taken after a request for a solicitor but before consultation are excluded. Access precedes questioning.\nDPP v Doyle — no constitutional right to a solicitor present in the interview room (practice/regulation now provides it).\nAllan v UK (ECtHR) — covert questioning in custody to bypass the right to silence violates Article 6.\nRe National Irish Bank — a confession must be voluntary; inducement or oppression renders it inadmissible.\nPeople (DPP) v Buck — breach of the Custody Regulations does not automatically exclude, but a deliberate breach will.\nJudges' Rules — not law, but breach invites exclusion at the trial judge's discretion."}
+ ]},
+"declarations":{
+ "title":"📝 Statement declarations — copy exactly",
+ "items":[
+ {"n":"Witness statement declaration (s.9 CJA 1984 / standard)","t":"\"This statement is true to the best of my knowledge and belief and I make it knowing that if it is tendered in evidence I shall be liable to prosecution if I state in it anything which I know to be false or do not believe to be true.\""},
+ {"n":"Garda statement declaration","t":"\"I hereby declare that this statement is true to the best of my knowledge and belief and that I make it knowing that if it is tendered in evidence I will be liable to prosecution if I state in it anything which I know to be false or do not believe to be true.\""},
+ {"n":"Voluntary cautioned statement — head of statement","t":"\"I, [NAME], of [ADDRESS], wish to make a statement. I have been cautioned that I am not obliged to say anything unless I wish to do so, but that whatever I say will be taken down in writing and may be given in evidence. I make this statement of my own free will. No threat, inducement or promise has been made to me.\"\n\nSigned: ______________________  Time: ______  Date: ______"},
+ {"n":"Voluntary cautioned statement — foot of statement","t":"\"I have read the above statement / it has been read over to me, and I have been told that I may correct, alter or add anything I wish. This statement is true. I have made it of my own free will.\"\n\nSigned: ______________________  Witnessed by: ______________________  Time concluded: ______"},
+ {"n":"Statement taken by member on behalf of witness","t":"\"This statement was taken by me from [NAME] at [PLACE] between [TIME] and [TIME] on [DATE]. It was read over to him/her, he/she was invited to correct, alter or add anything, and he/she signed it as correct in my presence.\""},
+ {"n":"Refusal to sign","t":"\"The above statement was read over to [NAME], who was invited to sign it. He/she declined to do so, stating: '[EXACT WORDS]'. I record this refusal at [TIME] on [DATE].\""},
+ {"n":"Withdrawal of statement","t":"\"I, [NAME], of [ADDRESS], wish to withdraw the statement made by me on [DATE] at [STATION]. My reason for doing so is: [EXACT WORDS — do not paraphrase]. I have not been threatened, intimidated or induced by any person to withdraw this statement. I understand that the investigation may continue and that I may still be required to give evidence. This statement is true to the best of my knowledge and belief and I make it knowing that if it is tendered in evidence I shall be liable to prosecution if I state in it anything which I know to be false or do not believe to be true.\"\n\nNOTE: probe for intimidation — coercion to withdraw is itself an offence (s.41 CJA 1999). Record demeanour. In DV cases consider s.16 CJA 2006 (statement admissible where witness resiles)."},
+ {"n":"Interpreter declaration","t":"\"I, [NAME], interpreted the caution, questions and answers accurately between English and [LANGUAGE]. The person confirmed that he/she understood me.\""},
+ {"n":"Notebook entry — caution administered","t":"[TIME] Cautioned [NAME] in the usual manner: \"You are not obliged to say anything unless you wish to do so, but whatever you say will be taken down in writing and may be given in evidence.\" Asked if he/she understood. Reply: \"[VERBATIM]\". Reason for caution: I suspected him/her of [OFFENCE] on the grounds that [GROUNDS]."}
+ ]},
+"latin":{
+ "title":"⚖️ Latin & legal language — when to use it",
+ "items":[
+ {"t":"Actus reus","m":"The guilty act — the physical element of the offence.","u":"Every points-to-prove analysis. \"The actus reus is the appropriation; the mens rea is the dishonest intent.\""},
+ {"t":"Mens rea","m":"The guilty mind — intention, knowledge, recklessness or dishonesty.","u":"Interview strategy. Your questions must go to mens rea: \"What did you intend?\""},
+ {"t":"Res gestae","m":"Things done — spontaneous statements so closely connected to the event that fabrication is unlikely.","u":"999 calls, screams at the scene, the injured party's first words. An exception to hearsay: record them VERBATIM."},
+ {"t":"Locus in quo","m":"The place in which — the scene.","u":"Statements and cover reports: \"I attended the locus in quo at 03:14.\""},
+ {"t":"Prima facie","m":"On its face — enough evidence to require an answer.","u":"Directions and cover reports: \"A prima facie case is established in respect of…\""},
+ {"t":"Ex parte","m":"By one party only — the other side not present.","u":"Search warrant applications; interim barring orders."},
+ {"t":"Voir dire","m":"A trial within a trial — the judge decides admissibility in the jury's absence.","u":"Your confession, your search, your ID evidence get tested here. Expect it."},
+ {"t":"Mala fides / bona fides","m":"Bad faith / good faith.","u":"DPP v JC turns on this: an inadvertent breach may still admit evidence; a deliberate one will not."},
+ {"t":"Ultra vires","m":"Beyond the powers.","u":"A warrant or direction issued outside statutory authority is ultra vires and void."},
+ {"t":"Corpus delicti","m":"The body of the offence — proof the crime actually occurred.","u":"Homicide without a body; fraud without a loss. Prove the offence happened before proving who did it."},
+ {"t":"Nolle prosequi","m":"Unwilling to pursue — DPP discontinues.","u":"You'll see it on a file. It is not an acquittal."},
+ {"t":"Sub judice","m":"Under judgment — matter before the courts.","u":"Media queries: say nothing about a live matter."},
+ {"t":"In camera","m":"In chambers — the public excluded.","u":"Family law, sexual offences, children. Reporting restrictions apply."},
+ {"t":"Ratio decidendi","m":"The reason for deciding — the binding part of a judgment.","u":"When you cite a case, cite the ratio, not the facts."},
+ {"t":"Obiter dictum","m":"Said in passing — persuasive but not binding.","u":"Useful, but never rest a proof on it."},
+ {"t":"Stare decisis","m":"To stand by decisions — precedent binds.","u":"Why DPP v JC changed your practice overnight."},
+ {"t":"Audi alteram partem","m":"Hear the other side.","u":"Natural justice. The suspect gets to answer the allegation — that is what your interview is for."},
+ {"t":"Nemo judex in causa sua","m":"No one a judge in their own cause.","u":"Damache: the warrant issuer must be independent of the investigation."},
+ {"t":"De bene esse","m":"Conditionally, for what it's worth.","u":"Evidence admitted provisionally pending a ruling."},
+ {"t":"Onus probandi","m":"The burden of proof.","u":"Beyond reasonable doubt, on the prosecution, throughout."},
+ {"t":"Modus operandi (MO)","m":"Method of operating.","u":"Linking series offences. Distinguish from signature behaviour."},
+ {"t":"In flagrante delicto","m":"Caught in the act.","u":"Powers of arrest without warrant; recent possession."},
+ {"t":"Habeas corpus","m":"Produce the body — Article 40.4 inquiry into lawfulness of detention.","u":"If your detention is unlawful, this is how it ends. Get the custody record right."},
+ {"t":"Functus officio","m":"Having discharged the office — no further power.","u":"A warrant once executed is spent. You cannot re-use it."},
+ {"t":"Volenti non fit injuria","m":"No injury is done to one who consents.","u":"Consent as a defence — but not to serious harm (s.4 NFOAP)."},
+ {"t":"Doli incapax","m":"Incapable of crime — the age of criminal responsibility.","u":"Under 12 in Ireland (with exceptions from 10 for the most serious). Children Act 2001."}
+ ]},
+"acronyms":{
+ "title":"🔤 Acronyms & investigative frameworks",
+ "items":[
+ {"t":"ABC of investigation","m":"Assume nothing · Believe nothing · Check everything (Corroborate). The default mindset. Every fact you accept without checking is a hole for the defence."},
+ {"t":"MMO","m":"Means · Motive · Opportunity. The three legs of a circumstantial case. Test every suspect against all three; test every alibi against all three."},
+ {"t":"ADVOKATE","m":"Amount of time · Distance · Visibility · Obstruction · Known before · Any reason to remember · Time lapse · Errors. Every identification statement."},
+ {"t":"PEACE","m":"Planning & preparation · Engage & explain · Account · Closure · Evaluation. The interview model. Most failures are in P."},
+ {"t":"TED","m":"Tell me · Explain · Describe. Open-question funnel. Use these; avoid closed and leading questions until the account is locked."},
+ {"t":"SARA","m":"Scanning · Analysis · Response · Assessment. Problem-oriented policing / community engagement."},
+ {"t":"5 WH + H","m":"Who · What · Where · When · Why · How. If your statement can't answer all six, it isn't finished."},
+ {"t":"MOP","m":"Member of the public."},
+ {"t":"IP","m":"Injured party."},
+ {"t":"MIC","m":"Member in Charge — custody, welfare, s.4 rights, the custody record."},
+ {"t":"SIO","m":"Senior Investigating Officer."},
+ {"t":"MIR","m":"Major Incident Room."},
+ {"t":"FLO","m":"Family Liaison Officer — one channel, everything logged."},
+ {"t":"KLO","m":"Key Lines of Enquiry — what Command & Control and the SIO need immediately."},
+ {"t":"HOLMES / jobs book","m":"Action management — every action numbered, allocated, resulted. Nothing lives in your head."},
+ {"t":"PEMS","m":"Property & Exhibit Management System — continuity or nothing."},
+ {"t":"SOCO / FSI","m":"Scene of Crime Officer / Forensic Science Ireland."},
+ {"t":"SATU","m":"Sexual Assault Treatment Unit."},
+ {"t":"DVSA","m":"Domestic Violence and Sexual Assault (unit)."},
+ {"t":"GNIB","m":"Garda National Immigration Bureau."},
+ {"t":"VIS","m":"Victim Impact Statement — s.5 Criminal Justice Act 1993."},
+ {"t":"FCPS / FCN","m":"Fixed Charge Processing System / Notice."},
+ {"t":"NBCI / GNBCI","m":"National Bureau of Criminal Investigation."},
+ {"t":"C&C","m":"Command & Control."},
+ {"t":"CCTV golden rule","m":"Request preservation IN WRITING on day one. Systems overwrite in 7–31 days. Braddish and Dunne are why you lose the case if you don't."}
+ ]},
+"searches":{
+ "title":"🔍 Searches — powers and how to articulate grounds",
+ "blocks":[
+ {"h":"The rule that matters","t":"There is no such thing as a form of words that makes a search lawful. What makes it lawful is the power, plus the genuine grounds you actually held at the time. Your job in the box is to ARTICULATE the grounds you had — not to construct grounds you didn't. A member who reaches for a stock phrase gets destroyed in cross-examination the moment the detail is probed."},
+ {"h":"Anatomy of reasonable suspicion","t":"Reasonable suspicion is objective: would a reasonable member, knowing what you knew, suspect? Build it from concrete inputs: (1) What you saw — the exchange, the movement to the waistband, the discarded item; (2) What you heard — the 999 call content, the description circulated; (3) What you knew — intelligence, PULSE, previous, the locality's pattern; (4) What they did — flight, the incoherent explanation, the concealed hand; (5) What was said — verbatim. Suspicion is not a hunch, and it is not colour, dress, area, or previous alone."},
+ {"h":"Record it before it fades","t":"Write your grounds in your notebook AT THE SCENE, before anything else. Time it. What you wrote at 03:14 beats what you remember eight months later. The defence will ask: 'When did you first record that ground, Garda?' The answer 'in my notebook, at the time, before the search' ends the argument."},
+ {"h":"Consent searches — the honest way","t":"A search by consent is only valid if the consent is real, informed and freely given. That means: you told them they did not have to consent; you told them what you wanted to search; they agreed without pressure. Record the exact words of the request and the exact words of the reply. If they produced an item voluntarily, record precisely what you said, what they said, and what they did — because 'he produced it voluntarily' as a bare assertion, with nothing behind it, is exactly what gets tested and broken. If you did in fact have a statutory power, use it and say so — don't dress a power up as consent."},
+ {"h":"Common statutory search powers","t":"s.23 Misuse of Drugs Act 1977 — person/vehicle, reasonable suspicion of possession of a controlled drug.\ns.30 Offences Against the State Act 1939 — person/vehicle, scheduled offences.\ns.8 Criminal Justice (Miscellaneous Provisions) Act 1997 — vehicles.\ns.9 CJA 2006 / s.6 CJA 1984 — search of arrested person.\ns.10 Criminal Justice (Miscellaneous Provisions) Act 1997 — warrant for arrestable offence.\ns.5 & s.6 Criminal Law Act 1976 — entry/search to effect arrest.\ns.29 Offences Against the State Act 1939 — see Damache: issuer must be independent.\ns.7 Firearms and Offensive Weapons Act 1990 — search for offensive weapons.\ns.13 Criminal Justice Act 1984 — search of place where arrested person was.\nRoad Traffic Acts — s.109 (stop), s.107 (demand name/address), preliminary breath test powers.\nALWAYS verify current wording and amendments before you rely on any of these."},
+ {"h":"What defence will ask you","t":"What was your power? Name the section. What were your grounds, precisely? When did you form that suspicion — before or after you searched? When did you first record it? Did you tell him the reason? Did you tell him he could refuse? What exactly did you say? What exactly did he say? Was anyone else present? Is it on bodycam? Why is it not on bodycam? If you cannot answer these in the box, the evidence goes."}
+ ]},
+"weapons":{
+ "title":"🔪 Offensive weapons & knives",
+ "blocks":[
+ {"h":"s.9 Firearms and Offensive Weapons Act 1990 — knife in public","t":"Elements: (1) In a public place; (2) Had with him/her any knife or any other article which has a blade or is sharply pointed; (3) Without lawful authority or reasonable excuse (burden on the accused to show it). Includes a screwdriver sharpened to a point; includes a knife carried 'for protection' — fear is not a reasonable excuse in itself. Arrestable."},
+ {"h":"s.9(4) — offensive weapon in public","t":"Any article made or adapted for use for causing injury, or intended by the person for such use. Note the three limbs: made (knuckleduster), adapted (broken bottle held by the neck), intended (a hammer carried to a confrontation). For the third limb you must prove intent — so ask about it in interview, and note pre-incident conduct and words."},
+ {"h":"s.10 — possession with intent","t":"Possession of any article with intent to cause injury, intimidate or incapacitate. Higher penalty. Intent is the whole battle: threats made, the approach, the concealment, the words used."},
+ {"h":"s.11 — trespassing with a knife/weapon","t":"Entering a building or its curtilage as a trespasser with a knife or offensive weapon. Aggravated burglary (s.13 CJ(T&FO)A 2001) may be the better charge if the intent is present at entry."},
+ {"h":"Search power — s.7 FOWA 1990","t":"Reasonable suspicion of an offence under ss.9/10/11: search and seize. Record grounds contemporaneously. Seize, bag, seal, photograph in situ first."},
+ {"h":"Statement essentials","t":"Exact description of the weapon: type, blade length, edge, point, condition. How it was carried, where on the body, concealed or open. What was said about it — verbatim. Any reason offered (goes straight to 'reasonable excuse'). Fear caused to witnesses. Photograph in situ, then exhibit. If a knife: 🔪 measure the blade — length matters for charging and sentencing."}
+ ]},
+"rtc":{
+ "title":"🚗 Traffic collisions — in-depth investigation",
+ "blocks":[
+ {"h":"Immediate — at the scene","t":"Casualties and safety first. Preserve the scene like any crime scene — collisions ARE crime scenes until proven otherwise. Do not allow vehicles to be moved before position is recorded. Mark final rest positions. Photograph: wide, mid, close; all four sides of each vehicle; road surface; debris field; skid/scuff/gouge marks; sightlines from each approach; the view the driver actually had. Note weather, light, road surface condition, street lighting state, obstructions. Preserve tachograph/dashcam/telematics immediately."},
+ {"h":"Driver and identification","t":"Establish WHO WAS DRIVING — this is where most cases die. Admissions at scene (cautioned, verbatim). Seat positions. Airbag/seatbelt marks. Witnesses to the driver getting out. CCTV upstream. s.107 RTA demand for name and address. Nomination statement if identified from CCTV — see the Nomination stencil."},
+ {"h":"Intoxicant testing","t":"Preliminary breath test at the scene where powers apply. If specimen required: strict compliance with the statutory procedure — DPP v Avadenei territory. Every step of the s.12/13 RTA 2010 procedure must be recorded exactly. Doctor/nurse designation, sealed kit, forms completed and signed, the specimen offered and taken. A defect that could mislead the accused kills the prosecution."},
+ {"h":"Evidence to gather","t":"PSV inspector for mechanical examination. Forensic collision investigator for serious/fatal. Locus measurements and sketch (or scale plan). Vehicle seizure and continuity. Phone seizure — was the driver on a call/texting at the time? Get the call data with proper authority. Medical records with consent. Road authority records: signage, road markings, works, defects."},
+ {"h":"🛴 E-scooters and e-bikes","t":"Since the Road Traffic and Roads Act 2023 e-scooters are regulated as 'powered personal transporters' — but the regulations, speed/power limits and enforcement powers have been in flux. VERIFY THE CURRENT REGULATIONS BEFORE YOU CHARGE. The practical points: (1) Is the device within the legal specification, or is it a mechanically propelled vehicle requiring tax/insurance/licence? Power output, top speed and weight decide this. (2) If it IS an MPV: s.56 RTA (no insurance), s.38 (no licence), tax offences all apply. (3) Speeding, dangerous/careless driving, drink/drug driving provisions apply to PPTs where extended. (4) Under-16 use is prohibited. (5) Footpath use, carrying passengers, no lights at night — check current regs. Practically: seize the device, photograph the spec plate/markings, get the manufacturer's stated power and top speed, and let the technical examination decide the class. Serious injury collisions involving e-scooters and pedestrians should be treated as full collision investigations — measure, photograph, canvass, seize."},
+ {"h":"Charging decisions","t":"s.53 dangerous driving; s.52 careless driving; s.51A driving without reasonable consideration; s.106 failure to stop/remain/report; s.4/s.5 RTA 2010 intoxicants; s.56 no insurance. Death or serious bodily harm elevates s.53. Do not undercharge at the scene — investigate first, charge on the evidence."}
+ ]},
+"precis":{
+ "title":"📑 Précis of evidence — build it to win",
+ "blocks":[
+ {"h":"What a précis is for","t":"It is the prosecution's story told once, cleanly, in a way that makes the case look inevitable. A strong précis does three things: it proves every element, it closes every door before the defence opens it, and it tells the reader exactly where in the book of evidence each proof sits. It persuades by completeness, not by adjectives. Never overstate — a précis that oversells is dismantled the moment one claim doesn't survive contact with the file."},
+ {"h":"Structure","t":"1. Charge(s) and statutory provision — exact wording.\n2. Summary of the case in one paragraph a busy person can read once.\n3. The parties: accused, injured party, witnesses — who they are, in one line each.\n4. Narrative of the offence, strictly chronological, in the present-tense factual voice, each fact cross-referenced to the witness statement or exhibit that proves it.\n5. The proofs, element by element — a table or list showing each element of the offence against the evidence proving it. This is the heart. If an element has no proof, you have found your problem before the DPP does.\n6. Arrest, detention, interview — lawfulness demonstrated: power, grounds, caution, custody record, solicitor access, recording.\n7. Exhibits and continuity — each item, its finding, its chain.\n8. Anticipated defence and the answer to it. Deal with the weak points yourself, plainly, before the defence does.\n9. Antecedents and previous convictions.\n10. Conclusion: what the evidence establishes and why a prosecution is warranted."},
+ {"h":"How to close the doors","t":"For every proof, ask: how would I attack this? Then write the answer into the précis.\n• Identification — is ADVOKATE covered? Is there recognition evidence, CCTV, forensics?\n• Search/arrest — power named, grounds recorded contemporaneously, caution timed?\n• Confession — voluntary, cautioned, recorded, solicitor access given?\n• Continuity — unbroken, PEMS logged, seals intact?\n• CCTV — preserved on day one, continuity of download, original retained?\n• Delay — explained.\n• Missing evidence — accounted for. Braddish/Dunne.\nWrite the answer in ONE sentence each. A précis full of pre-emptive answers is a précis the defence reads with a sinking feeling."},
+ {"h":"Language","t":"Short sentences. Active voice. Times in 24h. Verbatim quotes in quotation marks — never paraphrase what was said. No editorialising, no 'clearly', no 'obviously'. Reference every assertion: (Statement of Garda X, p.4). The authority comes from the referencing, not from the tone."}
+ ]},
+"door":{
+ "title":"🚪 Serious incident — door-to-door questionnaire",
+ "items":[
+ "Occupier: full name, DOB, phone, all persons resident, who was home at the material time",
+ "Were you at home between [TIME] and [TIME] on [DATE]? If not, where and who can confirm",
+ "Did you hear anything — shouting, banging, breaking glass, vehicles, an engine, a scream? Exact time. How do you fix that time?",
+ "Did you see anything — persons, vehicles, direction of travel, anything unusual before or after?",
+ "Describe anyone you saw: sex, age, height, build, hair, clothing (top/bottom/shoes/headwear), anything carried, anything said",
+ "Vehicles: make, model, colour, registration (any part), number of occupants, direction",
+ "Do you have CCTV, a doorbell camera, or a dashcam facing the road? (INSPECT IT — do not take their word)",
+ "Retention period of the system, and can we take a copy now? Preservation request served?",
+ "Do you know the injured party / the address involved? Any previous trouble there?",
+ "Have you heard anything since — rumour, talk, social media? (Record it, don't dismiss it)",
+ "Anyone else living or working here we should speak to? When are they in?",
+ "Anyone regularly present in the area at that time — dog walkers, delivery drivers, taxi drivers, shift workers?",
+ "If NO ANSWER: record address, time called, and call back at a different time of day. Log every attempt.",
+ "Member's details left. Follow-up arrangement noted. Questionnaire signed and dated by member."
+ ]},
+"missing":{
+ "title":"🔎 Missing person — desk level actions",
+ "blocks":[
+ {"h":"First 10 minutes","t":"Take the report — never defer, never tell them to wait 24 hours; there is no such rule. Establish RISK immediately: age, vulnerability, medical/mental health, medication, suicidal ideation, previous episodes, out of character, weather, water nearby, means of travel, last contact. Classify: HIGH / MEDIUM / LOW risk and record why. High risk means immediate supervisory notification and immediate resources."},
+ {"h":"Immediate actions","t":"Full description — clothing head to toe, distinguishing features, a RECENT photograph (get it now, digitally). Last confirmed sighting: who, where, when, doing what. Search the home address yourself, thoroughly — including attics, sheds, wardrobes, under beds, vehicles. People are found at home. Get phone number, IMEI, social media handles, bank card details. Consider phone location and cell-site enquiries with proper authority. Circulate on C&C and PULSE without delay."},
+ {"h":"Enquiries checklist","t":"Family, friends, partner, ex-partner, employer, school/college.\nHospitals — all in the region, plus any where they have a history.\nHostels and homeless services — every one, by name, and repeat daily.\nGarda stations — custody records nationally.\nCoroner/mortuaries where circumstances suggest.\nTransport hubs: bus, rail, airport, ferry — with CCTV requests same day.\nBank/card activity, social media activity, phone activity.\nCCTV along the likely route — request preservation IMMEDIATELY.\nPrevious missing episodes: where were they found last time? People repeat."},
+ {"h":"Escalation","t":"High-risk: notify the District Officer, consider search teams, Garda Water Unit, Air Support, dog unit, Civil Defence, Coast Guard, mountain rescue as appropriate. Child Rescue Ireland (CRI) Alert has strict criteria — child under 18, evidence of abduction, real and immediate risk of serious harm, sufficient information to act on. It is authorised at senior level — know the criteria, route the request up fast, do not delay while deciding."},
+ {"h":"At the desk — what you actually do","t":"1. Take a full report, don't turn anyone away.\n2. Risk-assess and record the reasoning.\n3. Get the photo and description circulated.\n4. Notify supervisor immediately on any doubt.\n5. Start the enquiry log — every call, every time, every result.\n6. Ring the hospitals and hostels yourself — do not assume someone else has.\n7. Update the family with a named contact. They will remember how you treated them."}
+ ]},
+"exhibitsHelp":{
+ "title":"📦 Exhibits — continuity discipline",
+ "blocks":[
+ {"h":"The reference","t":"Your initials + a number, sequential, never reused: SMG1, SMG2, SMG3… One reference per item. Sub-items get a sub-number (SMG4/1). The reference is set the moment you seize it and never changes."},
+ {"h":"Seizure","t":"Photograph in situ before touching. Gloves. Appropriate packaging (paper for anything organic or wet — never plastic for biological). Seal at the scene, sign across the seal, note the seal number. Label: what it is, where found, when, by whom."},
+ {"h":"Continuity","t":"Every handover: who to whom, date, time, purpose. No gaps. If it sat in your locker for three days, say so and say why. PEMS entry. The chain must be provable from your hand to the court."},
+ {"h":"In your statement","t":"'At [TIME] on [DATE] at [PLACE] I found [ITEM]. I photographed it in situ. I seized it, placed it in [PACKAGING], sealed it with seal number [NUMBER], and marked it [SMG___]. At [TIME] I handed it to [NAME] at [PLACE] for [PURPOSE].' Then the receiving member's statement picks up the chain."}
+ ]}
+}
