@@ -175,3 +175,77 @@ html[data-theme^="pro"] #view:has(>.pro){background:var(--p-bg)}
 .pt-nav{display:flex;gap:10px;max-width:440px;width:100%;margin:0 auto}.pt-nav>*{flex:1}
 .pt-nav button{height:50px;border:1px solid var(--p-line)!important;border-radius:14px!important;background:var(--p-card);font-weight:600;font-size:16px}
 .pt-nav button.go{flex:2;background:var(--p-acc);border-color:var(--p-acc)!important;color:var(--p-on)!important}
+/* text on the dark ratio card is always light, whatever the reading theme sets for paragraphs */
+#rdBody .cs-ratio,#rdBody .cs-ratio p,#rdBody .cs-ratio *{color:#fff!important}
+#rdBody .cs-ratio .cs-rl{color:#C9D4E0!important}
+#rdBody .cs-ratio .cs-test,#rdBody .cs-ratio .cs-test *{color:#E3EAF3!important}
+.p-hero *,.rp-hero *{color:inherit}
+
+/* ---------- Search start: "Did you know?" ---------- */
+.sx-dyk{padding:0 0 10px;max-width:none}
+.dyk{position:relative;overflow:hidden;border-radius:18px;background:var(--p-card);box-shadow:var(--p-sh)}
+.dyk-track{display:flex;transition:transform .45s cubic-bezier(.3,.7,.2,1)}
+@media (prefers-reduced-motion:reduce){.dyk-track{transition:none}}
+.dyk-card{flex:0 0 100%;display:flex;align-items:center;gap:14px;min-height:118px;padding:16px 16px 26px;border:0;background:none;text-align:left;font:inherit;color:var(--p-tx)!important;cursor:pointer}
+.dyk-card>span:not(.pi){flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.dyk-card b{font-size:16px;font-weight:700;line-height:1.3}.dyk-card small{font-size:13.5px;color:var(--p-mut);line-height:1.4}
+.dyk-card em{font-style:normal;font-size:13px;font-weight:700;color:var(--p-link);margin-top:2px}
+.dyk-dots{position:absolute;left:0;right:0;bottom:9px;display:flex;justify-content:center;gap:5px;pointer-events:none}
+.dyk-dots i{width:6px;height:6px;border-radius:3px;background:var(--p-line);transition:width .3s}.dyk-dots i.on{width:16px;background:var(--p-acc)}
+.sx-cov{margin:12px 4px 0;font-size:12.5px;line-height:1.45;color:var(--p-mut)}
+.sx-what,.sx-priv{display:none}
+
+.pi{flex:none!important;width:var(--s)!important;height:var(--s)!important}
+.pi img{width:calc(var(--s)*.78)!important;height:calc(var(--s)*.78)!important}
+/* Search start screen */
+.sx-intro{margin:6px 0 4px;padding:14px 16px;border:0!important;border-radius:18px;background:var(--p-card)!important;box-shadow:var(--p-sh);color:var(--p-tx)!important}
+.sx-ih{display:flex;align-items:center;gap:8px;font-size:16px}.sx-ih .gri{width:20px;height:20px;flex:none;color:var(--p-pur)}
+.sx-intro p{margin:6px 0 10px;font-size:14px;line-height:1.45;color:var(--p-mut)}
+.sx-ex{display:flex;flex-wrap:wrap;gap:8px}
+.sx-exq{min-height:36px;padding:7px 12px;border:1.5px solid var(--p-line);border-radius:999px;background:var(--p-bg);color:var(--p-tx);font:500 13.5px/1.3 "Inter",system-ui,sans-serif;text-align:left;cursor:pointer}
+#view .lrow .gri,#view .sx-rec .gri{width:18px;height:18px;flex:none}
+#view svg.gri:not([width]){max-width:24px;max-height:24px}
+/* tap targets ≥40px (tap test) */
+#topbar .brand{min-height:44px}
+.p-sec button{min-height:40px;min-width:44px;padding:8px 10px}
+.sx-f .chip{min-height:40px}
+.ixrow.cshead .refs{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;white-space:normal;max-width:100%;min-width:0}
+.pv-txt{font-size:13px;white-space:pre-wrap;line-height:1.5}
+.pv-acts{display:flex;gap:8px;flex-wrap:wrap}.pv-acts .csall{flex:1}
+.pv-ck{display:flex;gap:8px;align-items:center;font-size:14px;margin:10px 0;min-height:40px}
+/* Recent searches chips (search) */
+.sx-rchips{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
+.sx-rc{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 12px;border-radius:20px;border:1px solid var(--p-line);background:var(--p-card);color:var(--p-tx);font-size:13.5px;max-width:100%}
+.sx-rc svg{width:15px;height:15px;flex:none;opacity:.7}.sx-rc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sx-reask svg{color:var(--p-link);opacity:1}
+/* Today: quick search, recent searches, customise sheet, compact */
+.p-qs{display:flex;align-items:center;gap:10px;width:100%;min-height:46px;padding:0 14px;margin:0 0 12px;border-radius:14px;border:1px solid var(--p-line);background:var(--p-card);color:var(--p-mut);font-size:15px}
+.p-qs svg{width:18px;height:18px}
+.p-asked button{display:inline-flex;align-items:center;gap:6px;max-width:100%}
+.p-aitag{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:6px;background:var(--p-link);color:#fff}
+.p-lay{padding:4px 0}
+.p-lrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 12px;min-height:46px;border-bottom:1px solid var(--p-line)}
+.p-lrow:last-child{border-bottom:0}
+.p-lrow label{display:flex;align-items:center;gap:10px;font-size:14.5px;flex:1;min-height:44px}
+.p-lrow input{width:20px;height:20px}
+.p-lrow span{display:flex;gap:4px}
+.p-lrow span button{width:40px;height:40px;border-radius:10px;border:1px solid var(--p-line);background:transparent;color:inherit;font-size:16px}
+.p-lrow span button:disabled{opacity:.3}
+.p-seg{display:flex;gap:6px;margin:4px 0 10px;flex-wrap:wrap}
+.p-seg button{flex:1;min-height:40px;border-radius:10px;border:1px solid var(--p-line);background:transparent;color:inherit;font-size:14px;font-weight:600}
+.p-seg button.on{background:var(--p-tx);color:var(--p-bg);border-color:transparent}
+.p-compact .p-sec{margin-top:12px}
+.p-compact .p-favs{gap:6px}
+.p-compact .p-favs button span{font-size:11.5px}
+.p-compact .p-row{min-height:48px;padding-top:6px;padding-bottom:6px}
+.p-compact .p-stat{padding:8px}
+.p-compact .p-hero{padding:12px 14px}
+/* Every offence */
+.ofx-sub{font-size:13px;color:var(--p-mut);margin:0 0 8px}
+.ofx-find input{width:100%;min-height:44px;border-radius:12px;border:1px solid var(--p-line);background:var(--p-card);color:var(--p-tx);padding:0 12px;font-size:15px;box-sizing:border-box}
+.ofx-jump{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none}
+.ofx-jump::-webkit-scrollbar{display:none}
+.ofx-jump button{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px 0 6px;border-radius:20px;border:1px solid var(--p-line);background:var(--p-card);color:var(--p-tx);font-size:13px;font-weight:600}
+.ofx-g h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--p-mut);margin:16px 4px 6px}
+.ofx-hero{display:flex;gap:12px;align-items:center;margin:4px 0 12px}
+.ofx-hero h2{margin:0;font-size:20px}.ofx-hero small{color:var(--p-mut);font-size:13px}

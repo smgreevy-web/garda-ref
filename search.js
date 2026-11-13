@@ -143,21 +143,49 @@ function blRow(){
   return `<div class="lgrp sx-blg"><button type="button" class="lrow sx-bl">${I('gavel')}<span class="lt"><b>Search judgments for “${e(q)}”</b><small>BAILII Ireland · all Irish courts · opens in your browser</small></span>${I('external-link','chev')}</button></div>`;
 }
 function wireBl(box){ const b=box.querySelector('.sx-bl'); if(b)b.addEventListener('click',()=>{ remember(S.q); W.openBailii(S.q.trim(),'ie/cases','rank'); }); }
+/* "Did you know?" — useful parts of the app, one at a time. Moves on by itself every 6 s (not if the phone asks for reduced motion); swipe or tap. */
+const DYK=[
+ ['roster','1f4c5','Your roster, any day','Core, Non-core and DDU for Units A–D, January 2025 to December 2028 — and what every unit is on today.'],
+ ['tasks','23f0','Deadlines before they pass','Today shows the summons time limit and CCTV overwrite dates under “Running out”.'],
+ ['proofs','2705','Does the statement meet the proofs?','Tick each proof it covers — anything missing is flagged before you copy.'],
+ ['clock','1f6aa','Detention clock','Deadlines, extensions and excluded periods for each prisoner, with an alert before each one.'],
+ ['rights','1f310','Point to your language','Hand the phone over: 30 languages in their own script, so you ask for the right interpreter.'],
+ ['essentials','2696-fe0f','Is it still the law?','Every case shows its court and year, whether it still stands, and when it was last checked.'],
+ ['searchp','1f50e','Search of the person','Power, grounds, what to say and what to record — step by step.'],
+ ['gaol','1f514','Cell checks that remind you','The cell board buzzes before each check is due.'],
+ ['firstaid','1f691','Medical emergency, no signal needed','A CPR metronome and 22 conditions, all offline.'],
+ ['scan','1f5a8-fe0f','Scan paper to PDF','Documents saved to this phone only — never uploaded.'],
+ ['camall','1f4f9','Live cameras','Street cameras for the district, the M50 and Dublin Port.'],
+ ['','1f399-fe0f','Dictate instead of typing','Every text box has Dictate — and a reminder never to enter names, dates of birth or PULSE numbers.']];
+let dykT=null;
+function wireDyk(box){
+  const root=box.querySelector('.dyk'); if(!root)return; const tr=root.querySelector('.dyk-track'), cards=[...tr.children], dots=[...root.querySelectorAll('.dyk-dots i')];
+  let i=0; const reduce=W.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const go=k=>{ i=(k+cards.length)%cards.length; tr.style.transform='translateX('+(-i*100)+'%)'; dots.forEach((d,j)=>d.classList.toggle('on',j===i)); cards.forEach((c,j)=>c.tabIndex=j===i?0:-1); };
+  const tick=()=>{ clearTimeout(dykT); if(reduce)return; dykT=setTimeout(()=>{ if(!D.body.contains(root))return; if(D.visibilityState==='visible')go(i+1); tick(); },6000); };
+  cards.forEach(c=>c.addEventListener('click',()=>{ const id=c.dataset.it; if(id&&W.GRPro)GRPro.run(id); else { const q=V.querySelector('#q'); if(q)q.focus(); } }));
+  let sx=null; root.addEventListener('touchstart',ev=>{ sx=ev.touches[0].clientX; clearTimeout(dykT); },{passive:true});
+  root.addEventListener('touchend',ev=>{ if(sx==null)return; const dx=ev.changedTouches[0].clientX-sx; sx=null; if(Math.abs(dx)>40)go(i+(dx<0?1:-1)); tick(); },{passive:true});
+  go(0); tick();
+}
 function paintEmpty(box){
-  const rec=ls.get(RKEY,[]);
+  const rec=ls.get(RKEY,[]), ai=ls.get('gr_ai_recent',[]).map(x=>String(x&&x.q||x)).filter(Boolean), seen=ls.get('gr_recent',[]).slice(0,5);
   const n=wInfo&&wInfo.counts||{};
   box.innerHTML=`<div class="sx-intro">
     <div class="sx-ih">${I('sparkles')}<b>Ask in your own words</b></div>
-    <p>Type a topic for instant results from everything in the app, or tap <b>Ask AI</b> for an answer that cites its sources and asks you for the details that matter.</p>
+    <p>Type a question or a topic. You’ll get the best matches, the tools to open, and questions to ask next — no signal needed.</p>
     <div class="sx-ex">${['Can I search a car for drugs without a warrant?','How long can I detain someone arrested under s.4?','What do I need to prove for a s.6 public order offence?','How do I object to bail for a repeat burglar?','How do I record a patrol with the phone locked?'].map(x=>`<button type="button" class="sx-exq">${e(x)}</button>`).join('')}</div>
   </div>
-  ${rec.length?`<h2 class="sec">Recent searches<span class="sec-r"><button type="button" class="sx-clr">Clear</button></span></h2><div class="lgrp">${rec.map(x=>`<button type="button" class="lrow sx-rec" data-q="${e(x)}">${I('history')}<span class="lt"><b>${e(x)}</b></span>${I('chevron-right','chev')}</button>`).join('')}</div>`:''}
-  <h2 class="sec">What's searched</h2>
-  <div class="sx-what">${[['book-open',(n.page||992).toLocaleString('en-IE')+' manual pages'],['scale',(n.case||397)+' cases'],['book-marked',((n.guide||15)+(n.ops2||11)+(n.kb||8))+' guides & quick references'],['shield',((n.off||20)+(n.sg||11))+' offence cards & statement guides'],['mail',((n.tpl||8)+(n.sten||12))+' templates & stencils'],['heart-pulse',(n.fa||22)+' first-aid conditions · '+((n.app||0)+(n.tool||0))+' app tools']].map(([i,t])=>`<div>${I(i)}<span>${e(t)}</span></div>`).join('')}</div>
-  <div class="sx-priv">${I('lock')}<span>Your notes, tasks, patrols, recordings and roster are never searched by AI or sent anywhere.</span></div>`;
-  box.querySelectorAll('.sx-exq').forEach(b=>b.addEventListener('click',()=>{ S.q=b.textContent; S.filter='all'; V.querySelectorAll('.sx-f .chip').forEach(x=>x.classList.toggle('on',x.dataset.f==='all')); const q=V.querySelector('#q'); if(q)q.value=S.q; V.querySelector('.sx-clear').hidden=false; remember(S.q); run(); ask(S.q,'ask'); }));
+  ${(rec.length||ai.length)?`<h2 class="sec">Recent searches<span class="sec-r"><button type="button" class="sx-clr">Clear</button></span></h2><div class="sx-rchips">${ai.slice(0,4).map(x=>`<button type="button" class="sx-rc sx-reask" data-q="${e(x)}">${I('sparkles')}<span>${e(x)}</span></button>`).join('')}${rec.filter(x=>!ai.some(a=>a.toLowerCase()===x.toLowerCase())).map(x=>`<button type="button" class="sx-rc sx-rec" data-q="${e(x)}">${I('history')}<span>${e(x)}</span></button>`).join('')}</div>`:''}
+  ${seen.length?`<h2 class="sec">Recently viewed</h2><div class="lgrp">${seen.map(r=>`<button type="button" class="lrow sx-seen" data-k="${e(r.k)}" data-id="${e(String(r.id))}">${I(r.k==='case'?'scale':r.k==='tool'?'toolbox':r.k==='guide'?'book-open':'file-text')}<span class="lt"><b>${e(r.t)}</b><small>${e(r.s||'')}</small></span>${I('chevron-right','chev')}</button>`).join('')}</div>`:''}
+  <div class="pro sx-dyk"><div class="p-sec"><b>Did you know?</b></div><div class="dyk" role="region" aria-roledescription="carousel" aria-label="Things the app can do"><div class="dyk-track">${DYK.map((d,i)=>`<button type="button" class="dyk-card" data-it="${d[0]}" aria-label="${e(d[2])}" ${i?'tabindex="-1"':''}>${W.GRPro?GRPro.icon(d[1],52):''}<span><b>${e(d[2])}</b><small>${e(d[3])}</small><em>${d[0]?'Open ›':''}</em></span></button>`).join('')}</div><div class="dyk-dots">${DYK.map((_,i)=>`<i class="${i?'':'on'}"></i>`).join('')}</div></div>
+  <p class="sx-cov">Searches ${(n.page||992).toLocaleString('en-IE')} manual pages, ${(W.CASES_N||n.case||558)} cases, ${((n.guide||15)+(n.ops2||11)+(n.kb||8))} guides, ${((n.off||20)+(n.sg||11))} offence cards, ${((n.tpl||8)+(n.sten||12))} templates and ${((n.app||0)+(n.tool||0))||53} tools. Your own notes, tasks and roster are never sent anywhere.</p></div>`;
+  wireDyk(box);
+  box.querySelectorAll('.sx-exq').forEach(b=>b.addEventListener('click',()=>{ S.q=b.textContent; S.filter='all'; V.querySelectorAll('.sx-f .chip').forEach(x=>x.classList.toggle('on',x.dataset.f==='all')); const q=V.querySelector('#q'); if(q)q.value=S.q; V.querySelector('.sx-clear').hidden=false; remember(S.q); run(); }));
   box.querySelectorAll('.sx-rec').forEach(b=>b.addEventListener('click',()=>{ S.q=b.dataset.q; const q=V.querySelector('#q'); if(q)q.value=S.q; V.querySelector('.sx-clear').hidden=false; run(); }));
-  const c=box.querySelector('.sx-clr'); if(c)c.addEventListener('click',()=>{ ls.set(RKEY,[]); paintEmpty(box); });
+  box.querySelectorAll('.sx-reask').forEach(b=>b.addEventListener('click',()=>{ S.q=b.dataset.q; const q=V.querySelector('#q'); if(q)q.value=S.q; V.querySelector('.sx-clear').hidden=false; run(); setTimeout(()=>ask(S.q,'ask'),300); }));
+  box.querySelectorAll('.sx-seen').forEach(b=>b.addEventListener('click',()=>{ const k=b.dataset.k,id=b.dataset.id; if(k==='case'&&W.openCase)openCase(id); else if(k==='tool'&&W.GRPro)GRPro.run(id); else if(k==='guide'&&W.openGuide3)openGuide3(id); else if(W.openPage)openPage(+id); }));
+  const c=box.querySelector('.sx-clr'); if(c)c.addEventListener('click',()=>{ ls.set(RKEY,[]); ls.set('gr_ai_recent',[]); paintEmpty(box); });
   paintCounts(null);
 }
 function remember(q){ q=String(q||'').trim(); if(q.length<3)return; const r=ls.get(RKEY,[]).filter(x=>x.toLowerCase()!==q.toLowerCase()); r.unshift(q); ls.set(RKEY,r.slice(0,6)); }
@@ -272,6 +300,7 @@ async function ask(q,kind,answers){
   if(!S.ai||kind==='ask')S.ai=newThread();
   const A=S.ai; if(A.busy)return;
   const snap={m:A.msgs.length,n:A.n,keys:Object.keys(A.srcs),pending:(A.pending||[]).slice()};
+  try{ const ar=ls.get('gr_ai_recent',[]).filter(x=>String(x.q||x).toLowerCase()!==q.toLowerCase()); ar.unshift({q,t:Date.now()}); ls.set('gr_ai_recent',ar.slice(0,8)); }catch(_){}
   const turn={q,kind,status:'Searching the app…',res:null,err:null,sources:[],answers:answers||null,t:Date.now()};
   A.turns.push(turn); A.busy=true; paintAI(); scrollAI(true);
   try{

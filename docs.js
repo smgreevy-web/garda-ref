@@ -112,7 +112,7 @@ function docx(o){
     else if(b.h3!=null)parts.push(para(b.h3,{b:true,sz:11,color:'44546A',before:140,after:60,keep:true}));
     else if(b.ul||b.dl)parts.push((b.ul||b.dl).map(li=>para([[(b.ul?'•':'–')+'\t','']].concat(Array.isArray(li)?li:[[li,'']]),{after:40,ind:360,hang:360})).join(''),para('',{after:60}));
     else if(b.chk)parts.push(table({cols:[500,TW-500],head:['',b.chk.head||''],rows:b.chk.items.map(i=>['☐',i]),sz:10},TW),para('',{after:120}));
-    else if(b.box)parts.push(callout(b.box,TW),para('',{after:120}));
+    else if(b.box&&typeof b.box==='object')parts.push(callout(b.box,TW),para('',{after:120}));
     else if(b.hdr)parts.push(letterhead(b.hdr,TW),para('',{after:200}));
     else if(b.box!=null)parts.push(box(b.box,TW),para('',{after:120}));
     else if(b.table)parts.push(table(b.table,TW),para('',{after:120}));

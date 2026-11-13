@@ -5,7 +5,7 @@
 'use strict';
 const W=window, D=document;
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const ico=(code,sz)=>'<span class="pi" style="--s:'+(sz||36)+'px"><img src="icons/3d/'+code+'.webp" alt="" loading="lazy"></span>';
+const ico=(code,sz)=>{ const u=(W.P3D&&(W.P3D[code]||W.P3D['1f4c4']))||''; return '<span class="pi" style="--s:'+(sz||36)+'px">'+(u?'<img src="'+u+'" alt="">':'')+'</span>'; };
 const call=(name,...a)=>()=>{ const f=W[name]; if(typeof f==='function')return f(...a); };
 const guide=id=>()=>openGuide3(id);
 const page=n=>()=>openPage(n);
@@ -55,6 +55,7 @@ const IT={
  lang:['1f4d5','Latin and acronyms','Legal terms, ABC, MMO, PEACE',()=>renderLang()],
  index:['1f4c7','A–Z indexes','Topics, statutes and cases',()=>{ setTab('index'); render(); view.scrollTop=0; }],
  // investigation guides
+ alloff:['2696-fe0f','Every offence','73 offences by area, each with manual, guide, proofs and cases',()=>renderAllOffences()],
  gAssault:['1f44a','Assault','Scene, evidence, trial and case law',guide('assault_inv')],
  gRobbery:['1f45b','Robbery from the person','Force, identification, continuing act',guide('robbery_inv')],
  gBurglary:['1f3e0','Burglary','Entry forensics and recent possession',guide('burglary_inv')],
@@ -80,6 +81,7 @@ const IT={
  tpl:['1f4e8','Templates and forms','CCTV, s.41, agency requests',()=>renderTemplates()],
  precis:['1f9fe','Précis of evidence','Build it to win',guide('precis2')],
  exhibits:['1f4e6','Exhibits builder','Numbering, continuity, copy for the report',()=>renderExhibits()],
+ preserve:['1f4e8','Preservation request','Any holder, any record — keep it safe',()=>renderPreserve()],
  cctv:['1f4f9','CCTV preservation','Generate the request text',()=>renderCCTV()],
  cctvst:['270d-fe0f','CCTV continuity statement','Print and fill in by pen',()=>{ if(W.GRForms)GRForms.open('cctv'); }],
  checks:['2705','Checklists','Scene, arrest, warrant, exhibits, interview, ID',()=>renderChecklists()],
@@ -107,6 +109,8 @@ const IT={
  applock:['1f512','App lock','A password to open Assisting',()=>{ if(W.GRLock)GRLock.sheet(); }],
  aikey:['2728','AI search','Your own key, what is sent, and the cost',()=>{ if(W.GRSearch)GRSearch.settings(); }],
  tour:['1f44b','Intro tour','See the five-screen tour again',()=>openTour()],
+ homelay:['1f3e0','Customise Today','Show, hide and reorder sections; favourites size; compact spacing',()=>layoutSheet()],
+ rddense:['1f4d6','Compact reading','Smaller text and tighter sections in guides, pages and cases — tap to switch',()=>{ const roomy=!D.documentElement.classList.contains('rd-roomy'); if(W.GRReader)GRReader.setRoomy(roomy); if(typeof applyRdScale==='function')try{applyRdScale();}catch(e){} if(W.grToast)grToast(roomy?'Roomy reading on':'Compact reading on'); }],
  fatig:['1f319','Night-run notes','A gentle note on Today after two or more nights in a row — tap to turn on or off',()=>{ let on=true; try{ on=localStorage.getItem('gr_fatigue')!=='0'; localStorage.setItem('gr_fatigue',on?'0':'1'); }catch(e){} if(W.grToast)grToast('Night-run notes are '+(on?'off':'on')); }],
  about:['2139-fe0f','About Assisting','Version, disclaimer, what stays on this phone',()=>renderAbout()],
  graBen:['1f381','Membership benefits','What members get — on gra.ie',ext('https://www.gra.ie/membership-benefits')],
@@ -123,22 +127,22 @@ const FOLDERS=[
  {k:'job',t:'On the job',i:'1f6e1-fe0f',s:[['Most used',['offences','searchp','nb','rs']],['At a scene',['scene','cautions','caution','ptp','weapons','seizure']],['Getting there',['route','patrol']],['Roads',['rtc','escooter']],['Emergencies and tools',['firstaid','toolbox','wanted']]]},
  {k:'custody',t:'Custody & court',i:'1f3db-fe0f',s:[['In custody',['clock','gaol','rights']],['Bail',['bail','ocall','bailpack']],['At court',['courtday','courtlists','crossexam','sentencing']]]},
  {k:'law',t:'Law',i:'2696-fe0f',s:[['Case law',['essentials','cases','judg']],['Know the law',['amend','discretion','inference','evidence','advokate']],['Look it up',['index','lang']]]},
- {k:'guides',t:'Investigation guides',i:'1f4d6',s:[['Start to finish',['gAssault','gRobbery','gBurglary','gTheft','gDrugs','gImm']],['Deep guides',['gPO','gAffray','gClamp','gIndec','gRare','gIplan','gDeep']]]},
+ {k:'guides',t:'Investigation guides',i:'1f4d6',s:[['All offences',['alloff']],['Start to finish',['gAssault','gRobbery','gBurglary','gTheft','gDrugs','gImm']],['Deep guides',['gPO','gAffray','gClamp','gIndec','gRare','gIplan','gDeep']]]},
  {k:'manual',t:'Manual',i:'1f4da',s:[['Read',['tree','playbooks','assaultst']],['Yours',['saved']]]},
- {k:'paper',t:'Paperwork',i:'1f4c4',s:[['Statements',['proofs','sguides','precis','sten']],['Requests and forms',['tpl','cctv','cctvst']],['Build and check',['exhibits','checks','scan']]]},
+ {k:'paper',t:'Paperwork',i:'1f4c4',s:[['Statements',['proofs','sguides','precis','sten']],['Requests and forms',['preserve','tpl','cctv','cctvst']],['Build and check',['exhibits','checks','scan']]]},
  {k:'work',t:'My work',i:'2705',s:[['Every day',['tasks','roster','notes']],['Capture',['rec','scan','pres']],['Kept',['saved']]]},
  {k:'maps',t:'Maps & cameras',i:'1f5fa-fe0f',s:[['Map',['map','dcc']],['Live cameras',['camd','camm50','camport','camall']],['News and radio',['newslist','news','radio']]]},
  {k:'gra',t:'GRA',i:'1f465',s:[['Member services',['graBen','graPortal','graDisc']],['News',['graNews','graReview']],['Get in touch',['graContact','graAbout','graTrain']]],note:'Links to the Garda Representative Association’s own website (gra.ie), checked November 2026. They open in your browser and need signal. Assisting is independent of the GRA.'}
 ];
-const SETTINGS=['display','applock','backup','sync','fatig','aikey','tour','about'];
+const SETTINGS=['display','homelay','rddense','applock','backup','sync','fatig','aikey','tour','about'];
 const FAV_DEF=['offences','nb','searchp','rs','clock','roster','tasks','map'];
 const FKEY='gr_pro_favs';
 const favs=()=>{ try{ const a=JSON.parse(localStorage.getItem(FKEY)||'null'); if(Array.isArray(a)){ const b=a.filter(x=>IT[x]); if(b.length)return b; } }catch(e){} return FAV_DEF.slice(); };
-const run=id=>{ const it=IT[id]; if(!it)return; try{ it[3](); }catch(e){ if(W.grToast)grToast('Could not open that'); } };
+const run=id=>{ const it=IT[id]; if(!it)return; if(id!=='favs'&&typeof pushRecent==='function')try{ pushRecent({k:'tool',id,t:it[1],s:it[2]}); }catch(e){} try{ it[3](); }catch(e){ if(W.grToast)grToast('Could not open that'); } };
 const row=id=>{ const it=IT[id]; return it?'<button type="button" class="p-row" data-it="'+id+'">'+ico(it[0])+'<span class="p-tx"><b>'+esc(it[1])+'</b><small>'+esc(it[2])+'</small></span><i class="p-ch" aria-hidden="true">›</i></button>':''; };
 const wire=root=>root.querySelectorAll('[data-it]').forEach(b=>b.addEventListener('click',()=>run(b.dataset.it)));
 const recents=()=>{ try{ const r=JSON.parse(localStorage.getItem('gr_recent')||'[]'); return Array.isArray(r)?r:[]; }catch(e){ return []; } };
-const openRecent=(k,id)=>{ if(k==='guide')openGuide3(id); else openPage(+id); };
+const openRecent=(k,id)=>{ if(k==='guide')openGuide3(id); else if(k==='case')openCase(id); else if(k==='tool')run(id); else openPage(+id); };
 const DAYN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'], MONN=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 /* ---------- Today ---------- */
@@ -168,32 +172,75 @@ function fatigue(){
     if(run<2)return ''; const onNow=start===0;
     return '<div class="p-note" id="pFat">'+ico('1f319',34)+'<span><b>'+(onNow?'Night '+run+' in a row':run+' nights in a row behind you')+'</b><small>Tiredness slows you like drink does. Take your breaks, and think about the drive home — pull in if your eyes get heavy.</small></span><button type="button" aria-label="Turn these notes off">Turn off</button></div>';
   }catch(e){ return ''; } }
+/* Today layout — order, show/hide, favourites size and style, compact mode (kept on the phone) */
+const HKEY='gr_pro_home';
+const HSEC=[['shift','Tour card'],['quick','Quick search bar'],['stats','Jobs at a glance'],['live','Running clocks and patrols'],['running','Deadlines running out'],['favs','Favourites'],['recent','Recently viewed'],['asked','Recent searches and Ask'],['fatigue','Night-run notes']];
+const HDEF={order:HSEC.map(x=>x[0]),hide:['quick'],favN:8,favStyle:'grid',recN:4,compact:false};
+const home=()=>{ let h={}; try{ h=JSON.parse(localStorage.getItem(HKEY)||'{}')||{}; }catch(e){} const o=Object.assign({},HDEF,h);
+  o.order=(Array.isArray(o.order)?o.order:[]).filter(k=>HSEC.some(x=>x[0]===k)); HSEC.forEach(x=>{ if(!o.order.includes(x[0]))o.order.push(x[0]); }); if(!Array.isArray(o.hide))o.hide=HDEF.hide.slice(); return o; };
+const homeSet=o=>{ try{ localStorage.setItem(HKEY,JSON.stringify(o)); }catch(e){} };
+const RICO={guide:'1f4d6',page:'1f4c4',case:'2696-fe0f'};
+const askedList=()=>{ const g=k=>{ try{ const v=JSON.parse(localStorage.getItem(k)||'[]'); return Array.isArray(v)?v:[]; }catch(e){ return []; } };
+  const a=g('gr_ai_recent').map(x=>({q:typeof x==='string'?x:x.q,ai:1,t:x.t||0})), s=g('gr_srecent').map((q,i)=>({q,ai:0,t:-i}));
+  const seen=new Set(), out=[]; a.concat(s).forEach(x=>{ const k=String(x.q||'').toLowerCase(); if(!k||seen.has(k))return; seen.add(k); out.push(x); }); return out; };
+function goSearch(q,ai){ setTab('search'); render(); const el=D.getElementById('q'); if(!el)return; if(q!=null){ el.value=q; el.dispatchEvent(new Event('input',{bubbles:true})); if(ai&&W.GRSearch&&GRSearch.ask)setTimeout(()=>GRSearch.ask(q),400); } else el.focus(); }
+function recentRows(n){ const rec=recents().slice(0,n); return rec.map(r=>{ const tool=r.k==='tool'&&IT[r.id]; return '<button type="button" class="p-row" data-rk="'+esc(r.k)+'" data-rid="'+esc(String(r.id))+'">'+ico(tool?IT[r.id][0]:(RICO[r.k]||'1f4c4'))+'<span class="p-tx"><b>'+esc(r.t)+'</b><small>'+esc(r.s||'')+'</small></span><i class="p-ch" aria-hidden="true">›</i></button>'; }).join(''); }
 function today(view){
-  const d=new Date(), T=W.GRTasks&&GRTasks.summary?GRTasks.summary():null, rec=recents().slice(0,3), F=favs();
+  const d=new Date(), T=W.GRTasks&&GRTasks.summary?GRTasks.summary():null, H=home(), F=favs().slice(0,H.favN);
   const stat=(v,l,c)=>'<button type="button" class="p-stat" data-open="tasks"><b class="'+(c&&v?c:'')+'">'+v+'</b><small>'+l+'</small></button>';
-  view.innerHTML='<div class="tabroot" data-tab="today" hidden></div><div class="pro" id="proToday">'
-   +'<div class="p-head"><div><h1>Today</h1><small>'+DAYN[d.getDay()]+' '+d.getDate()+' '+MONN[d.getMonth()]+'</small></div><button type="button" class="p-ib" data-go="search" aria-label="Search">'+(W.GRI?GRI('search'):'')+'</button><button type="button" class="p-ib" data-go="settings" aria-label="Settings">'+(W.GRI?GRI('settings'):'')+'</button></div>'
-   +'<div id="pShift">'+shiftCard()+'</div>'
-   +fatigue()
-   +(T?'<div class="p-stats">'+stat(T.open,'Jobs open')+stat(T.overdue,'Overdue','red')+stat(T.tourN,T.tourOn?'This tour':'Next tour','amb')+'</div>':'')
-   +'<div class="p-live"><div id="homeDet"></div><div id="homeGaol"></div><div id="homePatrol"></div><div id="homeTasks"></div></div>'
-   +runningOut()
-   +'<div class="p-sec"><b>Favourites</b><button type="button" data-go="favs">Edit</button></div><div class="p-favs">'+F.map(id=>'<button type="button" data-it="'+id+'">'+ico(IT[id][0],52)+'<span>'+esc(IT[id][1])+'</span></button>').join('')+'</div>'
-   +(rec.length?'<div class="p-sec"><b>Recent</b></div><div class="p-card">'+rec.map(r=>'<button type="button" class="p-row" data-rk="'+esc(r.k)+'" data-rid="'+esc(String(r.id))+'">'+ico(r.k==='guide'?'1f4d6':'1f4c4')+'<span class="p-tx"><b>'+esc(r.t)+'</b><small>'+esc(r.s||'')+'</small></span><i class="p-ch" aria-hidden="true">›</i></button>').join('')+'</div>':'')
+  const asked=askedList().slice(0,4), rr=recentRows(H.recN);
+  const S={
+    shift:'<div id="pShift">'+shiftCard()+'</div>',
+    quick:'<button type="button" class="p-qs" data-go="search2">'+(W.GRI?GRI('search'):'')+'<span>Search or ask anything</span></button>',
+    stats:T?'<div class="p-stats">'+stat(T.open,'Jobs open')+stat(T.overdue,'Overdue','red')+stat(T.tourN,T.tourOn?'This tour':'Next tour','amb')+'</div>':'',
+    live:'<div class="p-live"><div id="homeDet"></div><div id="homeGaol"></div><div id="homePatrol"></div><div id="homeTasks"></div></div>',
+    running:runningOut(), fatigue:fatigue(),
+    favs:'<div class="p-sec"><b>Favourites</b><button type="button" data-go="favs">Edit</button></div>'+(H.favStyle==='list'?'<div class="p-card">'+F.map(row).join('')+'</div>':'<div class="p-favs">'+F.map(id=>'<button type="button" data-it="'+id+'">'+ico(IT[id][0],52)+'<span>'+esc(IT[id][1])+'</span></button>').join('')+'</div>'),
+    recent:rr?'<div class="p-sec"><b>Recently viewed</b></div><div class="p-card">'+rr+'</div>':'',
+    asked:asked.length?'<div class="p-sec"><b>Recent searches</b></div><div class="p-chips p-asked">'+asked.map(x=>'<button type="button" data-q="'+esc(x.q)+'"'+(x.ai?' data-ai="1"':'')+'>'+(x.ai?'<span class="p-aitag">Ask</span>':'')+esc(x.q.length>48?x.q.slice(0,46)+'…':x.q)+'</button>').join('')+'</div>':''
+  };
+  view.innerHTML='<div class="tabroot" data-tab="today" hidden></div><div class="pro'+(H.compact?' p-compact':'')+'" id="proToday">'
+   +'<div class="p-head"><div><h1>Today</h1><small>'+DAYN[d.getDay()]+' '+d.getDate()+' '+MONN[d.getMonth()]+'</small></div><button type="button" class="p-ib" data-go="layout" aria-label="Customise Today">'+(W.GRI?GRI('sliders-horizontal'):'')+'</button><button type="button" class="p-ib" data-go="search" aria-label="Search">'+(W.GRI?GRI('search'):'')+'</button><button type="button" class="p-ib" data-go="settings" aria-label="Settings">'+(W.GRI?GRI('settings'):'')+'</button></div>'
+   +H.order.filter(k=>!H.hide.includes(k)).map(k=>S[k]||'').join('')
    +'<p class="p-foot">Independent tool — not an official Garda system. Not legal advice.</p></div>';
   const root=view.querySelector('#proToday'); wire(root);
   root.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',()=>run(b.dataset.open)));
   root.querySelectorAll('[data-task]').forEach(b=>b.addEventListener('click',()=>{ if(W.GRTasks)GRTasks.open(b.dataset.task); }));
   root.querySelectorAll('[data-rk]').forEach(b=>b.addEventListener('click',()=>openRecent(b.dataset.rk,b.dataset.rid)));
-  root.querySelector('[data-go="search"]').onclick=()=>{ setTab('search'); render(); const q=D.getElementById('q'); if(q)q.focus(); };
+  root.querySelectorAll('.p-asked [data-q]').forEach(b=>b.addEventListener('click',()=>goSearch(b.dataset.q,!!b.dataset.ai)));
+  root.querySelector('[data-go="search"]').onclick=()=>goSearch();
+  { const q=root.querySelector('[data-go="search2"]'); if(q)q.onclick=()=>goSearch(); }
   root.querySelector('[data-go="settings"]').onclick=()=>renderSettings();
-  root.querySelector('[data-go="favs"]').onclick=()=>favSheet();
+  root.querySelector('[data-go="layout"]').onclick=()=>layoutSheet();
+  { const f=root.querySelector('[data-go="favs"]'); if(f)f.onclick=()=>favSheet(); }
   { const f=root.querySelector('#pFat button'); if(f)f.onclick=()=>{ try{ localStorage.setItem('gr_fatigue','0'); }catch(e){} root.querySelector('#pFat').remove(); if(W.grToast)grToast('Night-run notes are off — turn them back on in Settings'); }; }
-  if(W.GRDet)GRDet.mountStrip(root.querySelector('#homeDet'));
-  if(W.GRGaol)GRGaol.mountStrip(root.querySelector('#homeGaol'));
-  if(W.GRPatrol)GRPatrol.mountStrip(root.querySelector('#homePatrol'));
-  if(W.GRTasks)GRTasks.mountStrip(root.querySelector('#homeTasks'));
+  if(!H.hide.includes('live')){
+    if(W.GRDet)GRDet.mountStrip(root.querySelector('#homeDet'));
+    if(W.GRGaol)GRGaol.mountStrip(root.querySelector('#homeGaol'));
+    if(W.GRPatrol)GRPatrol.mountStrip(root.querySelector('#homePatrol'));
+    if(W.GRTasks)GRTasks.mountStrip(root.querySelector('#homeTasks')); }
   if(W.grHudTick)grHudTick();
+}
+function layoutSheet(){
+  let o=D.getElementById('pSheet'); if(!o){ o=D.createElement('div'); o.id='pSheet'; D.body.appendChild(o); }
+  const H=home(); const name=k=>(HSEC.find(x=>x[0]===k)||[k,k])[1];
+  const seg=(key,opts)=>'<div class="p-seg" data-k="'+key+'">'+opts.map(([v,l])=>'<button type="button" data-v="'+v+'" class="'+(String(H[key])===String(v)?'on':'')+'">'+l+'</button>').join('')+'</div>';
+  const paint=()=>{ o.innerHTML='<div class="p-shade"></div><div class="p-sheet pro" role="dialog" aria-label="Customise Today"><h3>Customise Today</h3><p>Show, hide and reorder what’s on your home screen. Saved on this phone only.</p>'
+    +'<div class="p-card p-lay">'+H.order.map((k,i)=>'<div class="p-lrow"><label><input type="checkbox" data-sh="'+k+'"'+(H.hide.includes(k)?'':' checked')+'> '+esc(name(k))+'</label><span><button type="button" data-up="'+i+'" aria-label="Move '+esc(name(k))+' up"'+(i?'':' disabled')+'>↑</button><button type="button" data-dn="'+i+'" aria-label="Move '+esc(name(k))+' down"'+(i<H.order.length-1?'':' disabled')+'>↓</button></span></div>').join('')+'</div>'
+    +'<div class="p-sec"><b>Favourites</b></div>'+seg('favN',[[4,'4'],[8,'8'],[12,'12']])+seg('favStyle',[['grid','Icons'],['list','List']])
+    +'<div class="p-sec"><b>Recently viewed</b></div>'+seg('recN',[[3,'3'],[4,'4'],[6,'6'],[8,'8']])
+    +'<div class="p-sec"><b>Spacing</b></div>'+seg('compact',[[false,'Comfortable'],[true,'Compact']])
+    +'<div class="p-acts"><button type="button" data-a="reset">Reset</button><button type="button" data-a="clear">Clear history</button><button type="button" class="go" data-a="done">Done</button></div></div>';
+    o.querySelector('.p-shade').onclick=done;
+    o.querySelectorAll('[data-sh]').forEach(c=>c.onchange=()=>{ const k=c.dataset.sh; H.hide=H.hide.filter(x=>x!==k); if(!c.checked)H.hide.push(k); homeSet(H); });
+    o.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.up; [H.order[i-1],H.order[i]]=[H.order[i],H.order[i-1]]; homeSet(H); paint(); });
+    o.querySelectorAll('[data-dn]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.dn; [H.order[i+1],H.order[i]]=[H.order[i],H.order[i+1]]; homeSet(H); paint(); });
+    o.querySelectorAll('.p-seg button').forEach(b=>b.onclick=()=>{ const k=b.parentNode.dataset.k, v=b.dataset.v; H[k]=v==='true'?true:v==='false'?false:isNaN(+v)?v:+v; homeSet(H); paint(); });
+    o.querySelector('[data-a="reset"]').onclick=()=>{ try{ localStorage.removeItem(HKEY); }catch(e){} Object.assign(H,home()); paint(); };
+    o.querySelector('[data-a="clear"]').onclick=()=>{ try{ ['gr_recent','gr_srecent','gr_ai_recent'].forEach(k=>localStorage.removeItem(k)); }catch(e){} if(W.grToast)grToast('Recently viewed and searches cleared'); };
+    o.querySelector('[data-a="done"]').onclick=done; };
+  const done=()=>{ o.innerHTML=''; if(tab==='today')render(); };
+  paint();
 }
 setInterval(()=>{ const el=D.getElementById('pShift'); if(!el||D.visibilityState!=='visible')return; const h=shiftCard(); if(el._h!==h){ el._h=h; el.innerHTML=h; el.querySelector('[data-open]').addEventListener('click',()=>run('roster')); } },30000);
 function favSheet(){
@@ -273,5 +320,5 @@ W.tourBack=()=>{ const o=D.getElementById('pTour'); if(o&&o.innerHTML){ try{ loc
 (function(){ try{ const o=new URLSearchParams((W.__entry||location).search).get('open'); if(!['notebook','search','tasks'].includes(o))return;
   const go=()=>{ if(typeof META==='undefined'||!META||!D.querySelector('#view .tabroot'))return setTimeout(go,250);
     if(o==='notebook'){ if(W.renderNBLib)renderNBLib(); } else if(o==='search'){ setTab('search'); render(); const q=D.getElementById('q'); if(q)q.focus(); } else if(W.openTasks)openTasks(); }; setTimeout(go,300); }catch(e){} })();
-W.GRPro={today,browse,items:IT,folders:FOLDERS,run,icon:ico};
+W.GRPro={today,browse,items:IT,folders:FOLDERS,run,icon:ico,layoutSheet,goSearch};
 })();

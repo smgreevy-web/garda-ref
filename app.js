@@ -1,4 +1,4 @@
-window.GRAPP='202';
+window.GRAPP='209';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -16,7 +16,7 @@ let favs=JSON.parse(localStorage.getItem(FAVKEY)||'[]'); // [{a,title,label}] �
 (async function boot(){
   if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
   const [m,a,cs,op,sn,kb,o2,tpl,g3]=await Promise.all(['meta','az','cases','ops','stencils','kb','ops2','templates','guides3'].map(f=>fetch('data/'+f+'.json').then(r=>r.json())));
-  META=m; AZ=a; CASES=cs; window.CASES_N=cs.length; OPS=op; OPS2=o2; TPL=tpl; G3=g3; STEN=sn; KB=kb;
+  window.grOPS=()=>OPS&&OPS.ptp; META=m; AZ=a; CASES=cs; window.CASES_N=cs.length; OPS=op; OPS2=o2; TPL=tpl; G3=g3; STEN=sn; KB=kb;
   window.GRVER='v'+(window.GRAPP||'')+' · content '+META.built+' · '+META.pages+' pp'; { const vi=$('#verinfo'); if(vi)vi.textContent=GRVER; }
   wrapSubviews(); bindUI(); render();
   loadAllChunks(); // background; SW caches for offline
@@ -221,7 +221,7 @@ function subView(){ view.innerHTML='<div id="results"></div>'; view.scrollTop=0;
 /* sub-view stack: every screen drawn into #view that isn't a tab's own page. Back steps through it, then to the tab, then Home. */
 const vstack=[]; let vcur=null;
 const SUBVIEWS=['renderPTP','renderGuides','renderMajor','renderEssentials','renderOffences','renderOffence','renderStencils','renderLive','renderClock',
-  'renderCourtDay','renderCaution','renderKBtopic','renderLatin','renderAcronyms','renderCCTV','renderCautions','renderTemplates','openTemplate','renderExhibits',
+  'renderCourtDay','renderCaution','renderKBtopic','renderLatin','renderAcronyms','renderCCTV','renderPreserve','renderAllOffences','renderOffenceHub','renderCautions','renderTemplates','openTemplate','renderExhibits',
   'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings','renderWanted','renderSearchPerson','renderNB','renderNBLib','renderRS','renderFolder','renderSettings','renderProofs','renderRights'];
 function sameArgs(a,b){ return JSON.stringify(a||[])===JSON.stringify(b||[]); }
 function wrapSubviews(){
@@ -896,6 +896,7 @@ function reportMistake(what){ const txt='Assisting '+(window.GRVER||'')+'\nMista
 window.reportMistake=reportMistake;
 function openCase(name,fromTable){
   const c=CASES.find(x=>x.n===name); if(!c)return;
+  try{ pushRecent({k:'case',id:c.n,t:c.n,s:'Case law'+(c.cat?' · '+c.cat:'')}); }catch(e){}
   if(!DEEP)loadDeep().then(()=>{ if(deepOf(name)&&!reader.classList.contains('hidden')&&$('#rdTitle').textContent===name){ const st=rdBody.scrollTop; openCase(name,fromTable); rdBody.scrollTop=st; } });
   const dp=deepOf(c.n), P=a=>(Array.isArray(a)?a:[a]).filter(Boolean).map(x=>'<p>'+esc(x)+'</p>').join(''), U=(a,tk)=>'<ul class="'+(tk?'cs-tk':'cs-ul')+'">'+(a||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
   reader.classList.remove('hidden');reader.setAttribute('aria-hidden','false');
@@ -910,7 +911,7 @@ function openCase(name,fromTable){
   if(c.warn)h+='<div class="cs-warn">'+(window.GRI?GRI('triangle-alert'):'⚠')+'<span>'+esc(c.warn)+'</span></div>';
   const kv=(k,v)=>v?'<div><i>'+k+'</i>'+v+'</div>':'';
   h+=csSec('2696-fe0f','Case / Authority','<div class="cs-kv">'+kv('Citation',cites.map(esc).join('<br>'))+kv('Court'+(yr?' · year':''),esc([c.court,yr].filter(Boolean).join(' · ')))+kv('Still the law?',esc(c.st||''))
-    +kv('Checked',esc(chkTxt)+((c.src||[]).length?'<br><small>'+c.src.map(x=>esc(x.t||'')).filter(Boolean).join(' · ')+'</small>':''))+kv('Topic',esc(c.topic||c.cat||''))+(dp&&dp.upd?kv('In depth',esc('Written up '+dp.upd)):'')+'</div>');
+    +kv('Checked',esc(chkTxt)+(c.ckd?' · '+esc(c.ckd):'')+((c.src||[]).length?'<br><small>'+c.src.map(x=>esc(x.t||'')).filter(Boolean).join(' · ')+'</small>':''))+kv('Topic',esc(c.topic||c.cat||''))+(dp&&dp.upd?kv('In depth',esc('Written up '+dp.upd)):'')+'</div>');
   if(dp&&dp.q)h+=csSec('2753','The question','<p class="cs-q">'+esc(dp.q)+'</p>');
   if(c.chk){
     h+=csSec('1f4cb','Facts',P(c.f&&c.f.facts));
@@ -1151,7 +1152,7 @@ function renderIndex(){
   }
   list.innerHTML=html||'<div class="empty">Nothing here.</div>';
   $('#rail').innerHTML=[...letters].map(L=>`<button class="al" data-l="${L}">${L}</button>`).join('');
-  $$('.al').forEach(a=>a.addEventListener('click',()=>{const el=$('#L'+a.dataset.l);if(el)el.scrollIntoView();}));
+  $$('.al').forEach(a=>a.addEventListener('click',()=>{const el=document.getElementById('L'+a.dataset.l);if(el)el.scrollIntoView();}));
   list.querySelectorAll('.ixrow').forEach(b=>b.addEventListener('click',e=>{
     const g=e.target.closest('.goref'); openPage(g?+g.dataset.a:+b.dataset.a);
   }));
@@ -1191,7 +1192,7 @@ function renderCases(){
       if(L!==cur&&!q){cur=L;letters.add(L);html+=`<div class="letterhead" id="L${L}">${L}</div>`;}
       html+=`<div class="cslot"><button class="ixrow case cshead"><span class="term">${esc(c.n)}</span>
         <div class="refs">${deepOf(c.n)?'<span class="deeppill" title="Written up in depth">📖 in depth</span>':''}${c.chk?'<span class="chkpill" title="Checked summary">✓ checked</span>':c.warn?'<span class="warnpill" title="Couldn’t be confirmed — check before citing">⚠ check first</span>':''}<span class="catpill">${esc(c.cat||'General')}</span> ${c.c.filter(Boolean).length?esc(c.c.filter(Boolean).slice(0,2).join(' · ')):'cited in text'} · ${c.p.length?c.p.length+'pp':esc(c.court||'')+(c.y?' '+c.y:'')} ▾</div>
-        <div class="csdesc">${esc((c.d||'').slice(0,150))}</div></button>
+        <div class="csdesc">${esc(clip(c.d||'',150))}</div></button>
         <div class="csbody hidden">
           ${!c.chk&&c.warn?'<div class="cs-warn">'+(window.GRI?GRI('triangle-alert'):'⚠')+'<span>'+esc(c.warn)+'</span></div>':''}
           ${c.chk?`<button class="cssum" data-n="${esc(c.n)}"><b>Held</b> — ${esc((c.f&&c.f.held)||c.d||'')}${c.why?`<span><b>On the job</b> — ${esc(c.why)}</span>`:''}<em>Open the full summary ›</em></button>`:''}
@@ -1203,7 +1204,7 @@ function renderCases(){
     list.innerHTML=essHtml+(html||'<div class="empty">No case matches.</div>');
     list.querySelectorAll('.esshit').forEach(b=>b.addEventListener('click',()=>{caseQ=b.dataset.n;renderIndex();}));
     rail.innerHTML=q?'':[...letters].map(L=>`<button class="al" data-l="${L}">${L}</button>`).join('');
-    rail.querySelectorAll('.al').forEach(a=>a.addEventListener('click',()=>{const el=$('#L'+a.dataset.l);if(el)el.scrollIntoView();}));
+    rail.querySelectorAll('.al').forEach(a=>a.addEventListener('click',()=>{const el=document.getElementById('L'+a.dataset.l);if(el)el.scrollIntoView();}));
     list.querySelectorAll('.cshead').forEach(h=>{
       h.addEventListener('click',()=>h.nextElementSibling.classList.toggle('hidden'));
       const nm=h.querySelector('.term');if(nm)nm.addEventListener('click',e=>{e.stopPropagation();openCase(nm.textContent);});
@@ -1436,6 +1437,7 @@ function renderAcronyms(){
   view.innerHTML=kbHead('🔤 '+K.t)+'<div class="tool">'+K.items.map(([a,b])=>`<div style="padding:9px 0;border-bottom:1px solid var(--navy3)"><b style="color:var(--gold)">${esc(a)}</b><div style="font-size:13.5px">${esc(b)}</div></div>`).join('')+'</div>';
   wireBack();view.scrollTop=0;
 }
+function renderPreserve(){ if(!window.GRPreserve){ toast&&toast('Reload the app to use this'); return; } GRPreserve.render(view,kbHead('📨 Preservation request'),()=>{ wireBack(); view.scrollTop=0; }); }
 function renderCCTV(){
   view.innerHTML=kbHead('📧 CCTV preservation request')+`
   <div class="tool">
@@ -1594,7 +1596,7 @@ function renderDeep(g){
   view.scrollTop=0;
 }
 let rdScale=parseFloat(localStorage.getItem('gr_rdscale')||'1');
-function applyRdScale(){rdBody.style.fontSize=(15.5*rdScale).toFixed(1)+'px';localStorage.setItem('gr_rdscale',String(rdScale));}
+function applyRdScale(){const fs=((document.documentElement.classList.contains('rd-roomy')?16.5:14.5)*rdScale).toFixed(1)+'px';rdBody.style.fontSize=fs;rdBody.style.setProperty('--rdfs',fs);localStorage.setItem('gr_rdscale',String(rdScale));}
 (function pinch(){
   let d0=null,s0=1;
   const dist=e=>Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
@@ -2028,6 +2030,7 @@ function linkify(txt){
   return h;
 }
 function stripMd(t){return String(t).replace(/\*{1,3}|_{2,}|^#+\s/gm,'');}
+function clip(t,n){ t=String(t); if(t.length<=n)return t; t=t.slice(0,n); const i=t.lastIndexOf(' '); return (i>n*0.6?t.slice(0,i):t).replace(/[\s,;:.—-]+$/,'')+'…'; }
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 /* ---------- always-on 24h clock + date (covert HUD) — fills every .hudclock ---------- */
