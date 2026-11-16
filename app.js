@@ -1,4 +1,4 @@
-window.GRAPP='216';
+window.GRAPP='217';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -241,7 +241,7 @@ function wrapSubviews(){
 const FILTERS=[['all','Everything'],['vols','Vols 1–11'],['v12','Vol 12'],['st','Statements'],['pb','Playbooks']];
 const FRANGE={vols:[15,937],v12:[938,968],st:[969,992],pb:[986,992]};
 function renderSearch(){
-  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery,home:(window.GRClassic&&GRClassic.mode()==='v200')?(b=>GRClassic.mini(b)):null}); return; }
+  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery,home:(window.GRClassic&&GRClassic.mode()==='v200')?(window.innerWidth<900&&GRClassic.simple()?(b=>GRClassic.mini(b)):(b=>{ homeQuick(b); GRClassic.desk(b); })):null}); return; }
   view.innerHTML=`<div class="tabroot" data-tab="search" hidden></div>
   <div class="searchbox sb-mag"><input id="q" type="search" placeholder="Search — topic, case, statute, offence…" value="${esc(lastQuery)}" autocomplete="off" enterkeyhint="search"></div>
   <div id="results"></div>`;
