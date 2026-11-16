@@ -62,6 +62,52 @@ function render(view){
   if(W.GRPatrol)GRPatrol.mountStrip(view.querySelector('#homePatrol'));
   if(W.GRTasks)GRTasks.mountStrip(view.querySelector('#homeTasks'));
 }
+
+/* ---- Simple home (v200 look): today card, your essentials, All tools. Pick essentials with Edit. ---- */
+const LINE={}; HOME.forEach(g=>g[2].forEach(([id,ic])=>{ LINE[id]=ic; }));
+Object.assign(LINE,{nb:'notebook-pen',searchp:'user-search',rs:'brain',caution:'triangle-alert',rights:'scale',saved:'bookmark',tree:'book-open'});
+const EKEY='gr_ess2', EDEF=['offences','clock','firstaid','cautions','nb','searchp','map','roster'];
+const XTRA=[['news','Need-to-know news'],['inner','Dublin inner city'],['recent','Recently viewed']];
+function ess(){ try{ const v=JSON.parse(localStorage.getItem(EKEY)||'null'); if(v&&Array.isArray(v.ids))return v; }catch(e){} return {ids:EDEF.slice(),x:['recent']}; }
+function essSave(v){ try{ localStorage.setItem(EKEY,JSON.stringify(v)); }catch(e){} }
+function tile(id){ const it=W.GRPro&&GRPro.items[id]; if(!it)return '';
+  return '<button type="button" class="qbtn" data-it="'+id+'"><span class="qh">'+I(LINE[id]||'star')+'<b>'+esc(it[1])+'</b></span></button>'; }
+function mini(box){
+  const E=ess(), X=new Set(E.x||[]);
+  box.innerHTML='<div class="homeq mini"><div id="homeToday"></div><div id="homePatrol"></div><div id="homeGaol"></div><div id="homeRoster"></div><div id="homeDet"></div>'
+   +'<h2 class="sec">Essentials<span class="sec-r"><button type="button" class="sec-x" id="essEdit">Edit</button></span></h2>'
+   +'<div class="quick mini-q">'+E.ids.map(tile).join('')+'</div>'
+   +(X.has('recent')?'<div id="miniRecent"></div>':'')
+   +(X.has('news')?'<div id="homeNews"></div>':'')+(X.has('inner')?'<div id="homeInner"></div>':'')
+   +'<button type="button" class="home-edit" id="allTools">'+I('list')+'All tools</button></div>';
+  box.querySelectorAll('[data-it]').forEach(b=>b.onclick=()=>GRPro.run(b.dataset.it));
+  box.querySelector('#essEdit').onclick=()=>pick(box);
+  box.querySelector('#allTools').onclick=()=>{ setTab('folders'); W.render(); D.getElementById('view').scrollTop=0; };
+  if(X.has('recent')){ const r=recentRows(); const el=box.querySelector('#miniRecent'); if(r){ el.innerHTML='<h2 class="sec">Recent</h2><div class="recentwrap">'+r+'</div>';
+    el.querySelectorAll('.recentrow').forEach(b=>b.onclick=()=>{ const k=b.dataset.k,id=b.dataset.id; if(k==='case'&&W.openCase)openCase(id); else if(k==='tool')GRPro.run(id); else if(k==='guide'&&W.openGuide3)openGuide3(id); else if(W.openPage)openPage(+id); }); } }
+  try{ if(W.paintToday)paintToday(); if(W.grHudTick)grHudTick(); }catch(e){}
+  if(W.GRRoster&&GRRoster.mountStrip)GRRoster.mountStrip(box.querySelector('#homeRoster'));
+  if(W.GRDet&&GRDet.mountStrip)GRDet.mountStrip(box.querySelector('#homeDet'));
+  if(W.GRGaol&&GRGaol.mountStrip)GRGaol.mountStrip(box.querySelector('#homeGaol'));
+  if(W.GRPatrol&&GRPatrol.mountStrip)GRPatrol.mountStrip(box.querySelector('#homePatrol'));
+  if(W.GRMedia){ if(X.has('news'))GRMedia.mountNewsStrip(box.querySelector('#homeNews')); if(X.has('inner')&&GRMedia.mountInnerStrip)GRMedia.mountInnerStrip(box.querySelector('#homeInner')); }
+}
+function pick(box){
+  const E=ess(), on=new Set(E.ids), X=new Set(E.x||[]), F=(W.GRPro&&GRPro.folders)||[], seen=new Set();
+  const row=(id,lab,chk,attr)=>'<label class="ess-row"><input type="checkbox" '+attr+'="'+id+'"'+(chk?' checked':'')+'><span>'+esc(lab)+'</span></label>';
+  let h='<div class="ess-pick"><div class="ess-top"><b>Choose your essentials</b><span id="essN"></span><button type="button" id="essDone">Done</button></div>'
+   +'<p class="ess-help">Tick what you want on the home screen. Everything else stays under All tools.</p>'
+   +'<h2 class="sec">Also show</h2>'+XTRA.map(([k,l])=>row(k,l,X.has(k),'data-x')).join('');
+  F.forEach(f=>{ const ids=[]; f.s.forEach(([,L])=>L.forEach(id=>{ if(!seen.has(id)&&GRPro.items[id]){ seen.add(id); ids.push(id); } }));
+    if(ids.length)h+='<h2 class="sec">'+esc(f.t)+'</h2>'+ids.map(id=>row(id,GRPro.items[id][1],on.has(id),'data-e')).join(''); });
+  box.innerHTML=h+'<button type="button" class="home-edit" id="essReset">Reset to the standard set</button></div>';
+  const cnt=()=>{ box.querySelector('#essN').textContent=box.querySelectorAll('[data-e]:checked').length+' chosen'; }; cnt();
+  box.querySelectorAll('[data-e]').forEach(c=>c.onchange=()=>{ if(c.checked)E.ids.push(c.dataset.e); else E.ids=E.ids.filter(x=>x!==c.dataset.e); cnt(); });
+  box.querySelectorAll('[data-x]').forEach(c=>c.onchange=()=>{ const s=new Set(E.x||[]); c.checked?s.add(c.dataset.x):s.delete(c.dataset.x); E.x=[...s]; });
+  box.querySelector('#essDone').onclick=()=>{ essSave(E); mini(box); D.getElementById('view').scrollTop=0; };
+  box.querySelector('#essReset').onclick=()=>{ essSave({ids:EDEF.slice(),x:['recent']}); mini(box); };
+  D.getElementById('view').scrollTop=0;
+}
 function setStyle(s){ try{ localStorage.setItem('gr_home_style',s); if(s==='v200'){ localStorage.setItem('gr_pro_auto','1'); } else if(s==='original'){ localStorage.setItem('gr_theme','navy'); localStorage.setItem('gr_pro_auto','0'); localStorage.setItem('gr_look','classic'); } else { localStorage.setItem('gr_theme','pro'); localStorage.setItem('gr_pro_auto','1'); } }catch(e){} location.reload(); }
-W.GRClassic={on,mode,render,setStyle};
+W.GRClassic={on,mode,render,setStyle,mini};
 })(window);

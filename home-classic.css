@@ -77,3 +77,21 @@
 .ch .hc.wide{grid-column:auto}
 .ch .hf-style{margin-top:10px;min-height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--dim);font:500 12.5px var(--sys)}
 .ch .hero{background-image:url(icons/hero-dublin.jpg)}
+
+/* simple home */
+.homeq.mini .mini-q{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.homeq.mini .mini-q .qbtn{min-height:58px;padding:12px}
+.homeq.mini .mini-q .qbtn .qh{display:flex;align-items:center;gap:10px}
+.homeq.mini .mini-q .qbtn .gri{width:22px;height:22px;flex:0 0 auto}
+.homeq.mini .mini-q .qbtn b{font-size:14px;line-height:1.25;text-align:left}
+.homeq.mini .home-edit{margin-top:14px}
+.ess-pick .ess-top{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;padding:10px 0;background:var(--bg,#0b1220)}
+.ess-pick .ess-top b{flex:1;font-size:16px}
+.ess-pick .ess-top span{font-size:12px;color:var(--dim)}
+.ess-pick #essDone{min-height:40px;padding:0 16px;border-radius:10px;border:0;background:var(--acc,#6aa2ef);color:#fff;font-weight:600}
+.ess-pick .ess-help{margin:0 0 6px;font-size:13px;color:var(--dim)}
+.ess-row{display:flex;align-items:center;gap:12px;min-height:46px;padding:0 4px;border-bottom:1px solid var(--line,rgba(255,255,255,.08));font-size:15px}
+.ess-row input{width:20px;height:20px;accent-color:var(--acc,#6aa2ef)}
+html[data-look="glass"] .homeq.mini .mini-q .qbtn .gri{box-sizing:border-box;width:46px!important;height:46px!important;max-width:none!important;max-height:none!important;padding:12px}
+html[data-look="bento"] .homeq.mini .mini-q .qbtn .gri,html[data-look="material"] .homeq.mini .mini-q .qbtn .gri{box-sizing:border-box;width:34px!important;height:34px!important;max-width:none!important;max-height:none!important}
+html[data-look="material"] #tabbar .tab .gri{max-width:none!important;max-height:none!important}

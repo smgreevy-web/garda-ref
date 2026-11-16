@@ -64,9 +64,9 @@ html[data-tone="dark"] .pi{box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
 .p-acts button.go{flex:2;background:var(--p-acc);border-color:var(--p-acc);color:var(--p-on)!important}
 /* the three tabs */
 html[data-theme^="pro"] #tabbar{background:color-mix(in srgb,var(--p-card) 88%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--p-line)}
-html[data-theme^="pro"] #tabbar .tab{font-weight:600;color:var(--p-mut)}
-html[data-theme^="pro"] #tabbar .tab.active{color:var(--p-tx)}
-html[data-theme="pronight"] #tabbar .tab.active{color:#fff}
+html:not([data-look])[data-theme^="pro"] #tabbar .tab{font-weight:600;color:var(--p-mut)}
+html:not([data-look])[data-theme^="pro"] #tabbar .tab.active{color:var(--p-tx)}
+html:not([data-look])[data-theme="pronight"] #tabbar .tab.active{color:#fff}
 html[data-theme^="pro"] #view:has(>.pro){background:var(--p-bg)}
 
 /* ---------- case page: one column, the point first ---------- */
