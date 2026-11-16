@@ -1,4 +1,4 @@
-window.GRAPP='209';
+window.GRAPP='213';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -204,8 +204,9 @@ function bindUI(){
 const OLD_TABS=['browse','index','tools','saved'];   // the earlier tab pages — now reached from the folders
 function render(){
   if(tab==='home')tab='today';
-  setTab(tab); vstack.length=0; vcur=null; view.dataset.root=tab; document.body.classList.toggle('subview',OLD_TABS.includes(tab));
-  if(tab==='today'){ if(window.GRPro)GRPro.today(view); else renderSearch(); }
+  if(tab==='today'&&window.GRClassic&&GRClassic.mode()==='v200')tab='search';
+  setTab(tab); vstack.length=0; vcur=null; view.dataset.root=tab; document.body.classList.toggle('subview',!(window.GRClassic&&GRClassic.on())&&OLD_TABS.includes(tab));
+  if(tab==='today'){ if(window.GRClassic&&GRClassic.on())GRClassic.render(view); else if(window.GRPro)GRPro.today(view); else renderSearch(); }
   else if(tab==='folders'){ if(window.GRPro)GRPro.browse(view); else renderTools(); }
   else if(tab==='search')renderSearch();
   else if(tab==='browse')renderBrowse();
@@ -213,7 +214,7 @@ function render(){
   else if(tab==='tools')renderTools();
   else renderSaved();
 }
-function setTab(t){ tab=t; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t||(x.dataset.tab==='folders'&&OLD_TABS.includes(t)))); }
+function setTab(t){ tab=t; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t||(x.dataset.tab==='folders'&&OLD_TABS.includes(t))||(x.dataset.tab==='today'&&t==='folders'))); }
 function goHome(){ lastQuery=''; setTab('today'); closeReader(); render(); view.scrollTop=0; }
 function searchFor(q,opt){ lastQuery=q||''; lastFilter='all'; setTab('search'); closeReader(); render(); view.scrollTop=0;
   if(opt&&opt.focus){ const i=$('#q'); if(i)i.focus(); } }
@@ -240,7 +241,7 @@ function wrapSubviews(){
 const FILTERS=[['all','Everything'],['vols','Vols 1–11'],['v12','Vol 12'],['st','Statements'],['pb','Playbooks']];
 const FRANGE={vols:[15,937],v12:[938,968],st:[969,992],pb:[986,992]};
 function renderSearch(){
-  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery}); return; }
+  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery,home:(window.GRClassic&&GRClassic.mode()==='v200')?homeQuick:null}); return; }
   view.innerHTML=`<div class="tabroot" data-tab="search" hidden></div>
   <div class="searchbox sb-mag"><input id="q" type="search" placeholder="Search — topic, case, statute, offence…" value="${esc(lastQuery)}" autocomplete="off" enterkeyhint="search"></div>
   <div id="results"></div>`;
@@ -2096,9 +2097,9 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
     if(vcur){                                                               // sub-view → the screen before it → the tab
       if(vstack.length){ const p=vstack.pop(); vcur=null; const fn=window[p.f]; if(typeof fn==='function'){ fn.apply(null,p.a); view.scrollTop=p.y||0; } return true; }
       vcur=null; render(); return true; }
-    if(OLD_TABS.includes(tab)){ setTab('folders'); render(); view.scrollTop=0; return true; }
+    if(OLD_TABS.includes(tab)&&!(window.GRClassic&&GRClassic.on())){ setTab('folders'); render(); view.scrollTop=0; return true; }
     if(tab==='search'&&lastQuery){ lastQuery=''; render(); view.scrollTop=0; return true; }
-    if(tab!=='today'){ goHome(); return true; }
+    if(tab!=='today'&&!(tab==='search'&&window.GRClassic&&GRClassic.mode()==='v200')){ goHome(); return true; }
     if(view.scrollTop>40){ view.scrollTo({top:0,behavior:'smooth'}); return true; }
     return false;
   }

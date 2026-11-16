@@ -109,6 +109,7 @@ const IT={
  applock:['1f512','App lock','A password to open Assisting',()=>{ if(W.GRLock)GRLock.sheet(); }],
  aikey:['2728','AI search','Your own key, what is sent, and the cost',()=>{ if(W.GRSearch)GRSearch.settings(); }],
  tour:['1f44b','Intro tour','See the five-screen tour again',()=>openTour()],
+ homestyle:['1f3e0','Home style','Tap to switch: search home (change its look with Aa) → original badge home → Today screen',()=>{ if(W.GRClassic){ const m=GRClassic.mode(); GRClassic.setStyle(m==='v200'?'original':m==='original'?'new':'v200'); } }],
  homelay:['1f3e0','Customise Today','Show, hide and reorder sections; favourites size; compact spacing',()=>layoutSheet()],
  rddense:['1f4d6','Compact reading','Smaller text and tighter sections in guides, pages and cases — tap to switch',()=>{ const roomy=!D.documentElement.classList.contains('rd-roomy'); if(W.GRReader)GRReader.setRoomy(roomy); if(typeof applyRdScale==='function')try{applyRdScale();}catch(e){} if(W.grToast)grToast(roomy?'Roomy reading on':'Compact reading on'); }],
  fatig:['1f319','Night-run notes','A gentle note on Today after two or more nights in a row — tap to turn on or off',()=>{ let on=true; try{ on=localStorage.getItem('gr_fatigue')!=='0'; localStorage.setItem('gr_fatigue',on?'0':'1'); }catch(e){} if(W.grToast)grToast('Night-run notes are '+(on?'off':'on')); }],
@@ -134,7 +135,7 @@ const FOLDERS=[
  {k:'maps',t:'Maps & cameras',i:'1f5fa-fe0f',s:[['Map',['map','dcc']],['Live cameras',['camd','camm50','camport','camall']],['News and radio',['newslist','news','radio']]]},
  {k:'gra',t:'GRA',i:'1f465',s:[['Member services',['graBen','graPortal','graDisc']],['News',['graNews','graReview']],['Get in touch',['graContact','graAbout','graTrain']]],note:'Links to the Garda Representative Association’s own website (gra.ie), checked November 2026. They open in your browser and need signal. Assisting is independent of the GRA.'}
 ];
-const SETTINGS=['display','homelay','rddense','applock','backup','sync','fatig','aikey','tour','about'];
+const SETTINGS=['display','homestyle','homelay','rddense','applock','backup','sync','fatig','aikey','tour','about'];
 const FAV_DEF=['offences','nb','searchp','rs','clock','roster','tasks','map'];
 const FKEY='gr_pro_favs';
 const favs=()=>{ try{ const a=JSON.parse(localStorage.getItem(FKEY)||'null'); if(Array.isArray(a)){ const b=a.filter(x=>IT[x]); if(b.length)return b; } }catch(e){} return FAV_DEF.slice(); };
