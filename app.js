@@ -1,4 +1,4 @@
-window.GRAPP='221';
+window.GRAPP='222';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];

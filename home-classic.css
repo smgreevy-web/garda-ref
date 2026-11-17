@@ -131,3 +131,7 @@ html[data-look] .hsw button.on{background:var(--acc);color:var(--accink,#fff)}
 #view.pv-simple .lrow,#view.pv-simple .tl,#view.pv-simple .qbtn{min-height:44px!important;padding-top:8px!important;padding-bottom:8px!important}
 #view.pv-simple .refs,#view.pv-simple .tpg{display:none!important}
 #view.pv-simple .term{padding-top:6px!important;padding-bottom:6px!important}
+/* tab bar: labels never clipped, indicator sits inside the bar, 4 tabs share the width evenly */
+#tabbar{height:auto!important;overflow:visible}
+#tabbar .tab{flex:1 1 0;min-width:0;height:auto!important;min-height:50px;line-height:1.15!important;white-space:nowrap}
+html:not([data-look]) #tabbar .tab.active::before{top:0!important}

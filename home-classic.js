@@ -73,7 +73,7 @@ function tile(id){ const it=W.GRPro&&GRPro.items[id]; if(!it)return '';
   return '<button type="button" class="qbtn" data-it="'+id+'"><span class="qh">'+I(LINE[id]||'star')+'<b>'+esc(it[1])+'</b></span></button>'; }
 function mini(box){
   const E=ess(), X=new Set(E.x||[]);
-  box.innerHTML=switcher()+'<div class="homeq mini"><div id="homeToday"></div><div id="homePatrol"></div><div id="homeGaol"></div><div id="homeRoster"></div><div id="homeDet"></div>'
+  box.innerHTML='<div class="homeq mini"><div id="homeToday"></div><div id="homePatrol"></div><div id="homeGaol"></div><div id="homeRoster"></div><div id="homeDet"></div>'
    +'<h2 class="sec">Essentials<span class="sec-r"><button type="button" class="sec-x" id="essEdit">Edit</button></span></h2>'
    +'<div class="quick mini-q">'+E.ids.map(tile).join('')+'</div>'
    +(X.has('recent')?'<div id="miniRecent"></div>':'')
@@ -137,7 +137,12 @@ function switcher(){ const m=mode()==='v200'?(simple()?'simple':'full'):mode()==
 function wireSwitch(box){ box.querySelectorAll('[data-hsw]').forEach(b=>b.onclick=()=>{ const k=b.dataset.hsw;
   if(k==='week'){ if(mode()!=='new')setStyle('new'); return; }
   setSimple(k==='simple'); if(mode()!=='v200')setStyle('v200'); else W.goHome(); }); }
-function addSwitch(view){ if(!view||view.querySelector('.hsw'))return; view.insertAdjacentHTML('afterbegin',switcher()); wireSwitch(view); }
+function addSwitch(view){}
+function cycleHome(){ const m=mode()==='v200'?(simple()?'simple':'full'):mode()==='new'?'week':'full'; const n=m==='full'?'simple':m==='simple'?'week':'full';
+  try{ localStorage.setItem('gr_home_toast',{full:'Home: Full',simple:'Home: Simple',week:'Home: Last week'}[n]); }catch(e){}
+  if(n==='week'){ setStyle('new'); return; } setSimple(n==='simple'); if(mode()!=='v200')setStyle('v200'); else { if(W.grToast)grToast(n==='simple'?'Home: Simple':'Home: Full'); W.goHome(); } }
+function homeName(){ return mode()==='new'?'Last week':simple()?'Simple':'Full'; }
+try{ const t=localStorage.getItem('gr_home_toast'); if(t){ localStorage.removeItem('gr_home_toast'); setTimeout(()=>{ if(W.grToast)grToast(t); },1200); } }catch(e){}
 const GROUPS=['job','work','inv','law','files','deep','manual'];
 try{ if(localStorage.getItem('gr_home_v3')!=='1'){ localStorage.setItem('gr_home_v3','1'); let L=null; try{ L=JSON.parse(localStorage.getItem('gr_home')||'null'); }catch(e){}
   if(L&&Array.isArray(L.order)){ L.hidden=L.hidden||[]; if(!L.hidden.includes('manual'))L.hidden.push('manual'); localStorage.setItem('gr_home',JSON.stringify(L)); }
@@ -157,7 +162,6 @@ function full(box){
   const all=D.createElement('button'); all.type='button'; all.className='home-edit'; all.id='allTools'; all.innerHTML=I('list')+'All tools';
   all.onclick=()=>{ setTab('tools'); W.render(); D.getElementById('view').scrollTop=0; };
   picks.after(all);
-  box.insertAdjacentHTML('afterbegin',switcher()); wireSwitch(box);
   desk(box);
 }
 
@@ -171,5 +175,5 @@ function pageSwitch(view,k){ if(!view||view.querySelector(':scope > .hsw'))retur
   view.querySelectorAll(':scope > .pvsw [data-pv]').forEach(b=>b.onclick=()=>{ try{ localStorage.setItem('gr_pv_'+k,b.dataset.pv); }catch(e){} const v=D.getElementById('view'); setTab(k); W.render(); v.scrollTop=0; }); }
 const simple=()=>{ try{ return localStorage.getItem('gr_home_simple')==='1'; }catch(e){ return false; } };
 function setSimple(v){ try{ localStorage.setItem('gr_home_simple',v?'1':'0'); }catch(e){} }
-W.GRClassic={on,mode,render,setStyle,mini,simple,setSimple,desk,full,addSwitch,pv,pageSwitch};
+W.GRClassic={on,mode,render,setStyle,mini,simple,setSimple,desk,full,addSwitch,pv,pageSwitch,cycleHome,homeName};
 })(window);
