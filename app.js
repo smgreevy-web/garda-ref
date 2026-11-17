@@ -1,4 +1,4 @@
-window.GRAPP='223';
+window.GRAPP='224';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -226,7 +226,7 @@ function subView(){ view.innerHTML='<div id="results"></div>'; view.scrollTop=0;
 const vstack=[]; let vcur=null;
 const SUBVIEWS=['renderPTP','renderGuides','renderMajor','renderEssentials','renderOffences','renderOffence','renderStencils','renderLive','renderClock',
   'renderCourtDay','renderCaution','renderKBtopic','renderLatin','renderAcronyms','renderCCTV','renderPreserve','renderAllOffences','renderOffenceHub','renderCautions','renderTemplates','openTemplate','renderExhibits',
-  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings','renderWanted','renderSearchPerson','renderNB','renderNBLib','renderRS','renderFolder','renderSettings','renderProofs','renderRights'];
+  'renderLang','renderDeep','renderChecklists','renderJudgments','renderCourtLists','renderAbout','renderAISettings','renderWanted','renderSearchPerson','renderNB','renderNBLib','renderRS','renderFolder','renderSettings','renderProofs','renderRights','renderTranslate'];
 function sameArgs(a,b){ return JSON.stringify(a||[])===JSON.stringify(b||[]); }
 function wrapSubviews(){
   for(const name of SUBVIEWS){ const orig=window[name]; if(typeof orig!=='function'||orig._sv)continue;
@@ -2094,6 +2094,7 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
       if(window.closeOSINT){ closeOSINT(); return true; } }
     if(window.tourBack&&window.tourBack())return true;
     if(window.rtBack&&window.rtBack())return true;
+    if(window.trBack&&window.trBack())return true;
     if(window.proSheetBack&&window.proSheetBack())return true;
     if(!reader.classList.contains('hidden')){ closeReader(); return true; }
     if(window.GRSP&&GRSP.back&&GRSP.back())return true;                      // search of the person: back through the questions

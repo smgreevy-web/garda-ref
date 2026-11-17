@@ -35,6 +35,7 @@ const IT={
  // custody & court
  clock:['23f0','Detention clock','Deadlines, extensions, excluded periods and alerts',()=>{ if(W.openDetention)openDetention(); else renderClock(); }],
  gaol:['1f6aa','Gaoler — cell checks','Cell board, with a buzz before each check',call('openGaol')],
+ translate:['1f310','Translator','Text, talk, camera and an offline phrasebook — 48 languages',()=>{ if(W.renderTranslate)renderTranslate(); }],
  rights:['1f5e3-fe0f','Rights and languages','The official letter of rights, and finding the right interpreter',()=>renderRights()],
  bail:['2696-fe0f','Objecting to bail','O’Callaghan, s.2 and the burglary presumption',guide('bail')],
  ocall:['1f4cb','O’Callaghan worksheet','A systematic objection',guide('ocall')],
@@ -126,8 +127,8 @@ const IT={
 };
 /* ---- the nine folders ---- */
 const FOLDERS=[
- {k:'job',t:'On the job',i:'1f6e1-fe0f',s:[['Most used',['offences','searchp','nb','rs']],['At a scene',['scene','cautions','caution','ptp','weapons','seizure']],['Getting there',['route','patrol']],['Roads',['rtc','escooter']],['Emergencies and tools',['firstaid','toolbox','wanted']]]},
- {k:'custody',t:'Custody & court',i:'1f3db-fe0f',s:[['In custody',['clock','gaol','rights']],['Bail',['bail','ocall','bailpack']],['At court',['courtday','courtlists','crossexam','sentencing']]]},
+ {k:'job',t:'On the job',i:'1f6e1-fe0f',s:[['Most used',['offences','searchp','nb','rs','translate']],['At a scene',['scene','cautions','caution','ptp','weapons','seizure']],['Getting there',['route','patrol']],['Roads',['rtc','escooter']],['Emergencies and tools',['firstaid','toolbox','wanted']]]},
+ {k:'custody',t:'Custody & court',i:'1f3db-fe0f',s:[['In custody',['clock','gaol','rights','translate']],['Bail',['bail','ocall','bailpack']],['At court',['courtday','courtlists','crossexam','sentencing']]]},
  {k:'law',t:'Law',i:'2696-fe0f',s:[['Case law',['essentials','cases','judg']],['Know the law',['amend','discretion','inference','evidence','advokate']],['Look it up',['index','lang']]]},
  {k:'guides',t:'Investigation guides',i:'1f4d6',s:[['All offences',['alloff']],['Start to finish',['gAssault','gRobbery','gBurglary','gTheft','gDrugs','gImm']],['Deep guides',['gPO','gAffray','gClamp','gIndec','gRare','gIplan','gDeep']]]},
  {k:'manual',t:'Manual',i:'1f4da',s:[['Read',['tree','playbooks','assaultst']],['Yours',['saved']]]},
