@@ -10,9 +10,8 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 /* tab bar: swap before app.js wires it */
 if(mode()==='v200'){ const tb=D.getElementById('tabbar'); if(tb)tb.innerHTML=
   '<button data-tab="search" data-ic="search" class="tab active" role="tab">Search</button>'+
-  '<button data-tab="browse" data-ic="list" class="tab" role="tab">Browse</button>'+
-  '<button data-tab="index" data-ic="book-text" class="tab" role="tab">Indexes</button>'+
   '<button data-tab="tools" data-ic="wrench" class="tab" role="tab">Tools</button>'+
+  '<button data-tab="index" data-ic="book-text" class="tab" role="tab">Indexes</button>'+
   '<button data-tab="saved" data-ic="bookmark" class="tab" role="tab">Saved</button>'; }
 if(mode()==='original'){ const tb=D.getElementById('tabbar'); if(tb)tb.innerHTML=
   '<button data-tab="today" data-ic="house" class="tab active" role="tab">Home</button>'+
@@ -66,23 +65,24 @@ function render(view){
 /* ---- Simple home (v200 look): today card, your essentials, All tools. Pick essentials with Edit. ---- */
 const LINE={}; HOME.forEach(g=>g[2].forEach(([id,ic])=>{ LINE[id]=ic; }));
 Object.assign(LINE,{nb:'notebook-pen',searchp:'user-search',rs:'brain',caution:'triangle-alert',rights:'scale',saved:'bookmark',tree:'book-open'});
-const EKEY='gr_ess2', EDEF=['offences','clock','firstaid','cautions','nb','searchp','map','roster'];
-const XTRA=[['news','Need-to-know news'],['inner','Dublin inner city'],['recent','Recently viewed']];
+const EKEY='gr_ess2', EDEF=['offences','ptp','searchp','nb','clock','gaol','cautions','proofs','camd','radio'];
+const XTRA=[['news','Need-to-know news (simple home)'],['inner','Dublin inner city (simple home)'],['recent','Recently viewed (simple home)']];
 function ess(){ try{ const v=JSON.parse(localStorage.getItem(EKEY)||'null'); if(v&&Array.isArray(v.ids))return v; }catch(e){} return {ids:EDEF.slice(),x:['recent']}; }
 function essSave(v){ try{ localStorage.setItem(EKEY,JSON.stringify(v)); }catch(e){} }
 function tile(id){ const it=W.GRPro&&GRPro.items[id]; if(!it)return '';
   return '<button type="button" class="qbtn" data-it="'+id+'"><span class="qh">'+I(LINE[id]||'star')+'<b>'+esc(it[1])+'</b></span></button>'; }
 function mini(box){
   const E=ess(), X=new Set(E.x||[]);
-  box.innerHTML='<div class="homeq mini"><div id="homeToday"></div><div id="homePatrol"></div><div id="homeGaol"></div><div id="homeRoster"></div><div id="homeDet"></div>'
+  box.innerHTML=switcher()+'<div class="homeq mini"><div id="homeToday"></div><div id="homePatrol"></div><div id="homeGaol"></div><div id="homeRoster"></div><div id="homeDet"></div>'
    +'<h2 class="sec">Essentials<span class="sec-r"><button type="button" class="sec-x" id="essEdit">Edit</button></span></h2>'
    +'<div class="quick mini-q">'+E.ids.map(tile).join('')+'</div>'
    +(X.has('recent')?'<div id="miniRecent"></div>':'')
    +(X.has('news')?'<div id="homeNews"></div>':'')+(X.has('inner')?'<div id="homeInner"></div>':'')
    +'<button type="button" class="home-edit" id="allTools">'+I('list')+'All tools</button></div>';
+  wireSwitch(box);
   box.querySelectorAll('[data-it]').forEach(b=>b.onclick=()=>GRPro.run(b.dataset.it));
   box.querySelector('#essEdit').onclick=()=>pick(box);
-  box.querySelector('#allTools').onclick=()=>{ setTab('folders'); W.render(); D.getElementById('view').scrollTop=0; };
+  box.querySelector('#allTools').onclick=()=>{ setTab('tools'); W.render(); D.getElementById('view').scrollTop=0; };
   if(X.has('recent')){ const r=recentRows(); const el=box.querySelector('#miniRecent'); if(r){ el.innerHTML='<h2 class="sec">Recent</h2><div class="recentwrap">'+r+'</div>';
     el.querySelectorAll('.recentrow').forEach(b=>b.onclick=()=>{ const k=b.dataset.k,id=b.dataset.id; if(k==='case'&&W.openCase)openCase(id); else if(k==='tool')GRPro.run(id); else if(k==='guide'&&W.openGuide3)openGuide3(id); else if(W.openPage)openPage(+id); }); } }
   try{ if(W.paintToday)paintToday(); if(W.grHudTick)grHudTick(); }catch(e){}
@@ -95,17 +95,19 @@ function mini(box){
 function pick(box){
   const E=ess(), on=new Set(E.ids), X=new Set(E.x||[]), F=(W.GRPro&&GRPro.folders)||[], seen=new Set();
   const row=(id,lab,chk,attr)=>'<label class="ess-row"><input type="checkbox" '+attr+'="'+id+'"'+(chk?' checked':'')+'><span>'+esc(lab)+'</span></label>';
-  let h='<div class="ess-pick"><div class="ess-top"><b>Choose your essentials</b><span id="essN"></span><button type="button" id="essDone">Done</button></div>'
-   +'<p class="ess-help">Tick what you want on the home screen. Everything else stays under All tools.</p>'
+  let h='<div class="ess-pick"><div class="ess-top"><b>Pick your tools</b><span id="essN"></span><button type="button" id="essDone">Done</button></div>'
+   +'<p class="ess-help">Tick everything you want under Dublin inner city on your home screen — tools, live cameras, radio, anything. The rest stays in the Tools tab. Change it any time with Edit.</p>'
    +'<h2 class="sec">Also show</h2>'+XTRA.map(([k,l])=>row(k,l,X.has(k),'data-x')).join('');
   F.forEach(f=>{ const ids=[]; f.s.forEach(([,L])=>L.forEach(id=>{ if(!seen.has(id)&&GRPro.items[id]){ seen.add(id); ids.push(id); } }));
     if(ids.length)h+='<h2 class="sec">'+esc(f.t)+'</h2>'+ids.map(id=>row(id,GRPro.items[id][1],on.has(id),'data-e')).join(''); });
+  const SET=new Set(['display','backup','sync','applock','aikey','tour','homesimple','homestyle','homelay','rddense','fatig','about']); const rest=Object.keys(GRPro.items).filter(id=>!seen.has(id)&&!SET.has(id));
+  if(rest.length)h+='<h2 class="sec">Other</h2>'+rest.map(id=>row(id,GRPro.items[id][1],on.has(id),'data-e')).join('');
   box.innerHTML=h+'<button type="button" class="home-edit" id="essReset">Reset to the standard set</button></div>';
   const cnt=()=>{ box.querySelector('#essN').textContent=box.querySelectorAll('[data-e]:checked').length+' chosen'; }; cnt();
   box.querySelectorAll('[data-e]').forEach(c=>c.onchange=()=>{ if(c.checked)E.ids.push(c.dataset.e); else E.ids=E.ids.filter(x=>x!==c.dataset.e); cnt(); });
   box.querySelectorAll('[data-x]').forEach(c=>c.onchange=()=>{ const s=new Set(E.x||[]); c.checked?s.add(c.dataset.x):s.delete(c.dataset.x); E.x=[...s]; });
-  box.querySelector('#essDone').onclick=()=>{ essSave(E); mini(box); D.getElementById('view').scrollTop=0; };
-  box.querySelector('#essReset').onclick=()=>{ essSave({ids:EDEF.slice(),x:['recent']}); mini(box); };
+  box.querySelector('#essDone').onclick=()=>{ essSave(E); try{ localStorage.setItem('gr_ess_asked','1'); }catch(e){} W.goHome(); };
+  box.querySelector('#essReset').onclick=()=>{ essSave({ids:EDEF.slice(),x:['recent']}); W.goHome(); };
   D.getElementById('view').scrollTop=0;
 }
 function setStyle(s){ try{ localStorage.setItem('gr_home_style',s); if(s==='v200'){ localStorage.setItem('gr_pro_auto','1'); } else if(s==='original'){ localStorage.setItem('gr_theme','navy'); localStorage.setItem('gr_pro_auto','0'); localStorage.setItem('gr_look','classic'); } else { localStorage.setItem('gr_theme','pro'); localStorage.setItem('gr_pro_auto','1'); } }catch(e){} location.reload(); }
@@ -127,7 +129,47 @@ function desk(box){
 }
 let deskW=W.innerWidth>=1100;
 W.addEventListener('resize',()=>{ const n=W.innerWidth>=1100; if(n!==deskW){ deskW=n; try{ if(W.tab==='search'&&!(D.getElementById('q')||{}).value&&W.render)W.render(); }catch(e){} } });
+
+/* ---- Full / Simple switch, and the full home's "Your picks" ---- */
+function switcher(){ const m=mode()==='v200'?(simple()?'simple':'full'):mode()==='new'?'week':'';
+  const B=(k,l)=>'<button type="button" data-hsw="'+k+'" class="'+(m===k?'on':'')+'">'+l+'</button>';
+  return '<div class="hsw" role="tablist">'+B('full','Full')+B('simple','Simple')+B('week','Last week')+'</div>'; }
+function wireSwitch(box){ box.querySelectorAll('[data-hsw]').forEach(b=>b.onclick=()=>{ const k=b.dataset.hsw;
+  if(k==='week'){ if(mode()!=='new')setStyle('new'); return; }
+  setSimple(k==='simple'); if(mode()!=='v200')setStyle('v200'); else W.goHome(); }); }
+function addSwitch(view){ if(!view||view.querySelector('.hsw'))return; view.insertAdjacentHTML('afterbegin',switcher()); wireSwitch(view); }
+const GROUPS=['job','work','inv','law','files','deep','manual'];
+try{ if(localStorage.getItem('gr_home_v3')!=='1'){ localStorage.setItem('gr_home_v3','1'); let L=null; try{ L=JSON.parse(localStorage.getItem('gr_home')||'null'); }catch(e){}
+  if(L&&Array.isArray(L.order)){ L.hidden=L.hidden||[]; if(!L.hidden.includes('manual'))L.hidden.push('manual'); localStorage.setItem('gr_home',JSON.stringify(L)); }
+  else localStorage.setItem('gr_home',JSON.stringify({v:1,order:['tasks','news','recent','top','inner','cams','tv','job','work','inv','law','files','deep','manual'],boxes:{},hidden:['manual']})); } }catch(e){}
+function full(box){
+  const root=box&&box.querySelector('.homeq'); if(!root||root.classList.contains('editing'))return;
+  const E=ess(), X=new Set(E.x||[]), wide=W.innerWidth>=1100;
+  root.querySelectorAll('section.hblk').forEach(s=>{ if(GROUPS.includes(s.dataset.b)||s.dataset.b==='cams'||s.dataset.b==='tv')s.remove(); });
+  let asked='1'; try{ asked=localStorage.getItem('gr_ess_asked')||''; }catch(e){}
+  if(!asked){ pick(box); return; }
+  const picks=D.createElement('section'); picks.className='hblk hq-picks'; picks.dataset.b='picks';
+  picks.innerHTML='<h2 class="sec">My tools<span class="sec-r"><button type="button" class="sec-x" id="essEdit">Edit</button></span></h2><div class="quick mini-q">'+E.ids.map(tile).join('')+'</div>';
+  const inner=root.querySelector('section.hblk[data-b="inner"]'), ed0=root.querySelector('.home-edit');
+  if(inner)inner.after(picks); else if(ed0)root.insertBefore(picks,ed0); else root.appendChild(picks);
+  picks.querySelectorAll('[data-it]').forEach(b=>b.onclick=()=>GRPro.run(b.dataset.it));
+  picks.querySelector('#essEdit').onclick=()=>pick(box);
+  const all=D.createElement('button'); all.type='button'; all.className='home-edit'; all.id='allTools'; all.innerHTML=I('list')+'All tools';
+  all.onclick=()=>{ setTab('tools'); W.render(); D.getElementById('view').scrollTop=0; };
+  picks.after(all);
+  box.insertAdjacentHTML('afterbegin',switcher()); wireSwitch(box);
+  desk(box);
+}
+
+/* ---- Each page (Browse, Indexes, Tools, Saved) has its own Full / Simple / Last week ---- */
+const PVN={browse:'Browse',index:'Indexes',tools:'Tools',saved:'Saved'};
+function pv(k){ const d=k==='tools'?'week':'full'; try{ return localStorage.getItem('gr_pv_'+k)||d; }catch(e){ return d; } }
+function pageSwitch(view,k){ if(!view||view.querySelector(':scope > .hsw'))return; const m=pv(k);
+  const B=(x,l)=>'<button type="button" data-pv="'+x+'" class="'+(m===x?'on':'')+'">'+l+'</button>';
+  view.insertAdjacentHTML('afterbegin','<div class="hsw pvsw" role="tablist" aria-label="'+esc(PVN[k]||'')+' layout">'+B('full','Full')+B('simple','Simple')+B('week','Last week')+'</div>');
+  if(k==='index'){ const sw=view.querySelector(':scope > .pvsw'); sw.insertAdjacentHTML('afterend','<button type="button" class="home-edit" id="ixManual">'+I('book-open')+'Browse the manual</button>'); view.querySelector('#ixManual').onclick=()=>{ setTab('browse'); W.render(); D.getElementById('view').scrollTop=0; }; }
+  view.querySelectorAll(':scope > .pvsw [data-pv]').forEach(b=>b.onclick=()=>{ try{ localStorage.setItem('gr_pv_'+k,b.dataset.pv); }catch(e){} const v=D.getElementById('view'); setTab(k); W.render(); v.scrollTop=0; }); }
 const simple=()=>{ try{ return localStorage.getItem('gr_home_simple')==='1'; }catch(e){ return false; } };
 function setSimple(v){ try{ localStorage.setItem('gr_home_simple',v?'1':'0'); }catch(e){} }
-W.GRClassic={on,mode,render,setStyle,mini,simple,setSimple,desk};
+W.GRClassic={on,mode,render,setStyle,mini,simple,setSimple,desk,full,addSwitch,pv,pageSwitch};
 })(window);

@@ -1,4 +1,4 @@
-window.GRAPP='217';
+window.GRAPP='221';
 /* Assisting PWA — offline, no case data, no analytics */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -205,15 +205,17 @@ const OLD_TABS=['browse','index','tools','saved'];   // the earlier tab pages �
 function render(){
   if(tab==='home')tab='today';
   if(tab==='today'&&window.GRClassic&&GRClassic.mode()==='v200')tab='search';
-  setTab(tab); vstack.length=0; vcur=null; view.dataset.root=tab; document.body.classList.toggle('subview',!(window.GRClassic&&GRClassic.on())&&OLD_TABS.includes(tab));
-  if(tab==='today'){ if(window.GRClassic&&GRClassic.on())GRClassic.render(view); else if(window.GRPro)GRPro.today(view); else renderSearch(); }
+  view.classList.remove('pv-simple'); setTab(tab); vstack.length=0; vcur=null; view.dataset.root=tab; document.body.classList.toggle('subview',!(window.GRClassic&&GRClassic.on())&&OLD_TABS.includes(tab));
+  if(tab==='today'){ if(window.GRClassic&&GRClassic.on())GRClassic.render(view); else if(window.GRPro){ GRPro.today(view); if(window.GRClassic)GRClassic.addSwitch(view); } else renderSearch(); }
   else if(tab==='folders'){ if(window.GRPro)GRPro.browse(view); else renderTools(); }
   else if(tab==='search')renderSearch();
-  else if(tab==='browse')renderBrowse();
-  else if(tab==='index')renderIndex();
-  else if(tab==='tools')renderTools();
-  else renderSaved();
+  else if(tab==='browse')renderPV('browse',renderBrowse);
+  else if(tab==='index')renderPV('index',renderIndex);
+  else if(tab==='tools')renderPV('tools',renderTools);
+  else renderPV('saved',renderSaved);
 }
+function renderPV(k,fn){ const v=window.GRClassic?GRClassic.pv(k):'full'; view.classList.toggle('pv-simple',v==='simple');
+  if(v==='week'&&(k==='browse'||k==='tools')&&window.GRPro)GRPro.browse(view); else fn(); if(window.GRClassic)GRClassic.pageSwitch(view,k); }
 function setTab(t){ tab=t; $$('#tabbar .tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===t||(x.dataset.tab==='folders'&&OLD_TABS.includes(t))||(x.dataset.tab==='today'&&t==='folders'))); }
 function goHome(){ lastQuery=''; setTab('today'); closeReader(); render(); view.scrollTop=0; }
 function searchFor(q,opt){ lastQuery=q||''; lastFilter='all'; setTab('search'); closeReader(); render(); view.scrollTop=0;
@@ -241,7 +243,7 @@ function wrapSubviews(){
 const FILTERS=[['all','Everything'],['vols','Vols 1–11'],['v12','Vol 12'],['st','Statements'],['pb','Playbooks']];
 const FRANGE={vols:[15,937],v12:[938,968],st:[969,992],pb:[986,992]};
 function renderSearch(){
-  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery,home:(window.GRClassic&&GRClassic.mode()==='v200')?(window.innerWidth<900&&GRClassic.simple()?(b=>GRClassic.mini(b)):(b=>{ homeQuick(b); GRClassic.desk(b); })):null}); return; }
+  if(window.GRSearch){ GRSearch.render(view,{q:lastQuery,home:(window.GRClassic&&GRClassic.mode()==='v200')?(GRClassic.simple()?(b=>GRClassic.mini(b)):(b=>{ homeQuick(b); GRClassic.full(b); })):null}); return; }
   view.innerHTML=`<div class="tabroot" data-tab="search" hidden></div>
   <div class="searchbox sb-mag"><input id="q" type="search" placeholder="Search — topic, case, statute, offence…" value="${esc(lastQuery)}" autocomplete="off" enterkeyhint="search"></div>
   <div id="results"></div>`;
@@ -349,8 +351,9 @@ function homeLayout(){
 function homeSave(L){ try{ localStorage.setItem('gr_home',JSON.stringify({v:1,order:L.order,boxes:L.boxes,hidden:L.hidden})); }catch(e){} }
 let homeEdit=false;
 function homeEditOpen(){ if(window.grToast)grToast('Edit your favourites from Today'); }
-function homeEditDone(){ homeEdit=false; const r=$('#results'); if(r&&r.querySelector('.homeq'))homeQuick(r); }
+function homeEditDone(){ homeEdit=false; goHome(); }
 window.homeEditOpen=homeEditOpen;
+function homeShow(box){ box=box||$('#results'); if(!box)return; if(window.GRClassic&&GRClassic.mode()==='v200'){ if(GRClassic.simple())GRClassic.mini(box); else { homeQuick(box); GRClassic.full(box); } } else homeQuick(box); }
 function homeQuick(box){
   box=box||$('#results'); if(!box)return;
   const lp=+localStorage.getItem('gr_lastpage')||0;
@@ -392,7 +395,7 @@ function homeQuick(box){
   </div>`;
   if(ed){ homeEditWire(box,L); return; }
   { const eb=box.querySelector('#homeEditBtn'); if(eb)eb.addEventListener('click',homeEditOpen);
-    const rh=box.querySelector('#recentHide'); if(rh)rh.addEventListener('click',e=>{ e.stopPropagation(); const L2=homeLayout(); if(!L2.hidden.includes('recent'))L2.hidden.push('recent'); homeSave(L2); homeQuick(box); if(window.grToast)grToast('Recent hidden — Customise Home brings it back'); }); }
+    const rh=box.querySelector('#recentHide'); if(rh)rh.addEventListener('click',e=>{ e.stopPropagation(); const L2=homeLayout(); if(!L2.hidden.includes('recent'))L2.hidden.push('recent'); homeSave(L2); homeShow(box); if(window.grToast)grToast('Recent hidden — Customise Home brings it back'); }); }
   if(window.grHudTick)grHudTick();
   box.querySelectorAll('.recentrow').forEach(b=>b.addEventListener('click',()=>{
     const k=b.dataset.k, id=b.dataset.id;
@@ -627,7 +630,7 @@ function doSearch(q,filter,keep){
   lastQuery=q;
   const box=$('#results'); if(!box)return;
   q=q.trim();
-  if(q.length<2){homeQuick();return;}
+  if(q.length<2){homeShow();return;}
   const terms=q.toLowerCase().split(/\s+/).filter(w=>w.length>1);
   if(!terms.length){box.innerHTML='';return;}
   let html='';
