@@ -2,9 +2,10 @@
    grouped tool cards. Tabs Home · Search · Index · Tools · Saved. Switch in Settings → Home style. */
 (function(W){ 'use strict';
 const D=document;
-try{ if(localStorage.getItem('gr_home_v')!=='2'){ localStorage.setItem('gr_home_v','2'); localStorage.setItem('gr_home_style','v200'); localStorage.setItem('gr_pro_auto','1'); localStorage.setItem('gr_theme','pro'); }
+try{ if(localStorage.getItem('gr_home_v3m')!=='1'){ localStorage.setItem('gr_home_v3m','1'); localStorage.setItem('gr_home_v','2'); localStorage.setItem('gr_home_style','mix'); localStorage.setItem('gr_pro_auto','1'); }
+ if(localStorage.getItem('gr_home_v')!=='2'){ localStorage.setItem('gr_home_v','2'); localStorage.setItem('gr_home_style','v200'); localStorage.setItem('gr_pro_auto','1'); localStorage.setItem('gr_theme','pro'); }
  if(!localStorage.getItem('gr_home_style')){ localStorage.setItem('gr_home_style','original'); localStorage.setItem('gr_theme','navy'); localStorage.setItem('gr_pro_auto','0'); localStorage.setItem('gr_look','classic'); } }catch(e){}
-const mode=()=>{ try{ return localStorage.getItem('gr_home_style')||'v200'; }catch(e){ return 'v200'; } };
+const mode=()=>{ try{ return localStorage.getItem('gr_home_style')||'mix'; }catch(e){ return 'mix'; } };
 const on=()=>mode()==='original'||mode()==='v200';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 /* tab bar: swap before app.js wires it */
@@ -110,7 +111,7 @@ function pick(box){
   box.querySelector('#essReset').onclick=()=>{ essSave({ids:EDEF.slice(),x:['recent']}); W.goHome(); };
   D.getElementById('view').scrollTop=0;
 }
-function setStyle(s){ try{ localStorage.setItem('gr_home_style',s); if(s==='v200'){ localStorage.setItem('gr_pro_auto','1'); } else if(s==='original'){ localStorage.setItem('gr_theme','navy'); localStorage.setItem('gr_pro_auto','0'); localStorage.setItem('gr_look','classic'); } else { localStorage.setItem('gr_theme','pro'); localStorage.setItem('gr_pro_auto','1'); } }catch(e){} location.reload(); }
+function setStyle(s){ try{ localStorage.setItem('gr_home_style',s); if(s==='v200'||s==='mix'){ localStorage.setItem('gr_pro_auto','1'); } else if(s==='original'){ localStorage.setItem('gr_theme','navy'); localStorage.setItem('gr_pro_auto','0'); localStorage.setItem('gr_look','classic'); } else { localStorage.setItem('gr_theme','pro'); localStorage.setItem('gr_pro_auto','1'); } }catch(e){} location.reload(); }
 
 /* ---- Desktop: two columns — tools on the left, live info on the right, with subtitles shown ---- */
 function desk(box){
@@ -138,10 +139,12 @@ function wireSwitch(box){ box.querySelectorAll('[data-hsw]').forEach(b=>b.onclic
   if(k==='week'){ if(mode()!=='new')setStyle('new'); return; }
   setSimple(k==='simple'); if(mode()!=='v200')setStyle('v200'); else W.goHome(); }); }
 function addSwitch(view){}
-function cycleHome(){ const m=mode()==='v200'?(simple()?'simple':'full'):mode()==='new'?'week':'full'; const n=m==='full'?'simple':m==='simple'?'week':'full';
-  try{ localStorage.setItem('gr_home_toast',{full:'Home: Full',simple:'Home: Simple',week:'Home: Last week'}[n]); }catch(e){}
-  if(n==='week'){ setStyle('new'); return; } setSimple(n==='simple'); if(mode()!=='v200')setStyle('v200'); else { if(W.grToast)grToast(n==='simple'?'Home: Simple':'Home: Full'); W.goHome(); } }
-function homeName(){ return mode()==='new'?'Last week':simple()?'Simple':'Full'; }
+function cycleHome(){ const ORDER=['mix','full','simple','week'], NAME={mix:'Home: Today · Browse · Search',full:'Home: Full',simple:'Home: Simple',week:'Home: Last week'};
+  const m=mode()==='mix'?'mix':mode()==='v200'?(simple()?'simple':'full'):mode()==='new'?'week':'mix', n=ORDER[(ORDER.indexOf(m)+1)%ORDER.length];
+  try{ localStorage.setItem('gr_home_toast',NAME[n]); }catch(e){}
+  if(n==='week'){ setStyle('new'); return; } if(n==='mix'){ setStyle('mix'); return; }
+  setSimple(n==='simple'); if(mode()!=='v200')setStyle('v200'); else { try{ localStorage.removeItem('gr_home_toast'); }catch(e){} if(W.grToast)grToast(NAME[n]); W.goHome(); } }
+function homeName(){ return mode()==='mix'?'Today · Browse · Search':mode()==='new'?'Last week':simple()?'Simple':'Full'; }
 try{ const t=localStorage.getItem('gr_home_toast'); if(t){ localStorage.removeItem('gr_home_toast'); setTimeout(()=>{ if(W.grToast)grToast(t); },1200); } }catch(e){}
 const GROUPS=['job','work','inv','law','files','deep','manual'];
 try{ if(localStorage.getItem('gr_home_v3')!=='1'){ localStorage.setItem('gr_home_v3','1'); let L=null; try{ L=JSON.parse(localStorage.getItem('gr_home')||'null'); }catch(e){}

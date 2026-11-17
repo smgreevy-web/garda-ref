@@ -135,3 +135,6 @@ html[data-look] .hsw button.on{background:var(--acc);color:var(--accink,#fff)}
 #tabbar{height:auto!important;overflow:visible}
 #tabbar .tab{flex:1 1 0;min-width:0;height:auto!important;min-height:50px;line-height:1.15!important;white-space:nowrap}
 html:not([data-look]) #tabbar .tab.active::before{top:0!important}
+/* bars never squashed by long pages (labels and footer were being cut off) */
+#topbar,#tabbar,#banner{flex-shrink:0!important}
+#view{min-height:0}
