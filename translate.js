@@ -126,14 +126,19 @@ function wireResult(box,r,to,src){ const q=s=>box.querySelector(s);
   box.querySelectorAll('[data-alt]').forEach(b=>b.onclick=()=>speak(b.dataset.alt,to));
   box.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go)); }
 function go(k){ if(k==='rights'&&W.renderRights)renderRights(); else if(k==='aikey'&&W.GRSearch)GRSearch.settings(); }
+/* full screen + landscape (Android; iPhone ignores the lock and just shows it big) */
+async function goFull(el){ try{ if(!D.fullscreenElement&&el.requestFullscreen)await el.requestFullscreen({navigationUI:'hide'}); }catch(e){} try{ await screen.orientation.lock('landscape'); }catch(e){} }
+function exitFull(){ try{ screen.orientation.unlock(); }catch(e){} try{ if(D.fullscreenElement)D.exitFullscreen().catch(()=>{}); }catch(e){} }
+D.addEventListener('fullscreenchange',()=>{ if(D.fullscreenElement)return; try{ screen.orientation.unlock(); }catch(e){} const o=D.getElementById('trBig'); if(o&&o.innerHTML)o.innerHTML=''; const f=D.querySelector('.tr-face.full'); if(f)f.classList.remove('full'); });
 function showBig(text,lang,en,yn){ let o=D.getElementById('trBig'); if(!o){ o=D.createElement('div'); o.id='trBig'; D.body.appendChild(o); }
   const L=LX(lang); const y=yn&&YN[lang];
   o.innerHTML='<div class="tr-big" role="dialog" aria-label="Show to the person"><div class="tr-big-l">'+esc(L[1])+'</div><div class="tr-big-t"'+(L[3]?' dir="rtl"':'')+' lang="'+L[2]+'">'+esc(text)+'</div>'
    +(y?'<div class="tr-yn"><button type="button" data-yn="0">'+esc(y[0])+'<small>Yes</small></button><button type="button" data-yn="1">'+esc(y[1])+'<small>No</small></button></div><div class="tr-ans" aria-live="polite"></div>':'')
    +(en?'<div class="tr-big-e">'+esc(en)+'</div>':'')+'<div class="tr-big-acts"><button type="button" data-b="say">'+I('volume-2')+'Speak</button><button type="button" data-b="x">Close</button></div></div>';
-  o.querySelector('[data-b="say"]').onclick=()=>speak(text,lang); o.querySelector('[data-b="x"]').onclick=()=>{ o.innerHTML=''; };
+  o.querySelector('[data-b="say"]').onclick=()=>speak(text,lang); o.querySelector('[data-b="x"]').onclick=()=>{ o.innerHTML=''; exitFull(); };
+  goFull(o);
   o.querySelectorAll('[data-yn]').forEach(b=>b.onclick=()=>{ o.querySelector('.tr-ans').textContent='They answered: '+(b.dataset.yn==='0'?'YES':'NO'); }); }
-W.trBack=()=>{ const o=D.getElementById('trBig'); if(o&&o.innerHTML){ o.innerHTML=''; return true; } return false; };
+W.trBack=()=>{ const o=D.getElementById('trBig'); if(o&&o.innerHTML){ o.innerHTML=''; exitFull(); return true; } const f=D.querySelector('.tr-face.full'); if(f){ f.classList.remove('full'); exitFull(); return true; } return false; };
 
 function tabText(b){ const s=S();
   b.innerHTML='<div class="tr-langs">'+langSel('trFrom',s.from,1)+'<button type="button" class="tr-swap" aria-label="Swap languages">'+I('arrow-left-right')+'</button>'+langSel('trTo',s.to)+'</div>'
@@ -156,11 +161,15 @@ function tabText(b){ const s=S();
 function tabTalk(b){ const s=S(); let other=s.to, turn=null, auto=ls.get('gr_tr_auto',1), rec=null; const log=[];
   b.innerHTML='<div class="tr-langs"><span class="tr-me">'+esc(s.me)+'</span>'+I('arrow-left-right')+langSel('trThem',other)+'</div>'
    +'<label class="tr-reg tr-autol"><input type="checkbox" id="trAuto"'+(auto?' checked':'')+'> Hands-free: after each turn the mic opens for the other person</label>'
+   +'<button type="button" class="tr-fullbtn" id="trFull">'+I('maximize')+'Full screen · landscape</button>'
    +'<div class="tr-face"><button type="button" class="tr-turn them" data-w="them"><span class="tr-flip">'+I('mic')+'<b>'+esc(LX(other)[1])+'</b><small>Tap and speak</small></span></button>'
    +'<div id="trLog" class="tr-log" aria-live="polite"><p class="tr-small">Put the phone between you. Each person taps their own button and speaks. You both see what the mic heard and the translation — fix it if it misheard a name or number.</p></div>'
-   +'<button type="button" class="tr-turn me" data-w="me">'+I('mic')+'<b>'+esc(LX(s.me)[1])+'</b><small>Tap and speak</small></button></div>';
+   +'<button type="button" class="tr-turn me" data-w="me">'+I('mic')+'<b>'+esc(LX(s.me)[1])+'</b><small>Tap and speak</small></button><button type="button" class="tr-exitfull" aria-label="Exit full screen">'+I('x')+'</button></div>';
   b.querySelector('#trThem').onchange=e=>{ const x=S(); x.to=e.target.value; saveS(x); tabTalk(b); };
   b.querySelector('#trAuto').onchange=e=>{ auto=e.target.checked?1:0; ls.set('gr_tr_auto',auto); };
+  const face=b.querySelector('.tr-face');
+  b.querySelector('#trFull').onclick=()=>{ face.classList.add('full'); goFull(face); };
+  face.querySelector('.tr-exitfull').onclick=()=>{ face.classList.remove('full'); exitFull(); };
   const logEl=b.querySelector('#trLog');
   function paint(){ logEl.innerHTML=log.map((m,i)=>'<div class="tr-msg '+m.w+'"><div class="tr-heard"><small>Heard ('+esc(m.from)+')</small><span contenteditable="true" data-i="'+i+'">'+esc(m.s)+'</span><button type="button" data-re="'+i+'" aria-label="Translate again">'+I('refresh-cw')+'</button></div>'
      +(m.r?(m.r.refuse?rightsBlock():'<div class="tr-said"'+(LX(m.to)[3]?' dir="rtl"':'')+'>'+esc(m.r.translation)+'</div>'+(m.r.romanisation?'<div class="tr-rom">'+esc(m.r.romanisation)+'</div>':'')+'<button type="button" class="tr-link" data-say="'+i+'">'+I('volume-2')+'Say it again</button>'):'<div class="tr-wait">Translating…</div>')+'</div>').join('');
