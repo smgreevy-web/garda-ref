@@ -122,7 +122,7 @@ html .homeq.desk>.hq-main,html .homeq.desk>.hq-side{grid-column:auto!important;m
 @media (min-width:1100px){ .hsw{max-width:300px} }
 /* every look also styles last week's screens (Today, Browse folders, tool lists) */
 html[data-look][data-look]{--p-bg:var(--bg);--p-card:var(--surface);--p-tx:var(--tx);--p-mut:var(--dim);--p-line:var(--line);--p-soft:var(--surface2);
- --p-acc:var(--acc);--p-on:var(--accink,#fff);--p-link:var(--acc);--p-hero:linear-gradient(135deg,var(--surface2),var(--surface));--p-tile:var(--surface2);--p-sh:none;--p-serif:var(--fhead,var(--font))}
+ --p-acc:var(--acc);--p-on:var(--accink,#fff);--p-link:var(--acc);--p-hero:linear-gradient(135deg,color-mix(in srgb,var(--acc) 45%,#0b1220),#0b1220);--p-tile:var(--surface2);--p-sh:none;--p-serif:var(--fhead,var(--font))}
 html[data-look] #proToday,html[data-look] #proBrowse,html[data-look] .pro-scr{font-family:var(--font)}
 html[data-look] .hsw button.on{background:var(--acc);color:var(--accink,#fff)}
 
